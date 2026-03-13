@@ -1,0 +1,369 @@
+<template>
+  <!--
+    Vista: Mis Inscripciones
+    Lista de cursos y eventos en los que el participante está inscrito
+  -->
+  <div class="container mx-auto px-4 py-8">
+    <!-- Encabezado -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">Mis Inscripciones</h1>
+      <p class="text-gray-600">Gestiona tus cursos y eventos inscritos</p>
+    </div>
+
+    <!-- Filtros rápidos -->
+    <div class="flex flex-wrap gap-3 mb-6">
+      <Button 
+        :variant="filtroActivo === 'TODAS' ? 'primary' : 'outline'" 
+        size="sm"
+        @click="filtroActivo = 'TODAS'"
+      >
+        Todas ({{ inscripciones.length }})
+      </Button>
+      <Button 
+        :variant="filtroActivo === 'ACTIVAS' ? 'primary' : 'outline'" 
+        size="sm"
+        @click="filtroActivo = 'ACTIVAS'"
+      >
+        Activas ({{ inscripcionesActivas.length }})
+      </Button>
+      <Button 
+        :variant="filtroActivo === 'COMPLETADAS' ? 'primary' : 'outline'" 
+        size="sm"
+        @click="filtroActivo = 'COMPLETADAS'"
+      >
+        Completadas ({{ inscripcionesCompletadas.length }})
+      </Button>
+      <Button 
+        :variant="filtroActivo === 'CURSOS' ? 'primary' : 'outline'" 
+        size="sm"
+        @click="filtroActivo = 'CURSOS'"
+      >
+        Cursos ({{ inscripcionesCursos.length }})
+      </Button>
+      <Button 
+        :variant="filtroActivo === 'EVENTOS' ? 'primary' : 'outline'" 
+        size="sm"
+        @click="filtroActivo = 'EVENTOS'"
+      >
+        Eventos ({{ inscripcionesEventos.length }})
+      </Button>
+    </div>
+
+    <!-- Lista de inscripciones -->
+    <div v-if="inscripcionesFiltradas.length > 0" class="space-y-4">
+      <Card 
+        v-for="inscripcion in inscripcionesFiltradas" 
+        :key="inscripcion.id"
+        :hoverable="true"
+      >
+        <div class="flex flex-col md:flex-row gap-6">
+          <!-- Información principal -->
+          <div class="flex-1 space-y-3">
+            <!-- Header -->
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <Badge :variant="inscripcion.tipo === 'CURSO' ? 'primary' : 'secondary'" size="sm">
+                  {{ inscripcion.tipo }}
+                </Badge>
+                <Badge :variant="getEstadoBadge(inscripcion.estado)" size="sm">
+                  {{ inscripcion.estado }}
+                </Badge>
+              </div>
+              
+              <!-- Nota (solo para cursos completados) -->
+              <div v-if="inscripcion.tipo === 'CURSO' && inscripcion.nota !== null" class="text-right">
+                <p class="text-sm text-gray-600">Nota final</p>
+                <p class="text-2xl font-bold" :class="inscripcion.nota >= 51 ? 'text-green-600' : 'text-red-600'">
+                  {{ inscripcion.nota }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Título -->
+            <h3 class="text-xl font-bold text-gray-800">
+              {{ inscripcion.nombre }}
+            </h3>
+
+            <!-- Información detallada -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
+              <div class="flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>{{ formatDate(inscripcion.fecha_inicio) }} - {{ formatDate(inscripcion.fecha_fin) }}</span>
+              </div>
+
+              <div class="flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{{ inscripcion.carga_horaria }} horas académicas</span>
+              </div>
+
+              <div class="flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                </svg>
+                <span>{{ inscripcion.modalidad }}</span>
+              </div>
+
+              <div class="flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span>Bs. {{ inscripcion.monto_pagado }}</span>
+              </div>
+            </div>
+
+            <!-- Barra de progreso (solo para cursos activos) -->
+            <div v-if="inscripcion.tipo === 'CURSO' && inscripcion.estado === 'ACTIVO'" class="pt-3 border-t border-gray-200">
+              <div class="flex items-center justify-between text-sm mb-2">
+                <span class="text-gray-600">Progreso del curso</span>
+                <span class="font-semibold text-gray-800">
+                  {{ calcularProgreso(inscripcion.fecha_inicio, inscripcion.fecha_fin, inscripcion.estado) }}%
+                </span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  class="bg-gradient-to-r from-purple-600 to-blue-500 h-2 rounded-full transition-all"
+                  :style="{ 
+                    width: `${calcularProgreso(inscripcion.fecha_inicio, inscripcion.fecha_fin, inscripcion.estado)}%` 
+                  }"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Acciones -->
+          <div class="flex md:flex-col gap-2 justify-center md:justify-start">
+            <Button 
+              v-if="inscripcion.certificado_disponible" 
+              variant="success" 
+              size="sm"
+              @click="descargarCertificado(inscripcion.id)"
+            >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Certificado
+            </Button>
+            
+            <Button variant="outline" size="sm">
+              Ver detalles
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+
+    <!-- Estado vacío -->
+    <Card v-else>
+      <div class="text-center py-12">
+        <svg class="w-20 h-20 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <h3 class="text-xl font-semibold text-gray-800 mb-2">
+          No tienes inscripciones {{ filtroActivo.toLowerCase() }}
+        </h3>
+        <p class="text-gray-600 mb-6">
+          Explora nuestro catálogo y encuentra cursos y eventos de tu interés
+        </p>
+        <router-link to="/participante">
+          <Button variant="primary">
+            Explorar actividades
+          </Button>
+        </router-link>
+      </div>
+    </Card>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import Card from '@/components/common/Card.vue'
+import Button from '@/components/common/Button.vue'
+import Badge from '@/components/common/Badge.vue'
+
+// ============================================
+// COMPOSABLES
+// ============================================
+
+const router = useRouter()
+
+// ============================================
+// ESTADO
+// ============================================
+
+type FiltroTipo = 'TODAS' | 'ACTIVAS' | 'COMPLETADAS' | 'CURSOS' | 'EVENTOS'
+
+const filtroActivo = ref<FiltroTipo>('TODAS')
+
+// Inscripciones (MOCK)
+const inscripciones = ref([
+  {
+    id: 1,
+    tipo: 'CURSO',
+    nombre: 'Metodología de la Investigación Cualitativa',
+    fecha_inicio: '2025-02-20',
+    fecha_fin: '2025-03-20',
+    carga_horaria: 32,
+    modalidad: 'Virtual',
+    monto_pagado: 250,
+    estado: 'ACTIVO',
+    nota: null,
+    certificado_disponible: false
+  },
+  {
+    id: 2,
+    tipo: 'CURSO',
+    nombre: 'Introducción a la Psicología Clínica',
+    fecha_inicio: '2025-01-10',
+    fecha_fin: '2025-02-15',
+    carga_horaria: 40,
+    modalidad: 'Presencial',
+    monto_pagado: 200,
+    estado: 'COMPLETADO',
+    nota: 85,
+    certificado_disponible: true
+  },
+  {
+    id: 3,
+    tipo: 'EVENTO',
+    nombre: 'Congreso Internacional de Psicología',
+    fecha_inicio: '2025-04-15',
+    fecha_fin: '2025-04-17',
+    carga_horaria: 24,
+    modalidad: 'Presencial',
+    monto_pagado: 50,
+    estado: 'ACTIVO',
+    nota: null,
+    certificado_disponible: false
+  },
+  {
+    id: 4,
+    tipo: 'CURSO',
+    nombre: 'Filosofía Contemporánea',
+    fecha_inicio: '2024-10-01',
+    fecha_fin: '2024-12-15',
+    carga_horaria: 48,
+    modalidad: 'Mixto',
+    monto_pagado: 300,
+    estado: 'COMPLETADO',
+    nota: 72,
+    certificado_disponible: true
+  },
+  {
+    id: 5,
+    tipo: 'EVENTO',
+    nombre: 'Taller de Escritura Creativa',
+    fecha_inicio: '2024-12-05',
+    fecha_fin: '2024-12-07',
+    carga_horaria: 12,
+    modalidad: 'Presencial',
+    monto_pagado: 50,
+    estado: 'COMPLETADO',
+    nota: null,
+    certificado_disponible: true
+  }
+])
+
+// ============================================
+// COMPUTED
+// ============================================
+
+const inscripcionesActivas = computed(() => 
+  inscripciones.value.filter(i => i.estado === 'ACTIVO')
+)
+
+const inscripcionesCompletadas = computed(() => 
+  inscripciones.value.filter(i => i.estado === 'COMPLETADO')
+)
+
+const inscripcionesCursos = computed(() => 
+  inscripciones.value.filter(i => i.tipo === 'CURSO')
+)
+
+const inscripcionesEventos = computed(() => 
+  inscripciones.value.filter(i => i.tipo === 'EVENTO')
+)
+
+const inscripcionesFiltradas = computed(() => {
+  switch (filtroActivo.value) {
+    case 'ACTIVAS':
+      return inscripcionesActivas.value
+    case 'COMPLETADAS':
+      return inscripcionesCompletadas.value
+    case 'CURSOS':
+      return inscripcionesCursos.value
+    case 'EVENTOS':
+      return inscripcionesEventos.value
+    default:
+      return inscripciones.value
+  }
+})
+
+// ============================================
+// MÉTODOS
+// ============================================
+
+/**
+ * Calcula el progreso de un curso basado en las fechas
+ */
+const calcularProgreso = (fechaInicio: string, fechaFin: string, estado: string): number => {
+  // Si está completado, progreso es 100%
+  if (estado === 'COMPLETADO') return 100
+  
+  const hoy = new Date()
+  const inicio = new Date(fechaInicio)
+  const fin = new Date(fechaFin)
+  
+  // Si aún no ha iniciado, progreso es 0%
+  if (hoy < inicio) return 0
+  
+  // Si ya terminó, progreso es 100%
+  if (hoy > fin) return 100
+  
+  // Calcular días transcurridos y días totales
+  const diasTranscurridos = Math.floor((hoy.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
+  const diasTotales = Math.floor((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
+  
+  // Calcular porcentaje
+  const progreso = Math.round((diasTranscurridos / diasTotales) * 100)
+  
+  // Asegurar que esté entre 0 y 100
+  return Math.max(0, Math.min(100, progreso))
+}
+
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('es-ES', { 
+    day: 'numeric', 
+    month: 'short', 
+    year: 'numeric' 
+  })
+}
+
+const getEstadoBadge = (estado: string) => {
+  switch (estado) {
+    case 'ACTIVO':
+      return 'info'
+    case 'COMPLETADO':
+      return 'success'
+    case 'CANCELADO':
+      return 'danger'
+    default:
+      return 'gray'
+  }
+}
+
+const descargarCertificado = (inscripcionId: number) => {
+  // TODO: Implementar descarga real
+  console.log('Descargando certificado de inscripción:', inscripcionId)
+  alert('Funcionalidad de descarga de certificado en desarrollo')
+}
+</script>
+
+<style scoped>
+/* Estilos adicionales si son necesarios */
+</style>
