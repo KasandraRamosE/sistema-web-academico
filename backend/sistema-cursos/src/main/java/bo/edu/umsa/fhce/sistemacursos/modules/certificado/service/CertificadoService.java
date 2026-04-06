@@ -10,6 +10,9 @@ import bo.edu.umsa.fhce.sistemacursos.modules.certificado.entity.Certificado;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.event.CertificadoEmitidoEvent;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.repository.AnulacionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.repository.CertificadoRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Curso;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.Evento;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity.EvaluacionEstudiante;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.EvaluacionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.entity.Inscripcion;
@@ -43,6 +46,7 @@ public class CertificadoService {
     private final AnulacionRepository    anulacionRepository;
     private final InscripcionRepository  inscripcionRepository;
     private final EvaluacionRepository   evaluacionRepository;
+    private final CoordinadorCarreraRepository coordinadorCarreraRepository;
     private final UsuarioRepository      usuarioRepository;
     private final CertificadoPdfService  pdfService;
     private final PlantillaService plantillaService;
@@ -69,6 +73,8 @@ public class CertificadoService {
             throw new BusinessException(
                 "Este participante ya tiene un certificado emitido", 409);
         }
+
+        validarPermisoEmision(inscripcion);
 
         validarRequisitos(inscripcion);
 
@@ -314,6 +320,43 @@ public class CertificadoService {
                 throw new BusinessException(
                     "La inscripción no está confirmada", 400);
             }
+        }
+    }
+
+    private void validarPermisoEmision(Inscripcion inscripcion) {
+        Usuario actual = getUsuarioActual();
+
+        boolean esAdmin = actual.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+        if (esAdmin) return;
+
+        boolean esCoordinador = actual.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
+        if (!esCoordinador) {
+            throw new BusinessException("No tienes permisos para emitir certificados", 403);
+        }
+
+        Long idCarrera = null;
+        Curso curso = inscripcion.getCurso();
+        Evento evento = inscripcion.getEvento();
+
+        if (curso != null) {
+            idCarrera = curso.getCarrera().getIdCarrera();
+        } else if (evento != null) {
+            idCarrera = evento.getCarrera().getIdCarrera();
+        }
+
+        if (idCarrera == null) {
+            throw new BusinessException("No se pudo determinar la carrera", 500);
+        }
+
+        boolean asignado = coordinadorCarreraRepository
+            .existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                actual.getIdUsuario(), idCarrera);
+
+        if (!asignado) {
+            throw new BusinessException(
+                "No eres coordinador de la carrera de esta actividad", 403);
         }
     }
 
