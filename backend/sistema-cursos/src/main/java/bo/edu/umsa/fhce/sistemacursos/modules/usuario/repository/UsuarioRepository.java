@@ -2,6 +2,7 @@ package bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -24,4 +25,12 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     // (evita el problema N+1 de Hibernate)
     @Query("SELECT u FROM Usuario u JOIN FETCH u.roles WHERE u.username = :username")
     Optional<Usuario> findByUsernameWithRoles(@Param("username") String username);
+
+    @Modifying
+    @Query(value = "UPDATE usuario_rol SET asignado_por = :asignadoPor WHERE id_usuario = :idUsuario AND id_rol = :idRol", nativeQuery = true)
+    int actualizarAsignadoPor(
+        @Param("idUsuario") Long idUsuario,
+        @Param("idRol") Long idRol,
+        @Param("asignadoPor") Long asignadoPor
+    );
 }

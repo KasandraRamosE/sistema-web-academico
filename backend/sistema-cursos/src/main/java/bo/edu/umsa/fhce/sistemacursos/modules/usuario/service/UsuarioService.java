@@ -22,6 +22,8 @@ import bo.edu.umsa.fhce.sistemacursos.modules.curso.repository.ParaleloRepositor
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +31,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
 
 @Service
 @RequiredArgsConstructor
@@ -143,6 +147,12 @@ public class UsuarioService {
 
         usuario.getRoles().add(rol);
         usuarioRepository.save(usuario);
+
+        Long asignadoPor = getUsuarioActualId();
+        if (asignadoPor != null) {
+            usuarioRepository.actualizarAsignadoPor(
+                usuario.getIdUsuario(), rol.getIdRol(), asignadoPor);
+        }
 
         log.info("Rol {} asignado al usuario {}", request.getNombreRol(), usuario.getUsername());
         return toDetalleDto(usuario);
@@ -318,6 +328,16 @@ public class UsuarioService {
     private Usuario buscarUsuario(Long idUsuario) {
         return usuarioRepository.findById(idUsuario)
             .orElseThrow(() -> new ResourceNotFoundException("Usuario", idUsuario));
+    }
+
+    private Long getUsuarioActualId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof CustomUserDetails)) {
+            return null;
+        }
+
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        return userDetails.getIdUsuario();
     }
 
     private void requireRole(Usuario usuario, String nombreRol) {
