@@ -49,6 +49,9 @@ app:
   certificados:
     directorio: certificados  # relativo al directorio donde corre la app
 
+  plantillas:
+    max-size-mb: 5
+
   verificacion:
     expiracion-horas: 24      # cuánto dura el código
     longitud-codigo: 6        # dígitos del código (siempre 6 en tu BD)

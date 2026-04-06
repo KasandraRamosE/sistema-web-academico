@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.UUID;
+import java.io.InputStream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -47,6 +48,9 @@ public class PlantillaService {
     @Value("${app.plantillas.directorio:plantillas}")
     private String directorioPlantillas;
 
+    @Value("${app.plantillas.max-size-mb:5}")
+    private long maxPlantillaSizeMb;
+
     // ── Subir plantilla (diseñador) ──────────────────────────────────────────
     @Transactional
     public PlantillaDto subirPlantilla(MultipartFile archivo,
@@ -67,6 +71,8 @@ public class PlantillaService {
             throw new BusinessException(
                 "El archivo debe ser un PDF válido", 400);
         }
+
+        validarSize(archivo);
 
         Usuario disenador = getUsuarioActual();
 
@@ -241,9 +247,33 @@ public class PlantillaService {
 
     private boolean esPdf(MultipartFile archivo) {
         String contentType = archivo.getContentType();
-        return "application/pdf".equals(contentType)
-            || (archivo.getOriginalFilename() != null
-                && archivo.getOriginalFilename().toLowerCase().endsWith(".pdf"));
+        boolean pdfPorTipo = "application/pdf".equals(contentType);
+        boolean pdfPorNombre = archivo.getOriginalFilename() != null
+            && archivo.getOriginalFilename().toLowerCase().endsWith(".pdf");
+
+        return (pdfPorTipo || pdfPorNombre) && tieneFirmaPdf(archivo);
+    }
+
+    private boolean tieneFirmaPdf(MultipartFile archivo) {
+        try (InputStream input = archivo.getInputStream()) {
+            byte[] header = new byte[5];
+            int read = input.read(header);
+            if (read < 5) {
+                return false;
+            }
+            return header[0] == '%' && header[1] == 'P'
+                && header[2] == 'D' && header[3] == 'F' && header[4] == '-';
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private void validarSize(MultipartFile archivo) {
+        long maxBytes = maxPlantillaSizeMb * 1024 * 1024;
+        if (archivo.getSize() > maxBytes) {
+            throw new BusinessException(
+                "El archivo supera el tamaño máximo permitido", 413);
+        }
     }
 
     private int calcularSiguienteVersion(Long idCurso, Long idEvento) {
