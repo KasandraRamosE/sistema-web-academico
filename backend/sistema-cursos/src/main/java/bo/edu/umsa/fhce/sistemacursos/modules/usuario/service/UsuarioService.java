@@ -185,6 +185,7 @@ public class UsuarioService {
         dto.setNombres(u.getNombres());
         dto.setApellidos(u.getApellidos());
         dto.setEmail(u.getEmail());
+        dto.setTipoUsuario(u.getPasswordHash() == null ? "INTERNO" : "EXTERNO");
         dto.setEmailVerificado(u.isEmailVerificado());
         dto.setEstado(u.getEstado().name());
         dto.setFechaRegistro(u.getFechaRegistro());
@@ -201,6 +202,7 @@ public class UsuarioService {
         dto.setNombres(u.getNombres());
         dto.setApellidos(u.getApellidos());
         dto.setEmail(u.getEmail());
+        dto.setTipoUsuario(u.getPasswordHash() == null ? "INTERNO" : "EXTERNO");
         dto.setEmailVerificado(u.isEmailVerificado());
         dto.setEstado(u.getEstado().name());
         dto.setFechaRegistro(u.getFechaRegistro());

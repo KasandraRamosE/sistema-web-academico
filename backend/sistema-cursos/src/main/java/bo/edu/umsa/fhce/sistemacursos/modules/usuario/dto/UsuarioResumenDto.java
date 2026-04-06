@@ -13,6 +13,7 @@ public class UsuarioResumenDto {
     private String nombres;
     private String apellidos;
     private String email;
+    private String tipoUsuario;
     private boolean emailVerificado;
     private String estado;
     private LocalDateTime fechaRegistro;
