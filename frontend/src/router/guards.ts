@@ -17,29 +17,37 @@ export function setupRouterGuards(router: Router) {
    */
   router.beforeEach((to, from, next) => {
     const authStore = useAuthStore()
-    
-    // Verificar autenticación
-    const requiresAuth = to.meta.requiresAuth as boolean
-    
+
+    // Verificar autenticación (considera meta en rutas anidadas)
+    const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
+
     if (requiresAuth && !authStore.isAuthenticated) {
       console.warn('⚠️ Acceso denegado: Se requiere autenticación')
       return next({ name: 'login', query: { redirect: to.fullPath } })
     }
-    
-    // Verificar roles
-    const allowedRoles = to.meta.roles as Rol[] | undefined
-    
+
+    // Bloquear acceso de autenticados a vistas de invitado
+    const requiresGuest = to.matched.some((record) => record.meta.requiresGuest)
+    if (requiresGuest && authStore.isAuthenticated) {
+      return next(getDashboardRoute(authStore.currentRole || authStore.user?.roles?.[0] || null))
+    }
+
+    // Verificar roles (toma el primer meta.roles definido en la cadena)
+    const allowedRoles = to.matched
+      .map((record) => record.meta.roles as Rol[] | undefined)
+      .find((roles) => roles && roles.length > 0)
+
     if (allowedRoles && allowedRoles.length > 0) {
-      const hasPermission = allowedRoles.some(rol => authStore.hasRole(rol))
-      
+      const hasPermission = allowedRoles.some((rol) => authStore.hasRole(rol))
+
       if (!hasPermission) {
         console.warn(`⚠️ Acceso denegado: Se requiere uno de estos roles: ${allowedRoles.join(', ')}`)
-        
+
         // Redirigir al dashboard correspondiente o home
-        return next(getDashboardRoute(authStore.currentRole))
+        return next(getDashboardRoute(authStore.currentRole || authStore.user?.roles?.[0] || null))
       }
     }
-    
+
     console.log(`✅ Navegando a: ${to.path}`)
     next()
   })
@@ -79,7 +87,7 @@ function getDashboardRoute(role: Rol | null): { name: string } {
     case 'DOCENTE':
       return { name: 'teacher-dashboard' }
     case 'PARTICIPANTE':
-      return { name: 'participant-dashboard' }
+      return { name: 'participant-home' }
     default:
       return { name: 'home' }
   }
