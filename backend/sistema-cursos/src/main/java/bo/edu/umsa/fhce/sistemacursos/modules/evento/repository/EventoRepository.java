@@ -1,0 +1,33 @@
+package bo.edu.umsa.fhce.sistemacursos.modules.evento.repository;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.Evento;
+
+public interface EventoRepository extends JpaRepository<Evento, Long> {
+
+    List<Evento> findByCarrera_IdCarrera(Long idCarrera);
+
+    @Query("""
+        SELECT e FROM Evento e
+        WHERE e.estado = 'ABIERTO'
+        AND (:idCarrera IS NULL OR e.carrera.idCarrera = :idCarrera)
+        ORDER BY e.fechaHora ASC
+        """)
+    List<Evento> findAbiertos(@Param("idCarrera") Long idCarrera);
+
+    List<Evento> findByOrganizador_IdUsuario(Long idUsuario);
+     
+    // Contar inscritos confirmados — temporal hasta tener Inscripcion
+    @Query("""
+        SELECT COUNT(i) FROM Inscripcion i
+        WHERE i.evento.idEvento = :idEvento
+        AND i.estado = 'CONFIRMADA'
+        """)
+    int contarInscritos(@Param("idEvento") Long idEvento);
+    
+}
