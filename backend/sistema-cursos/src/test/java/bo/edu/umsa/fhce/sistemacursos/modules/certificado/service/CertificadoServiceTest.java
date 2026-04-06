@@ -77,8 +77,6 @@ class CertificadoServiceTest {
         UsernamePasswordAuthenticationToken auth =
             new UsernamePasswordAuthenticationToken(details, null, details.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(auth);
-        when(usuarioRepository.findById(admin.getIdUsuario()))
-            .thenReturn(Optional.of(admin));
     }
 
     @AfterEach
@@ -113,6 +111,10 @@ class CertificadoServiceTest {
     void emitir_eventWithoutAttendance_shouldFail() {
         EmitirCertificadoRequest request = new EmitirCertificadoRequest();
         request.setIdInscripcion(20L);
+
+        Usuario admin = buildUserWithRole("ADMINISTRADOR");
+        when(usuarioRepository.findById(admin.getIdUsuario()))
+            .thenReturn(Optional.of(admin));
 
         Evento evento = Evento.builder().idEvento(99L).build();
         Inscripcion inscripcion = Inscripcion.builder()
