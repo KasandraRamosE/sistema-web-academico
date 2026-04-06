@@ -853,6 +853,18 @@
           </div>
         </div>
 
+        <div v-if="rolesSeleccionados.includes('DOCENTE')" class="space-y-2">
+          <label class="block text-sm font-medium text-gray-700">
+            Titulo academico para Docente <span class="text-red-600">*</span>
+          </label>
+          <input
+            v-model="tituloDocente"
+            type="text"
+            placeholder="Ej: Lic., MSc., PhD."
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
         <!-- Nota si es Coordinador -->
         <div v-if="rolesSeleccionados.includes('COORDINADOR')" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p class="text-sm text-blue-800">
@@ -944,6 +956,8 @@ import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue' // ← NUEVO: Importar componente de paginación
 import { usePagination } from '@/composables/usePagination' // ← NUEVO: Importar composable
+import { api } from '@/utils/api'
+import { useAlertStore } from '@/stores/alert.store'
 
 // ============================================
 // TIPOS CORREGIDOS
@@ -988,12 +1002,26 @@ interface Usuario {
   fechaRegistro: string
 }
 
+interface UsuarioApi {
+  idUsuario: number
+  username: string
+  nombres: string
+  apellidos: string
+  email: string
+  tipoUsuario?: 'INTERNO' | 'EXTERNO'
+  emailVerificado: boolean
+  estado: 'ACTIVO' | 'INACTIVO'
+  roles: string[]
+  fechaRegistro: string
+}
+
 interface FormUsuario {
   username: string
   nombres: string
   apellidos: string
   email: string
   password: string
+  tipoParticipante: 'UMSA' | 'EXTERNO'
   tipoUsuario: 'INTERNO' | 'EXTERNO' | ''
   estado: 'ACTIVO' | 'INACTIVO'
 }
@@ -1012,6 +1040,7 @@ interface FormEventos {
 
 const loading = ref(false)
 const saving = ref(false)
+const alertStore = useAlertStore()
 
 // Datos
 const usuarios = ref<Usuario[]>([])
@@ -1067,6 +1096,7 @@ const filtroBusquedaActividades = ref('')              // ← NUEVO
 
 const nuevaPassword = ref('')
 const confirmarPassword = ref('')
+const tituloDocente = ref('')
 
 // ============================================
 // COMPUTED
@@ -1128,154 +1158,30 @@ const {
 const cargarUsuarios = async () => {
   loading.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    // Cargar carreras
-    carreras.value = [
-      { idCarrera: 1, nombre: 'Psicología' },
-      { idCarrera: 2, nombre: 'Filosofía' },
-      { idCarrera: 3, nombre: 'Ciencias de la Educación' },
-      { idCarrera: 4, nombre: 'Lingüística' }
-    ]
+    const response = await api.get('/usuarios') as UsuarioApi[]
 
-    // Cargar actividades disponibles (cursos y eventos)
-    actividadesDisponibles.value = [
-      {
-        idActividad: 1,
-        nombre: 'Introducción a la Psicología Clínica',
-        tipo: 'CURSO',
-        idCarrera: 1,
-        carreraNombre: 'Psicología',
-        modalidad: 'PRESENCIAL',
-        fechaInicio: '2024-03-01',
-        fechaFin: '2024-04-30'
-      },
-      {
-        idActividad: 2,
-        nombre: 'Congreso Internacional de Psicología',
-        tipo: 'EVENTO',
-        idCarrera: 1,
-        carreraNombre: 'Psicología',
-        modalidad: 'MIXTO',
-        fechaInicio: '2024-05-10',
-        fechaFin: '2024-05-12'
-      },
-      {
-        idActividad: 3,
-        nombre: 'Taller de Escritura Creativa',
-        tipo: 'EVENTO',
-        idCarrera: 4,
-        carreraNombre: 'Lingüística',
-        modalidad: 'VIRTUAL',
-        fechaInicio: '2024-03-15',
-        fechaFin: '2024-03-17'
-      },
-      {
-        idActividad: 4,
-        nombre: 'Seminario de Investigación',
-        tipo: 'EVENTO',
-        idCarrera: 2,
-        carreraNombre: 'Filosofía',
-        modalidad: 'PRESENCIAL',
-        fechaInicio: '2024-04-01',
-        fechaFin: '2024-04-03'
-      }
-    ]
+    usuarios.value = response.map((u) => ({
+      idUsuario: u.idUsuario,
+      username: u.username,
+      nombres: u.nombres,
+      apellidos: u.apellidos,
+      email: u.email,
+      tipoUsuario: u.tipoUsuario || 'EXTERNO',
+      emailVerificado: u.emailVerificado,
+      estado: u.estado,
+      roles: u.roles,
+      carreras: [],
+      fechaRegistro: u.fechaRegistro
+    }))
 
-    // Cargar paralelos disponibles (solo para cursos)
-    paralelosDisponibles.value = [
-      {
-        idParalelo: 1,
-        codigo: 'A',
-        idActividad: 1,
-        actividadNombre: 'Introducción a la Psicología Clínica',
-        actividadTipo: 'CURSO',
-        carreraNombre: 'Psicología'
-      },
-      {
-        idParalelo: 2,
-        codigo: 'B',
-        idActividad: 1,
-        actividadNombre: 'Introducción a la Psicología Clínica',
-        actividadTipo: 'CURSO',
-        carreraNombre: 'Psicología'
-      }
-    ]
-
-    // MOCK DATA - Usuarios
-    usuarios.value = [
-      {
-        idUsuario: 1,
-        username: '202012345',
-        nombres: 'Juan Carlos',
-        apellidos: 'Pérez López',
-        email: 'juan.perez@umsa.bo',
-        tipoUsuario: 'INTERNO',
-        emailVerificado: true,
-        estado: 'ACTIVO',
-        roles: ['PARTICIPANTE', 'COORDINADOR'],
-        carreras: [
-          { idCarrera: 1, nombre: 'Psicología' }
-        ],
-        fechaRegistro: '2024-01-15'
-      },
-      {
-        idUsuario: 2,
-        username: '202067890',
-        nombres: 'María Elena',
-        apellidos: 'Sánchez Rojas',
-        email: 'maria.sanchez@umsa.bo',
-        tipoUsuario: 'INTERNO',
-        emailVerificado: true,
-        estado: 'ACTIVO',
-        roles: ['PARTICIPANTE', 'DOCENTE'],
-        carreras: [],  // ← Docentes NO tienen carreras asignadas
-        fechaRegistro: '2024-01-20'
-      },
-      {
-        idUsuario: 3,
-        username: 'agarcia',
-        nombres: 'Ana',
-        apellidos: 'García Mendoza',
-        email: 'ana.garcia@gmail.com',
-        tipoUsuario: 'EXTERNO',
-        emailVerificado: true,
-        estado: 'ACTIVO',
-        roles: ['PARTICIPANTE'],
-        carreras: [],
-        fechaRegistro: '2024-02-10'
-      },
-      {
-        idUsuario: 4,
-        username: 'admin',
-        nombres: 'Sistema',
-        apellidos: 'Administrador',
-        email: 'admin@fhce.umsa.bo',
-        tipoUsuario: 'INTERNO',
-        emailVerificado: true,
-        estado: 'ACTIVO',
-        roles: ['PARTICIPANTE', 'ADMINISTRADOR'],
-        carreras: [],
-        fechaRegistro: '2024-01-01'
-      },
-      {
-        idUsuario: 5,
-        username: '202098765',
-        nombres: 'Pedro',
-        apellidos: 'Mamani Quispe',
-        email: 'pedro.mamani@umsa.bo',
-        tipoUsuario: 'INTERNO',
-        emailVerificado: true,
-        estado: 'ACTIVO',
-        roles: ['PARTICIPANTE', 'AUXILIAR'],
-        carreras: [],  // ← Auxiliares NO tienen carreras asignadas
-        fechaRegistro: '2024-02-01'
-      }
-    ]
+    carreras.value = []
+    actividadesDisponibles.value = []
+    paralelosDisponibles.value = []
 
     calcularEstadisticas()
   } catch (error) {
     console.error('Error al cargar usuarios:', error)
+    alertStore.push({ type: 'error', message: 'No se pudieron cargar los usuarios.' })
   } finally {
     loading.value = false
   }
@@ -1295,18 +1201,25 @@ const submitUsuario = async () => {
   try {
     if (modoEdicion.value) {
       // Solo se pueden editar usuarios EXTERNOS
-      console.log('Actualizando usuario externo:', formUsuario.value)
-      // TODO: API call - PUT /api/usuarios/:id
+      alertStore.push({ type: 'warning', message: 'La edicion de usuarios aun no esta disponible.' })
     } else {
       // Solo se pueden crear usuarios EXTERNOS
-      console.log('Creando usuario externo:', formUsuario.value)
-      // TODO: API call - POST /api/usuarios
+      await api.post('/auth/registro', {
+        username: formUsuario.value.username,
+        nombres: formUsuario.value.nombres,
+        apellidos: formUsuario.value.apellidos,
+        email: formUsuario.value.email,
+        password: formUsuario.value.password,
+        tipoParticipante: formUsuario.value.tipoParticipante
+      })
+      alertStore.push({ type: 'success', message: 'Usuario creado. Debe verificar su email.' })
     }
 
     closeUsuarioModal()
     await cargarUsuarios()
   } catch (error) {
     console.error('Error al guardar usuario:', error)
+    alertStore.push({ type: 'error', message: 'No se pudo guardar el usuario.' })
   } finally {
     saving.value = false
   }
@@ -1318,12 +1231,13 @@ const toggleEstadoUsuario = async (usuario: Usuario) => {
 
   if (confirm(`¿Estás seguro de ${accion} a ${usuario.nombres} ${usuario.apellidos}?`)) {
     try {
-      console.log(`Cambiando estado a ${nuevoEstado}`)
-      // TODO: API call - PATCH /api/usuarios/:id/estado
+      await api.patch(`/usuarios/${usuario.idUsuario}/estado`, { estado: nuevoEstado })
       usuario.estado = nuevoEstado
       calcularEstadisticas()
+      alertStore.push({ type: 'success', message: `Usuario ${accion}ado correctamente.` })
     } catch (error) {
       console.error('Error al cambiar estado:', error)
+      alertStore.push({ type: 'error', message: 'No se pudo cambiar el estado.' })
     }
   }
 }
@@ -1337,10 +1251,29 @@ const guardarRoles = async () => {
 
   saving.value = true
   try {
-    console.log('Guardando roles:', rolesSeleccionados.value)
-    // TODO: API call - PUT /api/usuarios/:id/roles
+    const currentRoles = usuarioSeleccionado.value.roles.filter((rol) => rol !== 'PARTICIPANTE')
+    const rolesToAdd = rolesSeleccionados.value.filter((rol) => !currentRoles.includes(rol))
+    const rolesToRemove = currentRoles.filter((rol) => !rolesSeleccionados.value.includes(rol))
 
-    usuarioSeleccionado.value.roles = ['PARTICIPANTE', ...rolesSeleccionados.value]
+    for (const rol of rolesToAdd) {
+      if (rol === 'DOCENTE' && !tituloDocente.value.trim()) {
+        alertStore.push({ type: 'warning', message: 'El titulo es obligatorio para DOCENTE.' })
+        saving.value = false
+        return
+      }
+
+      await api.post(`/usuarios/${usuarioSeleccionado.value.idUsuario}/roles`, {
+        nombreRol: rol,
+        titulo: rol === 'DOCENTE' ? tituloDocente.value.trim() : undefined
+      })
+    }
+
+    for (const rol of rolesToRemove) {
+      await api.delete(`/usuarios/${usuarioSeleccionado.value.idUsuario}/roles/${rol}`)
+    }
+
+    alertStore.push({ type: 'success', message: 'Roles actualizados correctamente.' })
+    await cargarUsuarios()
     
     // Si es COORDINADOR → Asignar carreras
     if (rolesSeleccionados.value.includes('COORDINADOR')) {
@@ -1372,6 +1305,7 @@ const guardarRoles = async () => {
     closeRolesModal()
   } catch (error) {
     console.error('Error al guardar roles:', error)
+    alertStore.push({ type: 'error', message: 'No se pudieron actualizar los roles.' })
   } finally {
     saving.value = false
   }
@@ -1606,6 +1540,7 @@ const openCreateModal = () => {
     apellidos: '',
     email: '',
     password: '',
+    tipoParticipante: 'EXTERNO',
     tipoUsuario: 'EXTERNO',
     estado: 'ACTIVO'
   }
@@ -1623,6 +1558,7 @@ const openEditModal = (usuario: Usuario) => {
     apellidos: usuario.apellidos,
     email: usuario.email,
     password: '',
+    tipoParticipante: 'EXTERNO',
     tipoUsuario: usuario.tipoUsuario,
     estado: usuario.estado
   }
@@ -1638,6 +1574,7 @@ const closeUsuarioModal = () => {
 const openRolesModal = (usuario: Usuario) => {
   usuarioSeleccionado.value = usuario
   rolesSeleccionados.value = usuario.roles.filter(r => r !== 'PARTICIPANTE')
+  tituloDocente.value = ''
   showRolesModal.value = true
 }
 
@@ -1645,6 +1582,7 @@ const closeRolesModal = () => {
   showRolesModal.value = false
   usuarioSeleccionado.value = null
   rolesSeleccionados.value = []
+  tituloDocente.value = ''
 }
 
 // ============================================
