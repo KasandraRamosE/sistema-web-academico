@@ -176,6 +176,7 @@ public class PlantillaService {
     @Transactional(readOnly = true)
     public byte[] descargarPlantilla(Long idPlantilla) throws IOException {
         PlantillaCertificado plantilla = buscarPlantilla(idPlantilla);
+        validarPermisoDescarga(plantilla);
         Path ruta = Paths.get(plantilla.getArchivoPdf());
 
         if (!Files.exists(ruta)) {
@@ -310,6 +311,33 @@ public class PlantillaService {
             .ifPresent(a -> dto.setUltimaObservacion(a.getObservaciones()));
 
         return dto;
+    }
+
+    private void validarPermisoDescarga(PlantillaCertificado plantilla) {
+        Usuario actual = getUsuarioActual();
+
+        boolean esAdmin = actual.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+        if (esAdmin) {
+            return;
+        }
+
+        boolean esCoordinador = actual.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
+        if (esCoordinador) {
+            return;
+        }
+
+        boolean esDisenador = actual.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("DISEÑADOR"));
+        if (esDisenador
+                && plantilla.getSubidaPor() != null
+                && actual.getIdUsuario().equals(plantilla.getSubidaPor().getIdUsuario())) {
+            return;
+        }
+
+        throw new BusinessException(
+            "No tienes permisos para descargar esta plantilla", 403);
     }
 
     private void validarCoordinadorDeActividad(Usuario coordinador,
