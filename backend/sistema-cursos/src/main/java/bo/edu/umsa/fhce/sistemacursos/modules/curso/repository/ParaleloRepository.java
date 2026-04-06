@@ -11,6 +11,9 @@ public interface ParaleloRepository extends JpaRepository<Paralelo, ParaleloId> 
 
     // Todos los paralelos de un curso
     List<Paralelo> findById_IdCurso(Long idCurso);
+
+    // Todos los paralelos asignados a un docente
+    List<Paralelo> findByDocente_IdUsuario(Long idUsuario);
     /* 
     // Contar inscritos confirmados en un paralelo específico
     @Query("""

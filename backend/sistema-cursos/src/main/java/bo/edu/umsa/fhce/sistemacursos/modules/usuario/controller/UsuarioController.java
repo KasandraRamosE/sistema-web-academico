@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -16,6 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.AsignarRolRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.CambiarEstadoRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarCarrerasRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarEventosRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarParalelosRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ParaleloRefRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.RolDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.UsuarioDetalleDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.UsuarioResumenDto;
@@ -96,5 +101,62 @@ public class UsuarioController {
     @Operation(summary = "Listar todos los roles disponibles")
     public ResponseEntity<List<RolDto>> listarRoles() {
         return ResponseEntity.ok(usuarioService.listarRoles());
+    }
+
+    // GET /api/usuarios/{id}/carreras
+    @GetMapping("/{id}/carreras")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Listar carreras asignadas a un coordinador")
+    public ResponseEntity<List<Long>> listarCarreras(@PathVariable Long id) {
+        return ResponseEntity.ok(usuarioService.listarCarrerasCoordinador(id));
+    }
+
+    // PUT /api/usuarios/{id}/carreras
+    @PutMapping("/{id}/carreras")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Actualizar carreras asignadas a un coordinador")
+    public ResponseEntity<Void> actualizarCarreras(
+            @PathVariable Long id,
+            @Valid @RequestBody ActualizarCarrerasRequest request) {
+        usuarioService.actualizarCarrerasCoordinador(id, request.getCarreraIds());
+        return ResponseEntity.noContent().build();
+    }
+
+    // GET /api/usuarios/{id}/eventos
+    @GetMapping("/{id}/eventos")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Listar eventos asignados a un auxiliar")
+    public ResponseEntity<List<Long>> listarEventos(@PathVariable Long id) {
+        return ResponseEntity.ok(usuarioService.listarEventosAuxiliar(id));
+    }
+
+    // PUT /api/usuarios/{id}/eventos
+    @PutMapping("/{id}/eventos")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Actualizar eventos asignados a un auxiliar")
+    public ResponseEntity<Void> actualizarEventos(
+            @PathVariable Long id,
+            @Valid @RequestBody ActualizarEventosRequest request) {
+        usuarioService.actualizarEventosAuxiliar(id, request.getEventoIds());
+        return ResponseEntity.noContent().build();
+    }
+
+    // GET /api/usuarios/{id}/paralelos
+    @GetMapping("/{id}/paralelos")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Listar paralelos asignados a un docente")
+    public ResponseEntity<List<ParaleloRefRequest>> listarParalelos(@PathVariable Long id) {
+        return ResponseEntity.ok(usuarioService.listarParalelosDocente(id));
+    }
+
+    // PUT /api/usuarios/{id}/paralelos
+    @PutMapping("/{id}/paralelos")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Actualizar paralelos asignados a un docente")
+    public ResponseEntity<Void> actualizarParalelos(
+            @PathVariable Long id,
+            @Valid @RequestBody ActualizarParalelosRequest request) {
+        usuarioService.actualizarParalelosDocente(id, request.getParalelos());
+        return ResponseEntity.noContent().build();
     }
 }

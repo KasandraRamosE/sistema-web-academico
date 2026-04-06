@@ -7,13 +7,28 @@ import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.*;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.*;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.*;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.Carrera;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CarreraRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.CoordinadorCarrera;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.AuxiliarEvento;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.AuxiliarEventoId;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.Evento;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.AuxiliarEventoRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.EventoRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Paralelo;
+import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.ParaleloId;
+import bo.edu.umsa.fhce.sistemacursos.modules.curso.repository.ParaleloRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +39,11 @@ public class UsuarioService {
     private final RolRepository        rolRepository;
     private final DocenteRepository    docenteRepository;
     private final ParticipanteRepository participanteRepository;
+    private final CarreraRepository    carreraRepository;
+    private final CoordinadorCarreraRepository coordinadorCarreraRepository;
+    private final EventoRepository     eventoRepository;
+    private final AuxiliarEventoRepository auxiliarEventoRepository;
+    private final ParaleloRepository   paraleloRepository;
     private final ModelMapper          modelMapper;
 
     // ── Listar todos los usuarios ────────────────────────────────────────────
@@ -139,7 +159,7 @@ public class UsuarioService {
                 "No se puede revocar el último rol del usuario", 400);
         }
 
-        Rol rol = rolRepository.findByNombre(nombreRol)
+        rolRepository.findByNombre(nombreRol)
             .orElseThrow(() -> new BusinessException("Rol no encontrado: " + nombreRol, 404));
 
         boolean tienEelRol = usuario.getRoles().removeIf(
@@ -169,11 +189,144 @@ public class UsuarioService {
             .toList();
     }
 
+    // ── Carreras del coordinador ───────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public List<Long> listarCarrerasCoordinador(Long idUsuario) {
+        Usuario usuario = buscarUsuario(idUsuario);
+        requireRole(usuario, "COORDINADOR");
+
+        return coordinadorCarreraRepository.findByIdCoordinador(idUsuario)
+            .stream()
+            .map(cc -> cc.getCarrera().getIdCarrera())
+            .toList();
+    }
+
+    @Transactional
+    public void actualizarCarrerasCoordinador(Long idUsuario, List<Long> carreraIds) {
+        Usuario usuario = buscarUsuario(idUsuario);
+        requireRole(usuario, "COORDINADOR");
+
+        Set<Long> nuevas = new HashSet<>(carreraIds);
+        List<CoordinadorCarrera> actuales = coordinadorCarreraRepository.findByIdCoordinador(idUsuario);
+        Set<Long> actualesIds = actuales.stream()
+            .map(cc -> cc.getCarrera().getIdCarrera())
+            .collect(Collectors.toSet());
+
+        for (CoordinadorCarrera actual : actuales) {
+            if (!nuevas.contains(actual.getCarrera().getIdCarrera())) {
+                coordinadorCarreraRepository.delete(actual);
+            }
+        }
+
+        for (Long idCarrera : nuevas) {
+            if (!actualesIds.contains(idCarrera)) {
+                Carrera carrera = carreraRepository.findById(idCarrera)
+                    .orElseThrow(() -> new ResourceNotFoundException("Carrera", idCarrera));
+                CoordinadorCarrera asignacion = new CoordinadorCarrera(usuario, carrera);
+                coordinadorCarreraRepository.save(asignacion);
+            }
+        }
+    }
+
+    // ── Eventos del auxiliar ───────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public List<Long> listarEventosAuxiliar(Long idUsuario) {
+        Usuario usuario = buscarUsuario(idUsuario);
+        requireRole(usuario, "AUXILIAR");
+
+        return auxiliarEventoRepository.findByIdAuxiliar(idUsuario)
+            .stream()
+            .map(ae -> ae.getEvento().getIdEvento())
+            .toList();
+    }
+
+    @Transactional
+    public void actualizarEventosAuxiliar(Long idUsuario, List<Long> eventoIds) {
+        Usuario usuario = buscarUsuario(idUsuario);
+        requireRole(usuario, "AUXILIAR");
+
+        Set<Long> nuevos = new HashSet<>(eventoIds);
+        List<AuxiliarEvento> actuales = auxiliarEventoRepository.findByIdAuxiliar(idUsuario);
+        Set<Long> actualesIds = actuales.stream()
+            .map(ae -> ae.getEvento().getIdEvento())
+            .collect(Collectors.toSet());
+
+        for (AuxiliarEvento actual : actuales) {
+            if (!nuevos.contains(actual.getEvento().getIdEvento())) {
+                AuxiliarEventoId pk = new AuxiliarEventoId(idUsuario, actual.getEvento().getIdEvento());
+                auxiliarEventoRepository.deleteById(pk);
+            }
+        }
+
+        for (Long idEvento : nuevos) {
+            if (!actualesIds.contains(idEvento)) {
+                Evento evento = eventoRepository.findById(idEvento)
+                    .orElseThrow(() -> new ResourceNotFoundException("Evento", idEvento));
+                AuxiliarEvento asignacion = new AuxiliarEvento(usuario, evento);
+                auxiliarEventoRepository.save(asignacion);
+            }
+        }
+    }
+
+    // ── Paralelos del docente ──────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public List<ParaleloRefRequest> listarParalelosDocente(Long idUsuario) {
+        Usuario usuario = buscarUsuario(idUsuario);
+        requireRole(usuario, "DOCENTE");
+
+        return paraleloRepository.findByDocente_IdUsuario(idUsuario)
+            .stream()
+            .map(paralelo -> {
+                ParaleloRefRequest dto = new ParaleloRefRequest();
+                dto.setIdCurso(paralelo.getId().getIdCurso());
+                dto.setCodigo(paralelo.getId().getCodigo());
+                return dto;
+            })
+            .toList();
+    }
+
+    @Transactional
+    public void actualizarParalelosDocente(Long idUsuario, List<ParaleloRefRequest> paralelos) {
+        Usuario usuario = buscarUsuario(idUsuario);
+        requireRole(usuario, "DOCENTE");
+
+        Set<String> nuevos = paralelos.stream()
+            .map(ref -> ref.getIdCurso() + ":" + ref.getCodigo())
+            .collect(Collectors.toSet());
+
+        List<Paralelo> actuales = paraleloRepository.findByDocente_IdUsuario(idUsuario);
+        for (Paralelo actual : actuales) {
+            String key = actual.getId().getIdCurso() + ":" + actual.getId().getCodigo();
+            if (!nuevos.contains(key)) {
+                actual.setDocente(null);
+                paraleloRepository.save(actual);
+            }
+        }
+
+        for (ParaleloRefRequest ref : paralelos) {
+            ParaleloId pk = new ParaleloId(ref.getIdCurso(), ref.getCodigo());
+            Paralelo paralelo = paraleloRepository.findById(pk)
+                .orElseThrow(() -> new BusinessException(
+                    "Paralelo no encontrado: " + ref.getIdCurso() + "-" + ref.getCodigo(), 404));
+            paralelo.setDocente(usuario);
+            paraleloRepository.save(paralelo);
+        }
+    }
+
     // ── Helpers privados ─────────────────────────────────────────────────────
 
     private Usuario buscarUsuario(Long idUsuario) {
         return usuarioRepository.findById(idUsuario)
             .orElseThrow(() -> new ResourceNotFoundException("Usuario", idUsuario));
+    }
+
+    private void requireRole(Usuario usuario, String nombreRol) {
+        boolean hasRole = usuario.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals(nombreRol));
+        if (!hasRole) {
+            throw new BusinessException(
+                "El usuario no tiene el rol " + nombreRol, 400);
+        }
     }
 
     // Convierte Usuario → UsuarioResumenDto manualmente

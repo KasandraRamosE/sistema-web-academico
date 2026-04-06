@@ -17,6 +17,9 @@ public interface AuxiliarEventoRepository
     @Query("SELECT ae FROM AuxiliarEvento ae WHERE ae.evento.idEvento = :idEvento")
     List<AuxiliarEvento> findByIdEvento(@Param("idEvento") Long idEvento);
 
+    @Query("SELECT ae FROM AuxiliarEvento ae WHERE ae.auxiliar.idUsuario = :idAuxiliar")
+    List<AuxiliarEvento> findByIdAuxiliar(@Param("idAuxiliar") Long idAuxiliar);
+
     // Verifica si un auxiliar está asignado a un evento específico
     // — lo usaremos en el módulo de asistencia para validar permisos
     boolean existsByAuxiliar_IdUsuarioAndEvento_IdEvento(
