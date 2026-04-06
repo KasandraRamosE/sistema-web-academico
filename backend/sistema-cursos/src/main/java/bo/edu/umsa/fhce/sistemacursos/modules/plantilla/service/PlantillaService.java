@@ -25,6 +25,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.entity.Aprobacion;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.entity.PlantillaCertificado;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.repository.AprobacionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.repository.PlantillaRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
 import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
@@ -40,6 +41,7 @@ public class PlantillaService {
     private final AprobacionRepository aprobacionRepository;
     private final CursoRepository      cursoRepository;
     private final EventoRepository     eventoRepository;
+    private final CoordinadorCarreraRepository coordinadorCarreraRepository;
     private final UsuarioRepository    usuarioRepository;
 
     @Value("${app.plantillas.directorio:plantillas}")
@@ -111,6 +113,8 @@ public class PlantillaService {
     public PlantillaDto revisar(Long idPlantilla, AprobacionRequest request) {
         PlantillaCertificado plantilla = buscarPlantilla(idPlantilla);
         Usuario coordinador = getUsuarioActual();
+
+        validarCoordinadorDeActividad(coordinador, plantilla);
 
         // Solo se pueden revisar plantillas PENDIENTES
         if (plantilla.getEstado() != PlantillaCertificado.EstadoPlantilla.PENDIENTE) {
@@ -306,5 +310,41 @@ public class PlantillaService {
             .ifPresent(a -> dto.setUltimaObservacion(a.getObservaciones()));
 
         return dto;
+    }
+
+    private void validarCoordinadorDeActividad(Usuario coordinador,
+                                               PlantillaCertificado plantilla) {
+        boolean esAdmin = coordinador.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+        if (esAdmin) {
+            return;
+        }
+
+        boolean esCoordinador = coordinador.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
+        if (!esCoordinador) {
+            throw new BusinessException(
+                "No tienes permisos para revisar plantillas", 403);
+        }
+
+        Long idCarrera = null;
+        if (plantilla.getCurso() != null) {
+            idCarrera = plantilla.getCurso().getCarrera().getIdCarrera();
+        } else if (plantilla.getEvento() != null) {
+            idCarrera = plantilla.getEvento().getCarrera().getIdCarrera();
+        }
+
+        if (idCarrera == null) {
+            throw new BusinessException("No se pudo determinar la carrera", 500);
+        }
+
+        boolean asignado = coordinadorCarreraRepository
+            .existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                coordinador.getIdUsuario(), idCarrera);
+
+        if (!asignado) {
+            throw new BusinessException(
+                "No eres coordinador de la carrera de esta actividad", 403);
+        }
     }
 }

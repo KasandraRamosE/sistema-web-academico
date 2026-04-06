@@ -21,4 +21,10 @@ public interface CoordinadorCarreraRepository
 
     // Verificar si ya existe la asignación
     boolean existsById(CoordinadorCarreraId id);
+
+    // Verificar si un usuario es coordinador de una carrera
+    boolean existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+        Long idUsuario,
+        Long idCarrera
+    );
 }
