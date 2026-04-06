@@ -5,12 +5,19 @@ package bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.repository;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import jakarta.persistence.LockModeType;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.entity.Inscripcion;
 
 public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT i FROM Inscripcion i WHERE i.idInscripcion = :id")
+    Inscripcion findByIdForUpdate(@Param("id") Long id);
 
     // Todas las inscripciones de un participante
     List<Inscripcion> findByParticipante_IdUsuario(Long idUsuario);

@@ -52,9 +52,11 @@ public class CertificadoService {
     @Transactional
     public CertificadoDto emitir(EmitirCertificadoRequest request) {
         Inscripcion inscripcion = inscripcionRepository
-            .findById(request.getIdInscripcion())
-            .orElseThrow(() -> new ResourceNotFoundException(
-                "Inscripcion", request.getIdInscripcion()));
+            .findByIdForUpdate(request.getIdInscripcion());
+        if (inscripcion == null) {
+            throw new ResourceNotFoundException(
+                "Inscripcion", request.getIdInscripcion());
+        }
 
         Optional<Certificado> existente = certificadoRepository
             .findByInscripcion_IdInscripcion(inscripcion.getIdInscripcion());
