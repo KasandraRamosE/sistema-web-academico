@@ -1,0 +1,21 @@
+# src/main/resources/application-prod.yml
+# En producción los valores sensibles vienen de variables de entorno
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    show-sql: false  # No mostrar SQL en producción
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}  # Variable de entorno obligatoria
+  mocks:
+    umsa-auth: false   # Conectar a API real de UMSA
+    libelula-pay: false # Conectar a Libélula real
+
+logging:
+  level:
+    bo.edu.umsa.fhce: INFO  # Solo logs importantes en producción
