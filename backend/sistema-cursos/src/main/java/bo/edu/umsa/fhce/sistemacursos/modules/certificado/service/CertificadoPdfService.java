@@ -47,16 +47,13 @@ public class CertificadoPdfService {
     @Value("${app.email.base-url}")
     private String baseUrl;
 
-    // ── Coordenadas fijas — carta horizontal (792 × 612 pt) ─────────────────
-    // El diseñador adapta su plantilla a estas posiciones.
-    // Origen (0,0) = esquina inferior izquierda.
-    // x=0 con ancho=792 = texto centrado en toda la página.
+    // Coordenadas fijas (carta horizontal)
 
     private static final float ANCHO_PAGINA   = 792f; // carta horizontal
     private static final float ALTO_PAGINA    = 612f;
     private static final int   NUM_PAGINA     = 1;
 
-    // Posición Y de cada elemento (desde el borde inferior)
+    // Posiciones Y (desde el borde inferior)
     private static final float Y_NOMBRE       = 290f; // nombre participante — centro
     private static final float Y_ACTIVIDAD    = 245f; // nombre del curso o evento
     private static final float Y_CARGA        = 210f; // carga horaria
@@ -64,19 +61,16 @@ public class CertificadoPdfService {
     private static final float Y_FECHA        = 150f; // fecha de emisión
     private static final float Y_VERSION      = 132f; // versión (solo reemisiones)
 
-    // QR — esquina inferior derecha
+    // QR
     private static final float QR_SIZE        = 80f;
     private static final float QR_X           = 672f; // 792 - 80 - 40 margen
     private static final float QR_Y           = 30f;
 
-    // URL debajo del QR
+    // URL
     private static final float URL_X          = 570f;
     private static final float URL_Y          = 18f;
     private static final float URL_ANCHO      = 210f;
 
-    // ── Métodos públicos ─────────────────────────────────────────────────────
-
-    // Genera el PDF, lo guarda en disco y devuelve la ruta
     public String generarYGuardar(Certificado certificado, String rutaPlantilla) {
         try {
             byte[] pdfBytes = generarPdf(certificado, rutaPlantilla);
@@ -101,7 +95,6 @@ public class CertificadoPdfService {
         }
     }
 
-    // Genera el PDF como bytes para descarga directa sin guardar en disco
     public byte[] generarParaDescarga(Certificado certificado, String rutaPlantilla) {
         try {
             return generarPdf(certificado, rutaPlantilla);
@@ -110,22 +103,18 @@ public class CertificadoPdfService {
         }
     }
 
-    // ── Generación interna ───────────────────────────────────────────────────
-
     private byte[] generarPdf(Certificado certificado,
                                String rutaPlantilla) throws IOException {
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         Inscripcion inscripcion = certificado.getInscripcion();
 
-        // Leer la plantilla del disco
         byte[] plantillaBytes = Files.readAllBytes(Paths.get(rutaPlantilla));
 
         PdfReader reader = new PdfReader(new ByteArrayInputStream(plantillaBytes));
         PdfWriter writer = new PdfWriter(outputStream);
         PdfDocument pdfDoc = new PdfDocument(reader, writer);
 
-        // Carta horizontal — sin márgenes, la plantilla ya los tiene
         Document document = new Document(pdfDoc, PageSize.LETTER.rotate());
         document.setMargins(0, 0, 0, 0);
 
@@ -134,91 +123,118 @@ public class CertificadoPdfService {
         PdfFont fontNormal = PdfFontFactory.createFont(
             com.itextpdf.io.font.constants.StandardFonts.HELVETICA);
 
-        // ── Nombre del participante ───────────────────────────────────────
-        String nombreParticipante =
-            inscripcion.getParticipante().getNombres().toUpperCase()
+        String nombreParticipante = buildNombreParticipante(inscripcion);
+        addCenteredText(document, nombreParticipante, fontBold, 20, Y_NOMBRE);
+
+        String nombreActividad = buildNombreActividad(inscripcion);
+        addCenteredText(document, nombreActividad, fontBold, 14, Y_ACTIVIDAD);
+
+        String cargaHoraria = buildCargaHoraria(inscripcion);
+        addCenteredText(document, cargaHoraria, fontNormal, 12, Y_CARGA);
+
+        addNotaFinalIfCurso(document, inscripcion, fontBold);
+
+        String fecha = formatFechaEmision(certificado);
+        addCenteredText(document, "La Paz, " + fecha, fontNormal, 11, Y_FECHA);
+
+        addVersionIfReemision(document, certificado, fontNormal);
+
+        String urlVerificacion = buildUrlVerificacion(certificado);
+        addQr(document, urlVerificacion);
+        addUrlTexto(document, urlVerificacion, fontNormal);
+
+        document.close();
+        return outputStream.toByteArray();
+    }
+
+    private String buildNombreParticipante(Inscripcion inscripcion) {
+        return inscripcion.getParticipante().getNombres().toUpperCase()
             + " " + inscripcion.getParticipante().getApellidos().toUpperCase();
+    }
 
-        document.add(new Paragraph(nombreParticipante)
-            .setFont(fontBold)
-            .setFontSize(20)
-            .setTextAlignment(TextAlignment.CENTER)
-            .setFixedPosition(NUM_PAGINA, 0, Y_NOMBRE, ANCHO_PAGINA));
-
-        // ── Nombre de la actividad ────────────────────────────────────────
-        String nombreActividad = inscripcion.getCurso() != null
+    private String buildNombreActividad(Inscripcion inscripcion) {
+        return inscripcion.getCurso() != null
             ? inscripcion.getCurso().getNombre()
             : inscripcion.getEvento().getNombre();
+    }
 
-        document.add(new Paragraph(nombreActividad)
-            .setFont(fontBold)
-            .setFontSize(14)
-            .setTextAlignment(TextAlignment.CENTER)
-            .setFixedPosition(NUM_PAGINA, 0, Y_ACTIVIDAD, ANCHO_PAGINA));
-
-        // ── Carga horaria ─────────────────────────────────────────────────
+    private String buildCargaHoraria(Inscripcion inscripcion) {
         Integer cargaHoraria = inscripcion.getCurso() != null
             ? inscripcion.getCurso().getCargaHoraria()
             : inscripcion.getEvento().getCargaHoraria();
+        return cargaHoraria + " horas académicas";
+    }
 
-        document.add(new Paragraph(cargaHoraria + " horas académicas")
-            .setFont(fontNormal)
-            .setFontSize(12)
-            .setTextAlignment(TextAlignment.CENTER)
-            .setFixedPosition(NUM_PAGINA, 0, Y_CARGA, ANCHO_PAGINA));
-
-        // ── Nota final — solo para cursos ─────────────────────────────────
-        if (inscripcion.getCurso() != null) {
-            evaluacionRepository
-                .findByInscripcion_IdInscripcion(inscripcion.getIdInscripcion())
-                .ifPresent(eval -> document.add(
-                    new Paragraph("Nota final: " + eval.getNotaFinal() + " / 100")
-                        .setFont(fontBold)
-                        .setFontSize(12)
-                        .setTextAlignment(TextAlignment.CENTER)
-                        .setFixedPosition(NUM_PAGINA, 0, Y_NOTA, ANCHO_PAGINA)));
+    private void addNotaFinalIfCurso(Document document,
+                                     Inscripcion inscripcion,
+                                     PdfFont fontBold) {
+        if (inscripcion.getCurso() == null) {
+            return;
         }
 
-        // ── Fecha de emisión ──────────────────────────────────────────────
-        String fecha = certificado.getFechaEmision()
+        evaluacionRepository
+            .findByInscripcion_IdInscripcion(inscripcion.getIdInscripcion())
+            .ifPresent(eval -> addCenteredText(document,
+                "Nota final: " + eval.getNotaFinal() + " / 100",
+                fontBold, 12, Y_NOTA));
+    }
+
+    private String formatFechaEmision(Certificado certificado) {
+        return certificado.getFechaEmision()
             .format(DateTimeFormatter.ofPattern(
                 "dd 'de' MMMM 'de' yyyy", new Locale("es", "BO")));
+    }
 
-        document.add(new Paragraph("La Paz, " + fecha)
-            .setFont(fontNormal)
-            .setFontSize(11)
-            .setTextAlignment(TextAlignment.CENTER)
-            .setFixedPosition(NUM_PAGINA, 0, Y_FECHA, ANCHO_PAGINA));
-
-        // ── Versión — solo si es reemisión ────────────────────────────────
-        if (certificado.getVersion() > 1) {
-            document.add(new Paragraph(
-                    "(Reemisión — Versión " + certificado.getVersion() + ")")
-                .setFont(fontNormal)
-                .setFontSize(9)
-                .setFontColor(ColorConstants.GRAY)
-                .setTextAlignment(TextAlignment.CENTER)
-                .setFixedPosition(NUM_PAGINA, 0, Y_VERSION, ANCHO_PAGINA));
+    private void addVersionIfReemision(Document document,
+                                       Certificado certificado,
+                                       PdfFont fontNormal) {
+        if (certificado.getVersion() <= 1) {
+            return;
         }
 
-        // ── Código QR — esquina inferior derecha ──────────────────────────
-        String urlVerificacion = baseUrl + "/verificar/"
-            + certificado.getCodigoVerificacion();
+        Paragraph version = new Paragraph(
+                "(Reemisión — Versión " + certificado.getVersion() + ")")
+            .setFont(fontNormal)
+            .setFontSize(9)
+            .setFontColor(ColorConstants.GRAY)
+            .setTextAlignment(TextAlignment.CENTER)
+            .setFixedPosition(NUM_PAGINA, 0, Y_VERSION, ANCHO_PAGINA);
+        document.add(version);
+    }
 
+    private String buildUrlVerificacion(Certificado certificado) {
+        return baseUrl + "/verificar/" + certificado.getCodigoVerificacion();
+    }
+
+    private void addQr(Document document, String urlVerificacion) {
         byte[] qrBytes = qrService.generarQr(urlVerificacion, 200);
         Image qrImage = new Image(ImageDataFactory.create(qrBytes));
         qrImage.setWidth(QR_SIZE).setHeight(QR_SIZE);
         qrImage.setFixedPosition(NUM_PAGINA, QR_X, QR_Y);
         document.add(qrImage);
+    }
 
-        // URL de verificación debajo del QR — texto pequeño
-        document.add(new Paragraph(urlVerificacion)
+    private void addUrlTexto(Document document,
+                             String urlVerificacion,
+                             PdfFont fontNormal) {
+        Paragraph url = new Paragraph(urlVerificacion)
             .setFont(fontNormal)
             .setFontSize(6)
             .setFontColor(ColorConstants.GRAY)
-            .setFixedPosition(NUM_PAGINA, URL_X, URL_Y, URL_ANCHO));
+            .setFixedPosition(NUM_PAGINA, URL_X, URL_Y, URL_ANCHO);
+        document.add(url);
+    }
 
-        document.close();
-        return outputStream.toByteArray();
+    private void addCenteredText(Document document,
+                                 String text,
+                                 PdfFont font,
+                                 int fontSize,
+                                 float y) {
+        Paragraph paragraph = new Paragraph(text)
+            .setFont(font)
+            .setFontSize(fontSize)
+            .setTextAlignment(TextAlignment.CENTER)
+            .setFixedPosition(NUM_PAGINA, 0, y, ANCHO_PAGINA);
+        document.add(paragraph);
     }
 }
