@@ -17,7 +17,7 @@
       </p>
     </div>
 
-    <!-- Formulario (Mock por ahora) -->
+    <!-- Formulario -->
     <div class="space-y-4">
       <!-- Usuario -->
       <div>
@@ -53,46 +53,9 @@
         Iniciar Sesión
       </button>
 
-      <!-- Divisor -->
-      <div class="relative my-6">
-        <div class="absolute inset-0 flex items-center">
-          <div class="w-full border-t border-gray-300"></div>
-        </div>
-        <div class="relative flex justify-center text-sm">
-          <span class="px-2 bg-white text-gray-500">O accede como</span>
-        </div>
-      </div>
-
-      <!-- Botones Mock (solo para desarrollo) -->
-      <div class="space-y-2">
-        <button
-          @click="loginAs('ADMINISTRADOR')"
-          class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-        >
-          Admin
-        </button>
-
-        <button
-          @click="loginAs('COORDINADOR')"
-          class="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium"
-        >
-          Coordinador
-        </button>
-
-        <button
-          @click="loginAs('DOCENTE')"
-          class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
-        >
-          Docente
-        </button>
-
-        <button
-          @click="loginAs('PARTICIPANTE')"
-          class="w-full bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 transition text-sm font-medium"
-        >
-          Participante
-        </button>
-      </div>
+      <p v-if="errorMessage" class="text-sm text-red-600">
+        {{ errorMessage }}
+      </p>
 
       <!-- Link de registro -->
       <div class="text-center mt-4">
@@ -111,7 +74,6 @@
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useRouter } from 'vue-router'
-import type { Rol } from '@/types'
 
 // ============================================
 // ESTADO
@@ -122,6 +84,7 @@ const router = useRouter()
 
 const username = ref('')
 const password = ref('')
+const errorMessage = ref('')
 
 // ============================================
 // MÉTODOS
@@ -132,25 +95,18 @@ const password = ref('')
  */
 const handleLogin = async () => {
   if (!username.value || !password.value) {
-    alert('Por favor ingrese usuario y contraseña')
+    errorMessage.value = 'Por favor ingrese usuario y contraseña'
     return
   }
 
   const success = await auth.login(username.value, password.value)
   
   if (success) {
+    errorMessage.value = ''
     redirectToDashboard()
   } else {
-    alert('Credenciales incorrectas')
+    errorMessage.value = 'Credenciales incorrectas'
   }
-}
-
-/**
- * Login rápido con rol específico (SOLO PARA DESARROLLO)
- */
-const loginAs = (rol: Rol) => {
-  auth.loginMock(rol)
-  redirectToDashboard()
 }
 
 /**

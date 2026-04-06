@@ -5,18 +5,28 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Rol, TipoUsuario } from '@/types'
+import type { Rol } from '@/types'
+import { api } from '@/utils/api'
 
 /**
  * Interface del usuario (versión simplificada)
  */
 export interface Usuario {
-  id: number
+  idUsuario: number
+  username: string
   nombres: string
   apellidos: string
-  email: string
   roles: Rol[]
-  tipo_usuario: TipoUsuario
+}
+
+interface LoginResponse {
+  token: string
+  tipo: string
+  idUsuario: number
+  username: string
+  nombres: string
+  apellidos: string
+  roles: string[]
 }
 
 /**
@@ -71,98 +81,31 @@ export const useAuthStore = defineStore('auth', () => {
   // ============================================
 
   /**
-   * Login simulado (MOCK) - para desarrollo
-   * TODO: Reemplazar con llamada real al backend
-   */
-  const loginMock = (rol: Rol) => {
-    // Crear usuario mock según el rol
-    // Algunos usuarios tienen múltiples roles para probar el cambio de rol
-    
-    let mockUser: Usuario
-    
-    if (rol === 'ADMINISTRADOR') {
-      // Admin también puede ser Coordinador y Participante
-      mockUser = {
-        id: 1,
-        nombres: 'Carlos',
-        apellidos: 'Administrador',
-        email: 'admin@fhce.umsa.bo',
-        roles: ['ADMINISTRADOR', 'COORDINADOR', 'PARTICIPANTE'],
-        tipo_usuario: 'INTERNO'
-      }
-    } else if (rol === 'COORDINADOR') {
-      // Coordinador también puede ser Docente y Participante
-      mockUser = {
-        id: 2,
-        nombres: 'María',
-        apellidos: 'Coordinadora',
-        email: 'coordinador@fhce.umsa.bo',
-        roles: ['COORDINADOR', 'DOCENTE', 'PARTICIPANTE'],
-        tipo_usuario: 'INTERNO'
-      }
-    } else if (rol === 'DOCENTE') {
-      // Docente también puede ser Participante
-      mockUser = {
-        id: 3,
-        nombres: 'Juan',
-        apellidos: 'Docente',
-        email: 'docente@fhce.umsa.bo',
-        roles: ['DOCENTE', 'PARTICIPANTE'],
-        tipo_usuario: 'INTERNO'
-      }
-    } else if (rol === 'DISENADOR') {
-      // DISENADOR también puede ser Participante (caso especial)
-      mockUser = {
-        id: 4,
-        nombres: 'Ana',
-        apellidos: 'DISENADORa',
-        email: 'disenador@fhce.umsa.bo',
-        roles: ['DISENADOR', 'PARTICIPANTE'],
-        tipo_usuario: 'INTERNO'
-      }
-    } else {
-      // Participante solo tiene ese rol
-      mockUser = {
-        id: 5,
-        nombres: 'Pedro',
-        apellidos: 'Estudiante',
-        email: 'estudiante@gmail.com',
-        roles: ['PARTICIPANTE'],
-        tipo_usuario: 'EXTERNO'
-      }
-    }
-
-    token.value = `mock-jwt-token-${rol}`
-    user.value = mockUser
-    currentRole.value = rol
-
-    // Guardar en localStorage
-    localStorage.setItem('user', JSON.stringify(mockUser))
-    localStorage.setItem('token', token.value)
-    localStorage.setItem('currentRole', rol)
-
-    console.log('✅ Login mock exitoso:', rol)
-    console.log('📋 Roles disponibles:', mockUser.roles)
-  }
-
-  /**
    * Login real (para cuando conectes con el backend)
    */
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      // TODO: Llamada al backend
-      // const response = await api.post('/auth/login', { username, password })
-      
-      console.log('🚧 Login real aún no implementado')
-      console.log('Credenciales:', { username, password })
-      
-      // Por ahora, simular login de admin
-      if (username === 'admin' && password === 'admin123') {
-        loginMock('ADMINISTRADOR')
-        return true
+      const response = await api.post('/auth/login', { username, password }) as LoginResponse
+      const roles = normalizeRoles(response.roles)
+
+      token.value = response.token
+      user.value = {
+        idUsuario: response.idUsuario,
+        username: response.username,
+        nombres: response.nombres,
+        apellidos: response.apellidos,
+        roles
       }
-      
-      return false
+
+      currentRole.value = roles[0] || null
+
+      localStorage.setItem('user', JSON.stringify(user.value))
+      localStorage.setItem('token', token.value)
+      if (currentRole.value) {
+        localStorage.setItem('currentRole', currentRole.value)
+      }
+
+      return true
     } catch (error) {
       console.error('❌ Error en login:', error)
       return false
@@ -259,6 +202,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  const normalizeRoles = (roles: string[]): Rol[] => {
+    return roles.map(role => role.replace('ROLE_', '') as Rol)
+  }
+
   // ============================================
   // RETURN
   // ============================================
@@ -276,7 +223,6 @@ export const useAuthStore = defineStore('auth', () => {
     availableRoles,
 
     // Actions
-    loginMock,
     login,
     logout,
     changeRole,
