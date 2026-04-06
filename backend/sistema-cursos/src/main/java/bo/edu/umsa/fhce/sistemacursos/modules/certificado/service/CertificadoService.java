@@ -7,6 +7,7 @@ import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.dto.*;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.entity.CAnulacion;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.entity.Certificado;
+import bo.edu.umsa.fhce.sistemacursos.modules.certificado.event.CertificadoEmitidoEvent;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.repository.AnulacionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.repository.CertificadoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity.EvaluacionEstudiante;
@@ -23,6 +24,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +46,7 @@ public class CertificadoService {
     private final UsuarioRepository      usuarioRepository;
     private final CertificadoPdfService  pdfService;
     private final PlantillaService plantillaService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${app.email.base-url}")
     private String baseUrl;
@@ -91,10 +94,8 @@ public class CertificadoService {
 
         certificado = certificadoRepository.save(certificado);
 
-        // Generar PDF pasando la ruta de la plantilla
-        String rutaPdf = pdfService.generarYGuardar(certificado, rutaPlantilla);
-        certificado.setArchivoGenerado(rutaPdf);
-        certificado = certificadoRepository.save(certificado);
+        eventPublisher.publishEvent(
+            new CertificadoEmitidoEvent(certificado.getIdCertificado(), rutaPlantilla));
 
         log.info("Certificado emitido: {} — inscripción: {}",
             certificado.getIdCertificado(), inscripcion.getIdInscripcion());
