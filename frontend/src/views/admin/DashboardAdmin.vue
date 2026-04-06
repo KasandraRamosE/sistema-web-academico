@@ -255,13 +255,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
+import { api } from '@/utils/api'
+import { useAlertStore } from '@/stores/alert.store'
 // ============================================
 // COMPOSABLES
 // ============================================
@@ -272,68 +274,52 @@ const router = useRouter()
 // ESTADO
 // ============================================
 
-// Estadísticas generales (MOCK)
-const stats = ref({
-  totalUsuarios: 348,
-  usuariosInternos: 245,
-  usuariosExternos: 103,
-  totalActividades: 25,
-  cursosActivos: 12,
-  eventosActivos: 8,
-  totalInscripciones: 892,
-  inscripcionesActivas: 456,
-  totalCertificados: 534,
-  certificadosPendientes: 12
+interface DashboardStats {
+  totalUsuarios: number
+  usuariosInternos: number
+  usuariosExternos: number
+  totalActividades: number
+  cursosActivos: number
+  eventosActivos: number
+  totalInscripciones: number
+  inscripcionesActivas: number
+  totalCertificados: number
+  certificadosPendientes: number
+}
+
+interface DashboardActividad {
+  id: string
+  nombre: string
+  tipo: 'CURSO' | 'EVENTO'
+  carrera: string
+  inscritos: number
+  cupo: number | null
+  estado: string
+}
+
+interface DashboardResponse {
+  stats: DashboardStats
+  actividadesRecientes: DashboardActividad[]
+}
+
+const alertStore = useAlertStore()
+
+// Estadísticas generales
+const stats = ref<DashboardStats>({
+  totalUsuarios: 0,
+  usuariosInternos: 0,
+  usuariosExternos: 0,
+  totalActividades: 0,
+  cursosActivos: 0,
+  eventosActivos: 0,
+  totalInscripciones: 0,
+  inscripcionesActivas: 0,
+  totalCertificados: 0,
+  certificadosPendientes: 0
 })
 
-// Actividades recientes (MOCK)
-const actividadesRecientes = ref([
-  {
-    id: 1,
-    nombre: 'Introducción a la Psicología Clínica',
-    tipo: 'CURSO',
-    carrera: 'Psicología',
-    inscritos: 28,
-    cupo: 30,
-    estado: 'ABIERTO'
-  },
-  {
-    id: 2,
-    nombre: 'Congreso Internacional de Psicología',
-    tipo: 'EVENTO',
-    carrera: 'Psicología',
-    inscritos: 145,
-    cupo: 200,
-    estado: 'ABIERTO'
-  },
-  {
-    id: 3,
-    nombre: 'Filosofía Contemporánea',
-    tipo: 'CURSO',
-    carrera: 'Filosofía',
-    inscritos: 25,
-    cupo: 25,
-    estado: 'LLENO'
-  },
-  {
-    id: 4,
-    nombre: 'Metodología de Investigación',
-    tipo: 'CURSO',
-    carrera: 'Ciencias de la Educación',
-    inscritos: 42,
-    cupo: 50,
-    estado: 'ABIERTO'
-  },
-  {
-    id: 5,
-    nombre: 'Taller de Escritura Creativa',
-    tipo: 'EVENTO',
-    carrera: 'Lingüística',
-    inscritos: 18,
-    cupo: 30,
-    estado: 'FINALIZADO'
-  }
-])
+// Actividades recientes
+const actividadesRecientes = ref<DashboardActividad[]>([])
 
 const {
   paginatedData: actividadesPaginadas,  // Solo 10 usuarios a la vez
@@ -363,6 +349,21 @@ const getEstadoBadge = (estado: string) => {
       return 'info'
   }
 }
+
+const cargarDashboard = async () => {
+  try {
+    const response = await api.get('/dashboard/admin') as DashboardResponse
+    stats.value = response.stats
+    actividadesRecientes.value = response.actividadesRecientes
+  } catch (error) {
+    console.error('Error al cargar dashboard:', error)
+    alertStore.push({ type: 'error', message: 'No se pudo cargar el dashboard.' })
+  }
+}
+
+onMounted(() => {
+  cargarDashboard()
+})
 </script>
 
 <style scoped>
