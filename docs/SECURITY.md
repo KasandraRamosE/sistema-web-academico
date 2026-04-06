@@ -1,10 +1,14 @@
 # Security
 
-## Authentication model
-- Stateless JWT authentication
-- Tokens are generated after login and sent in the Authorization header
-  as: Bearer <token>
-- Each request is authenticated by a JWT filter
+## Security model
+The API is stateless and secured with JWT. Authentication is performed via
+Spring Security with a custom JWT filter that validates tokens on every request.
+
+## Authentication flow
+1) User logs in with username + password
+2) Backend issues a JWT signed with HS256
+3) Client sends the token in Authorization header as: Bearer <token>
+4) JwtAuthFilter validates the token and loads user roles
 
 ## JWT claims
 - subject: username
@@ -12,13 +16,24 @@
 - userId: internal user id
 
 ## Password hashing
-- BCrypt with strength 12 is used for user passwords
+- BCrypt with strength 12
 
 ## Authorization
-- Endpoint access is controlled with @PreAuthorize at controller level
-- All non-public endpoints require authentication
+Endpoint access is enforced via @PreAuthorize annotations in controllers.
+All non-public endpoints require authentication.
+
+Role model:
+- ADMINISTRADOR: full access
+- COORDINADOR: manage careers, courses, events, and certificate approvals
+- DOCENTE: register grades and confirm parallels
+- PARTICIPANTE: enroll, pay, view own certificates
+- AUXILIAR: register attendance in assigned events
+- DISEÑADOR: upload certificate templates
 
 ## Public endpoints
+The following paths are public (no JWT required). Actual URLs include the
+/api prefix because of server.servlet.context-path.
+
 - /auth/**
 - /verificar/**
 - /certificados/verificar/**
@@ -26,7 +41,7 @@
 - /api-docs/**, /v3/api-docs/**
 
 ## CORS
-Allowed origins for local development:
+Local development origins:
 - http://localhost:5173
 - http://localhost:4173
 
@@ -35,11 +50,16 @@ Allowed origins for local development:
 - CSRF is disabled (API uses JWT, not cookies)
 
 ## Secrets and configuration
-- JWT secret and expiration are configured in application.yml
-- For production, move secrets to environment variables or a vault
+- JWT secret and expiration are in application.yml for dev
+- For prod, use environment variables (JWT_SECRET, DB_*), not source control
 
-## Recommended practices
+## Audit and traceability
+- Grade changes are stored in evaluacion.Historial
+- Template reviews create approval records
+- Certificate annulments create audit records with reason and actor
+
+## Operational recommendations
+- Use HTTPS everywhere
 - Rotate JWT secret periodically
-- Use HTTPS in all environments
-- Set a strong, random JWT secret (>= 256 bits)
-- Restrict CORS to the production frontend domain
+- Restrict CORS to the real frontend domain in prod
+- Monitor login, payment, and certificate issuance events
