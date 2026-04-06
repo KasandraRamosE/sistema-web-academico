@@ -56,48 +56,23 @@ public class PlantillaService {
     public PlantillaDto subirPlantilla(MultipartFile archivo,
                                        Long idCurso,
                                        Long idEvento) throws IOException {
-        // Validar que sea exactamente uno
-        if (idCurso == null && idEvento == null) {
-            throw new BusinessException(
-                "Debe especificar un curso o un evento", 400);
-        }
-        if (idCurso != null && idEvento != null) {
-            throw new BusinessException(
-                "Una plantilla pertenece a un curso O a un evento, no a ambos", 400);
-        }
-
-        // Validar que sea PDF
-        if (archivo.isEmpty() || !esPdf(archivo)) {
-            throw new BusinessException(
-                "El archivo debe ser un PDF válido", 400);
-        }
-
-        validarSize(archivo);
+        validarActividad(idCurso, idEvento);
+        validarArchivoPdf(archivo);
 
         Usuario disenador = getUsuarioActual();
 
-        // Obtener la actividad
-        Curso curso = null;
-        Evento evento = null;
-
-        if (idCurso != null) {
-            curso = cursoRepository.findById(idCurso)
-                .orElseThrow(() -> new ResourceNotFoundException("Curso", idCurso));
-        } else {
-            evento = eventoRepository.findById(idEvento)
-                .orElseThrow(() -> new ResourceNotFoundException("Evento", idEvento));
-        }
+        Actividad actividad = obtenerActividad(idCurso, idEvento);
 
         // Calcular versión — es la siguiente a la última existente
         int nuevaVersion = calcularSiguienteVersion(idCurso, idEvento);
 
         // Guardar el archivo en disco
         String rutaArchivo = guardarArchivo(archivo, disenador.getIdUsuario(),
-            idCurso, idEvento, nuevaVersion);
+            actividad.idCurso(), actividad.idEvento(), nuevaVersion);
 
         PlantillaCertificado plantilla = PlantillaCertificado.builder()
-            .curso(curso)
-            .evento(evento)
+            .curso(actividad.curso())
+            .evento(actividad.evento())
             .archivoPdf(rutaArchivo)
             .version(nuevaVersion)
             .subidaPor(disenador)
@@ -108,8 +83,8 @@ public class PlantillaService {
 
         log.info("Plantilla v{} subida por {} para {} {}",
             nuevaVersion, disenador.getUsername(),
-            idCurso != null ? "curso" : "evento",
-            idCurso != null ? idCurso : idEvento);
+            actividad.idCurso() != null ? "curso" : "evento",
+            actividad.idCurso() != null ? actividad.idCurso() : actividad.idEvento());
 
         return toPlantillaDto(plantilla);
     }
@@ -121,29 +96,10 @@ public class PlantillaService {
         Usuario coordinador = getUsuarioActual();
 
         validarCoordinadorDeActividad(coordinador, plantilla);
+        validarPlantillaPendiente(plantilla);
 
-        // Solo se pueden revisar plantillas PENDIENTES
-        if (plantilla.getEstado() != PlantillaCertificado.EstadoPlantilla.PENDIENTE) {
-            throw new BusinessException(
-                "Solo se pueden revisar plantillas en estado PENDIENTE. "
-                + "Estado actual: " + plantilla.getEstado(), 400);
-        }
-
-        Aprobacion.EstadoAprobacion nuevoEstado;
-        try {
-            nuevoEstado = Aprobacion.EstadoAprobacion.valueOf(request.getEstado());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException(
-                "Estado inválido. Use: APROBADA o RECHAZADA", 400);
-        }
-
-        // Si se rechaza, las observaciones son obligatorias
-        if (nuevoEstado == Aprobacion.EstadoAprobacion.RECHAZADA
-                && (request.getObservaciones() == null
-                    || request.getObservaciones().isBlank())) {
-            throw new BusinessException(
-                "Las observaciones son obligatorias al rechazar una plantilla", 400);
-        }
+        Aprobacion.EstadoAprobacion nuevoEstado = parseEstadoRevision(request);
+        validarObservaciones(request, nuevoEstado);
 
         // Registrar la revisión
         Aprobacion aprobacion = Aprobacion.builder()
@@ -154,25 +110,7 @@ public class PlantillaService {
             .build();
         aprobacionRepository.save(aprobacion);
 
-        if (nuevoEstado == Aprobacion.EstadoAprobacion.APROBADA) {
-            // Archivar la plantilla vigente anterior
-            if (plantilla.getCurso() != null) {
-                plantillaRepository.archivarVigentesDeCurso(
-                    plantilla.getCurso().getIdCurso());
-            } else {
-                plantillaRepository.archivarVigentesDeEvento(
-                    plantilla.getEvento().getIdEvento());
-            }
-
-            plantilla.setEstado(PlantillaCertificado.EstadoPlantilla.VIGENTE);
-            log.info("Plantilla {} aprobada — ahora es VIGENTE", idPlantilla);
-
-        } else {
-            // Rechazada — vuelve a PENDIENTE para que el diseñador la corrija
-            // La plantilla mantiene estado PENDIENTE pero queda la observación registrada
-            log.info("Plantilla {} rechazada — observaciones: {}",
-                idPlantilla, request.getObservaciones());
-        }
+        actualizarEstadoPlantilla(plantilla, idPlantilla, request, nuevoEstado);
 
         plantillaRepository.save(plantilla);
         return toPlantillaDto(plantilla);
@@ -252,6 +190,91 @@ public class PlantillaService {
             && archivo.getOriginalFilename().toLowerCase().endsWith(".pdf");
 
         return (pdfPorTipo || pdfPorNombre) && tieneFirmaPdf(archivo);
+    }
+
+    private void validarActividad(Long idCurso, Long idEvento) {
+        if (idCurso == null && idEvento == null) {
+            throw new BusinessException(
+                "Debe especificar un curso o un evento", 400);
+        }
+        if (idCurso != null && idEvento != null) {
+            throw new BusinessException(
+                "Una plantilla pertenece a un curso O a un evento, no a ambos", 400);
+        }
+    }
+
+    private void validarArchivoPdf(MultipartFile archivo) {
+        if (archivo.isEmpty() || !esPdf(archivo)) {
+            throw new BusinessException(
+                "El archivo debe ser un PDF válido", 400);
+        }
+
+        validarSize(archivo);
+    }
+
+    private Actividad obtenerActividad(Long idCurso, Long idEvento) {
+        if (idCurso != null) {
+            Curso curso = cursoRepository.findById(idCurso)
+                .orElseThrow(() -> new ResourceNotFoundException("Curso", idCurso));
+            return new Actividad(curso, null, idCurso, null);
+        }
+
+        Evento evento = eventoRepository.findById(idEvento)
+            .orElseThrow(() -> new ResourceNotFoundException("Evento", idEvento));
+        return new Actividad(null, evento, null, idEvento);
+    }
+
+    private void validarPlantillaPendiente(PlantillaCertificado plantilla) {
+        if (plantilla.getEstado() != PlantillaCertificado.EstadoPlantilla.PENDIENTE) {
+            throw new BusinessException(
+                "Solo se pueden revisar plantillas en estado PENDIENTE. "
+                + "Estado actual: " + plantilla.getEstado(), 400);
+        }
+    }
+
+    private Aprobacion.EstadoAprobacion parseEstadoRevision(AprobacionRequest request) {
+        try {
+            return Aprobacion.EstadoAprobacion.valueOf(request.getEstado());
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(
+                "Estado inválido. Use: APROBADA o RECHAZADA", 400);
+        }
+    }
+
+    private void validarObservaciones(AprobacionRequest request,
+                                      Aprobacion.EstadoAprobacion nuevoEstado) {
+        if (nuevoEstado == Aprobacion.EstadoAprobacion.RECHAZADA
+                && (request.getObservaciones() == null
+                    || request.getObservaciones().isBlank())) {
+            throw new BusinessException(
+                "Las observaciones son obligatorias al rechazar una plantilla", 400);
+        }
+    }
+
+    private void actualizarEstadoPlantilla(PlantillaCertificado plantilla,
+                                           Long idPlantilla,
+                                           AprobacionRequest request,
+                                           Aprobacion.EstadoAprobacion nuevoEstado) {
+        if (nuevoEstado == Aprobacion.EstadoAprobacion.APROBADA) {
+            archivarPlantillasVigentes(plantilla);
+            plantilla.setEstado(PlantillaCertificado.EstadoPlantilla.VIGENTE);
+            log.info("Plantilla {} aprobada — ahora es VIGENTE", idPlantilla);
+            return;
+        }
+
+        log.info("Plantilla {} rechazada — observaciones: {}",
+            idPlantilla, request.getObservaciones());
+    }
+
+    private void archivarPlantillasVigentes(PlantillaCertificado plantilla) {
+        if (plantilla.getCurso() != null) {
+            plantillaRepository.archivarVigentesDeCurso(
+                plantilla.getCurso().getIdCurso());
+            return;
+        }
+
+        plantillaRepository.archivarVigentesDeEvento(
+            plantilla.getEvento().getIdEvento());
     }
 
     private boolean tieneFirmaPdf(MultipartFile archivo) {
@@ -341,6 +364,9 @@ public class PlantillaService {
             .ifPresent(a -> dto.setUltimaObservacion(a.getObservaciones()));
 
         return dto;
+    }
+
+    private record Actividad(Curso curso, Evento evento, Long idCurso, Long idEvento) {
     }
 
     private void validarPermisoDescarga(PlantillaCertificado plantilla) {
