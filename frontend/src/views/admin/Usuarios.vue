@@ -22,154 +22,63 @@
         </p>
       </div>
     </div>
+            const [usuariosResponse, carrerasResponse, eventosResponse, cursosResponse] = await Promise.all([
+              api.get('/usuarios') as Promise<UsuarioApi[]>,
+              api.get('/carreras/todas') as Promise<CarreraApi[]>,
+              api.get('/eventos/todos') as Promise<EventoApi[]>,
+              api.get('/cursos/todos') as Promise<CursoApi[]>
+            ])
 
-    <!-- Estadísticas rápidas -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <Card>
-        <div class="text-center">
-          <p class="text-2xl font-bold text-gray-800">{{ estadisticas.total }}</p>
-          <p class="text-sm text-gray-600">Total Usuarios</p>
-        </div>
-      </Card>
-      <Card>
-        <div class="text-center">
-          <p class="text-2xl font-bold text-blue-600">{{ estadisticas.internos }}</p>
-          <p class="text-sm text-gray-600">UMSA</p>
-        </div>
-      </Card>
-      <Card>
-        <div class="text-center">
-          <p class="text-2xl font-bold text-purple-600">{{ estadisticas.externos }}</p>
-          <p class="text-sm text-gray-600">Externos</p>
-        </div>
-      </Card>
-      <Card>
-        <div class="text-center">
-          <p class="text-2xl font-bold text-green-600">{{ estadisticas.activos }}</p>
-          <p class="text-sm text-gray-600">Activos</p>
-        </div>
-      </Card>
-    </div>
+            usuarios.value = usuariosResponse.map((u) => ({
+              idUsuario: u.idUsuario,
+              username: u.username,
+              nombres: u.nombres,
+              apellidos: u.apellidos,
+              email: u.email,
+              tipoUsuario: u.tipoUsuario || 'EXTERNO',
+              emailVerificado: u.emailVerificado,
+              estado: u.estado,
+              roles: u.roles,
+              carreras: [],
+              fechaRegistro: u.fechaRegistro
+            }))
 
-    <!-- Filtros -->
-    <Card>
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <!-- Búsqueda -->
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
-          <input
-            v-model="filtros.busqueda"
-            type="text"
-            placeholder="Nombre, apellido, email o RU..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
+            carreras.value = carrerasResponse.map((c) => ({
+              idCarrera: c.idCarrera,
+              nombre: c.nombre
+            }))
 
-        <!-- Filtro por tipo -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Usuario</label>
-          <select
-            v-model="filtros.tipoUsuario"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Todos</option>
-            <option value="INTERNO">UMSA</option>
-            <option value="EXTERNO">Externos</option>
-          </select>
-        </div>
+            actividadesDisponibles.value = eventosResponse.map((e) => ({
+              idActividad: e.idEvento,
+              nombre: e.nombre,
+              tipo: 'EVENTO',
+              idCarrera: e.idCarrera,
+              carreraNombre: e.nombreCarrera,
+              modalidad: e.modalidad,
+              fechaInicio: e.fechaHora,
+              fechaFin: e.fechaHora
+            }))
 
-        <!-- Filtro por rol -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-          <select
-            v-model="filtros.rol"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Todos los roles</option>
-            <option value="ADMINISTRADOR">Administrador</option>
-            <option value="COORDINADOR">Coordinador</option>
-            <option value="DOCENTE">Docente</option>
-            <option value="PARTICIPANTE">Participante</option>
-            <option value="AUXILIAR">Auxiliar</option>
-            <option value="DISEÑADOR">Diseñador</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Filtros adicionales -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-        <!-- Estado -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-          <select
-            v-model="filtros.estado"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Todos</option>
-            <option value="ACTIVO">Activos</option>
-            <option value="INACTIVO">Inactivos</option>
-          </select>
-        </div>
-
-        <!-- Email verificado -->
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Email Verificado</label>
-          <select
-            v-model="filtros.emailVerificado"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Todos</option>
-            <option value="true">Verificados</option>
-            <option value="false">No verificados</option>
-          </select>
-        </div>
-
-        <!-- Botón limpiar filtros -->
-        <div class="flex items-end">
-          <Button variant="outline" class="w-full" @click="limpiarFiltros">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Limpiar Filtros
-          </Button>
-        </div>
-      </div>
-    </Card>
-
-    <!-- Tabla de usuarios -->
-    <Card>
-      <!-- Estado de carga -->
-      <div v-if="loading" class="text-center py-12">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p class="mt-4 text-gray-600">Cargando usuarios...</p>
-      </div>
-
-      <!-- Tabla -->
-      <div v-else-if="usuariosPaginados.length > 0" class="overflow-x-auto">
-        <table class="w-full">
-          <thead class="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Usuario</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Carreras</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">RU/Username</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tipo</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Roles</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Estado</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Acciones</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-200">
-            <!-- CAMBIO IMPORTANTE: Usar usuariosPaginados en vez de usuariosFiltrados -->
-            <tr v-for="usuario in usuariosPaginados" :key="usuario.idUsuario" class="hover:bg-gray-50">
-              <!-- Nombre completo -->
-              <td class="px-4 py-3">
-                <div class="flex items-center space-x-3">
+            const paralelos: Paralelo[] = []
+            for (const curso of cursosResponse) {
+              for (const paralelo of curso.paralelos || []) {
+                paralelos.push({
+                  idParalelo: buildParaleloKey(paralelo.idCurso, paralelo.codigo),
+                  codigo: paralelo.codigo,
+                  idCurso: paralelo.idCurso,
+                  idCarrera: curso.idCarrera,
+                  actividadNombre: curso.nombre,
+                  actividadTipo: 'CURSO',
+                  carreraNombre: curso.nombreCarrera
+                })
+              }
+            }
+            paralelosDisponibles.value = paralelos
                   <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
                     {{ getInitials(usuario.nombres, usuario.apellidos) }}
                   </div>
                   <div>
+            alertStore.push({ type: 'error', message: 'No se pudieron cargar los datos de usuarios.' })
                     <p class="text-sm font-medium text-gray-800">{{ usuario.nombres }} {{ usuario.apellidos }}</p>
                     <p class="text-xs text-gray-500">ID: {{ usuario.idUsuario }}</p>
                   </div>
@@ -980,9 +889,10 @@ interface Actividad {
 }
 
 interface Paralelo {
-  idParalelo: number
+  idParalelo: string
   codigo: string
-  idActividad: number
+  idCurso: number
+  idCarrera: number | null
   actividadNombre: string
   actividadTipo: 'CURSO' | 'EVENTO'
   carreraNombre: string
@@ -1013,6 +923,34 @@ interface UsuarioApi {
   estado: 'ACTIVO' | 'INACTIVO'
   roles: string[]
   fechaRegistro: string
+}
+
+interface CarreraApi {
+  idCarrera: number
+  nombre: string
+  estado: string
+}
+
+interface EventoApi {
+  idEvento: number
+  idCarrera: number
+  nombreCarrera: string
+  nombre: string
+  modalidad: 'PRESENCIAL' | 'VIRTUAL' | 'MIXTO'
+  fechaHora: string
+}
+
+interface CursoApi {
+  idCurso: number
+  idCarrera: number
+  nombreCarrera: string
+  nombre: string
+  paralelos?: ParaleloApi[]
+}
+
+interface ParaleloApi {
+  codigo: string
+  idCurso: number
 }
 
 interface FormUsuario {
@@ -1081,6 +1019,7 @@ const formUsuario = ref<FormUsuario>({
   apellidos: '',
   email: '',
   password: '',
+  tipoParticipante: 'EXTERNO',
   tipoUsuario: '',
   estado: 'ACTIVO'
 })
@@ -1088,7 +1027,7 @@ const formUsuario = ref<FormUsuario>({
 const rolesSeleccionados = ref<string[]>([])
 const carrerasSeleccionadas = ref<number[]>([])     // Solo coordinadores
 const actividadesSeleccionadas = ref<number[]>([])  // ← NUEVO: Para auxiliares (eventos)
-const paralelosSeleccionados = ref<number[]>([])    // ← NUEVO: Para docentes (paralelos)
+const paralelosSeleccionados = ref<string[]>([])    // ← NUEVO: Para docentes (paralelos)
 
 // Filtros del modal de actividades
 const filtroCarreraActividades = ref<number | ''>('')  // ← NUEVO
@@ -1158,9 +1097,14 @@ const {
 const cargarUsuarios = async () => {
   loading.value = true
   try {
-    const response = await api.get('/usuarios') as UsuarioApi[]
+    const [usuariosResponse, carrerasResponse, eventosResponse, cursosResponse] = await Promise.all([
+      api.get('/usuarios') as Promise<UsuarioApi[]>,
+      api.get('/carreras/todas') as Promise<CarreraApi[]>,
+      api.get('/eventos/todos') as Promise<EventoApi[]>,
+      api.get('/cursos/todos') as Promise<CursoApi[]>
+    ])
 
-    usuarios.value = response.map((u) => ({
+    usuarios.value = usuariosResponse.map((u) => ({
       idUsuario: u.idUsuario,
       username: u.username,
       nombres: u.nombres,
@@ -1174,14 +1118,42 @@ const cargarUsuarios = async () => {
       fechaRegistro: u.fechaRegistro
     }))
 
-    carreras.value = []
-    actividadesDisponibles.value = []
-    paralelosDisponibles.value = []
+    carreras.value = carrerasResponse.map((c) => ({
+      idCarrera: c.idCarrera,
+      nombre: c.nombre
+    }))
+
+    actividadesDisponibles.value = eventosResponse.map((e) => ({
+      idActividad: e.idEvento,
+      nombre: e.nombre,
+      tipo: 'EVENTO',
+      idCarrera: e.idCarrera,
+      carreraNombre: e.nombreCarrera,
+      modalidad: e.modalidad,
+      fechaInicio: e.fechaHora,
+      fechaFin: e.fechaHora
+    }))
+
+    const paralelos: Paralelo[] = []
+    for (const curso of cursosResponse) {
+      for (const paralelo of curso.paralelos || []) {
+        paralelos.push({
+          idParalelo: buildParaleloKey(paralelo.idCurso, paralelo.codigo),
+          codigo: paralelo.codigo,
+          idCurso: paralelo.idCurso,
+          idCarrera: curso.idCarrera,
+          actividadNombre: curso.nombre,
+          actividadTipo: 'CURSO',
+          carreraNombre: curso.nombreCarrera
+        })
+      }
+    }
+    paralelosDisponibles.value = paralelos
 
     calcularEstadisticas()
   } catch (error) {
     console.error('Error al cargar usuarios:', error)
-    alertStore.push({ type: 'error', message: 'No se pudieron cargar los usuarios.' })
+    alertStore.push({ type: 'error', message: 'No se pudieron cargar los datos de usuarios.' })
   } finally {
     loading.value = false
   }
@@ -1322,7 +1294,14 @@ const openCarrerasModal = (usuario: Usuario) => {
   }
   
   usuarioSeleccionado.value = usuario
-  carrerasSeleccionadas.value = usuario.carreras.map(c => c.idCarrera)
+  carrerasSeleccionadas.value = []
+  api.get(`/usuarios/${usuario.idUsuario}/carreras`)
+    .then((response) => {
+      carrerasSeleccionadas.value = response as number[]
+    })
+    .catch(() => {
+      alertStore.push({ type: 'error', message: 'No se pudieron cargar las carreras.' })
+    })
   showCarrerasModal.value = true
 }
 
@@ -1337,17 +1316,19 @@ const guardarCarreras = async () => {
 
   saving.value = true
   try {
-    console.log('Guardando carreras:', carrerasSeleccionadas.value)
-    // TODO: API call - PUT /api/usuarios/:id/carreras
-    // Body: { carreraIds: carrerasSeleccionadas.value }
+    await api.put(`/usuarios/${usuarioSeleccionado.value.idUsuario}/carreras`, {
+      carreraIds: carrerasSeleccionadas.value
+    })
 
-    usuarioSeleccionado.value.carreras = carreras.value.filter(c => 
+    usuarioSeleccionado.value.carreras = carreras.value.filter((c) =>
       carrerasSeleccionadas.value.includes(c.idCarrera)
     )
-    
+
+    alertStore.push({ type: 'success', message: 'Carreras actualizadas.' })
     closeCarrerasModal()
   } catch (error) {
     console.error('Error al guardar carreras:', error)
+    alertStore.push({ type: 'error', message: 'No se pudieron guardar las carreras.' })
   } finally {
     saving.value = false
   }
@@ -1370,14 +1351,25 @@ const openActividadesModal = (usuario: Usuario, tipo: 'DOCENTE' | 'AUXILIAR') =>
   // Cargar datos según el tipo
   if (tipo === 'DOCENTE') {
     paralelosSeleccionados.value = []
-    // TODO: Cargar paralelos asignados al docente desde API
-    // GET /api/usuarios/:id/paralelos
-    console.log('Cargando paralelos asignados al docente...')
+    api.get(`/usuarios/${usuario.idUsuario}/paralelos`)
+      .then((response) => {
+        const asignados = response as { idCurso: number; codigo: string }[]
+        paralelosSeleccionados.value = asignados.map((p) =>
+          buildParaleloKey(p.idCurso, p.codigo)
+        )
+      })
+      .catch(() => {
+        alertStore.push({ type: 'error', message: 'No se pudieron cargar los paralelos.' })
+      })
   } else {
     actividadesSeleccionadas.value = []
-    // TODO: Cargar eventos asignados al auxiliar desde API
-    // GET /api/usuarios/:id/eventos
-    console.log('Cargando eventos asignados al auxiliar...')
+    api.get(`/usuarios/${usuario.idUsuario}/eventos`)
+      .then((response) => {
+        actividadesSeleccionadas.value = response as number[]
+      })
+      .catch(() => {
+        alertStore.push({ type: 'error', message: 'No se pudieron cargar los eventos.' })
+      })
   }
   
   showActividadesModal.value = true
@@ -1426,10 +1418,9 @@ const paralelosFiltrados = computed(() => {
 
   // Filtrar por carrera
   if (filtroCarreraActividades.value) {
-    resultado = resultado.filter(p => {
-      const actividad = actividadesDisponibles.value.find(a => a.idActividad === p.idActividad)
-      return actividad?.idCarrera === Number(filtroCarreraActividades.value)
-    })
+    resultado = resultado.filter(p =>
+      p.idCarrera === Number(filtroCarreraActividades.value)
+    )
   }
 
   // Filtrar por búsqueda
@@ -1450,26 +1441,21 @@ const guardarActividades = async () => {
   saving.value = true
   try {
     if (tipoGestionActividades.value === 'DOCENTE') {
-      // Guardar paralelos asignados al docente
-      console.log('Guardando paralelos para docente:', paralelosSeleccionados.value)
-      // TODO: API call - PUT /api/usuarios/:id/paralelos
-      // Body: { paraleloIds: paralelosSeleccionados.value }
-      
-      alert(`${paralelosSeleccionados.value.length} paralelo(s) asignado(s) correctamente`)
+      const paralelos = paralelosSeleccionados.value.map(parseParaleloKey)
+      await api.put(`/usuarios/${usuarioSeleccionado.value.idUsuario}/paralelos`, { paralelos })
+      alertStore.push({ type: 'success', message: 'Paralelos actualizados.' })
       
     } else if (tipoGestionActividades.value === 'AUXILIAR') {
-      // Guardar eventos asignados al auxiliar
-      console.log('Guardando eventos para auxiliar:', actividadesSeleccionadas.value)
-      // TODO: API call - PUT /api/usuarios/:id/eventos
-      // Body: { eventoIds: actividadesSeleccionadas.value }
-      
-      alert(`${actividadesSeleccionadas.value.length} evento(s) asignado(s) correctamente`)
+      await api.put(`/usuarios/${usuarioSeleccionado.value.idUsuario}/eventos`, {
+        eventoIds: actividadesSeleccionadas.value
+      })
+      alertStore.push({ type: 'success', message: 'Eventos actualizados.' })
     }
     
     closeActividadesModal()
   } catch (error) {
     console.error('Error al guardar actividades:', error)
-    alert('Error al guardar las asignaciones')
+    alertStore.push({ type: 'error', message: 'Error al guardar las asignaciones.' })
   } finally {
     saving.value = false
   }
@@ -1633,6 +1619,15 @@ const formatDate = (date: string) => {
     month: '2-digit',
     year: 'numeric'
   })
+}
+
+const buildParaleloKey = (idCurso: number, codigo: string) => {
+  return `${idCurso}:${codigo}`
+}
+
+const parseParaleloKey = (key: string) => {
+  const [idCurso, codigo] = key.split(':')
+  return { idCurso: Number(idCurso), codigo }
 }
 
 // ============================================
