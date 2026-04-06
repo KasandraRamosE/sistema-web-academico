@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.UUID;
+import java.io.InputStream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,6 +26,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.entity.Aprobacion;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.entity.PlantillaCertificado;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.repository.AprobacionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.repository.PlantillaRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
 import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
@@ -40,56 +42,37 @@ public class PlantillaService {
     private final AprobacionRepository aprobacionRepository;
     private final CursoRepository      cursoRepository;
     private final EventoRepository     eventoRepository;
+    private final CoordinadorCarreraRepository coordinadorCarreraRepository;
     private final UsuarioRepository    usuarioRepository;
 
     @Value("${app.plantillas.directorio:plantillas}")
     private String directorioPlantillas;
+
+    @Value("${app.plantillas.max-size-mb:5}")
+    private long maxPlantillaSizeMb;
 
     // ── Subir plantilla (diseñador) ──────────────────────────────────────────
     @Transactional
     public PlantillaDto subirPlantilla(MultipartFile archivo,
                                        Long idCurso,
                                        Long idEvento) throws IOException {
-        // Validar que sea exactamente uno
-        if (idCurso == null && idEvento == null) {
-            throw new BusinessException(
-                "Debe especificar un curso o un evento", 400);
-        }
-        if (idCurso != null && idEvento != null) {
-            throw new BusinessException(
-                "Una plantilla pertenece a un curso O a un evento, no a ambos", 400);
-        }
-
-        // Validar que sea PDF
-        if (archivo.isEmpty() || !esPdf(archivo)) {
-            throw new BusinessException(
-                "El archivo debe ser un PDF válido", 400);
-        }
+        validarActividad(idCurso, idEvento);
+        validarArchivoPdf(archivo);
 
         Usuario disenador = getUsuarioActual();
+
+        Actividad actividad = obtenerActividad(idCurso, idEvento);
 
         // Calcular versión — es la siguiente a la última existente
         int nuevaVersion = calcularSiguienteVersion(idCurso, idEvento);
 
         // Guardar el archivo en disco
         String rutaArchivo = guardarArchivo(archivo, disenador.getIdUsuario(),
-            idCurso, idEvento, nuevaVersion);
-
-        // Obtener la actividad
-        Curso curso = null;
-        Evento evento = null;
-
-        if (idCurso != null) {
-            curso = cursoRepository.findById(idCurso)
-                .orElseThrow(() -> new ResourceNotFoundException("Curso", idCurso));
-        } else {
-            evento = eventoRepository.findById(idEvento)
-                .orElseThrow(() -> new ResourceNotFoundException("Evento", idEvento));
-        }
+            actividad.idCurso(), actividad.idEvento(), nuevaVersion);
 
         PlantillaCertificado plantilla = PlantillaCertificado.builder()
-            .curso(curso)
-            .evento(evento)
+            .curso(actividad.curso())
+            .evento(actividad.evento())
             .archivoPdf(rutaArchivo)
             .version(nuevaVersion)
             .subidaPor(disenador)
@@ -100,8 +83,8 @@ public class PlantillaService {
 
         log.info("Plantilla v{} subida por {} para {} {}",
             nuevaVersion, disenador.getUsername(),
-            idCurso != null ? "curso" : "evento",
-            idCurso != null ? idCurso : idEvento);
+            actividad.idCurso() != null ? "curso" : "evento",
+            actividad.idCurso() != null ? actividad.idCurso() : actividad.idEvento());
 
         return toPlantillaDto(plantilla);
     }
@@ -112,28 +95,11 @@ public class PlantillaService {
         PlantillaCertificado plantilla = buscarPlantilla(idPlantilla);
         Usuario coordinador = getUsuarioActual();
 
-        // Solo se pueden revisar plantillas PENDIENTES
-        if (plantilla.getEstado() != PlantillaCertificado.EstadoPlantilla.PENDIENTE) {
-            throw new BusinessException(
-                "Solo se pueden revisar plantillas en estado PENDIENTE. "
-                + "Estado actual: " + plantilla.getEstado(), 400);
-        }
+        validarCoordinadorDeActividad(coordinador, plantilla);
+        validarPlantillaPendiente(plantilla);
 
-        Aprobacion.EstadoAprobacion nuevoEstado;
-        try {
-            nuevoEstado = Aprobacion.EstadoAprobacion.valueOf(request.getEstado());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException(
-                "Estado inválido. Use: APROBADA o RECHAZADA", 400);
-        }
-
-        // Si se rechaza, las observaciones son obligatorias
-        if (nuevoEstado == Aprobacion.EstadoAprobacion.RECHAZADA
-                && (request.getObservaciones() == null
-                    || request.getObservaciones().isBlank())) {
-            throw new BusinessException(
-                "Las observaciones son obligatorias al rechazar una plantilla", 400);
-        }
+        Aprobacion.EstadoAprobacion nuevoEstado = parseEstadoRevision(request);
+        validarObservaciones(request, nuevoEstado);
 
         // Registrar la revisión
         Aprobacion aprobacion = Aprobacion.builder()
@@ -144,25 +110,7 @@ public class PlantillaService {
             .build();
         aprobacionRepository.save(aprobacion);
 
-        if (nuevoEstado == Aprobacion.EstadoAprobacion.APROBADA) {
-            // Archivar la plantilla vigente anterior
-            if (plantilla.getCurso() != null) {
-                plantillaRepository.archivarVigentesDeCurso(
-                    plantilla.getCurso().getIdCurso());
-            } else {
-                plantillaRepository.archivarVigentesDeEvento(
-                    plantilla.getEvento().getIdEvento());
-            }
-
-            plantilla.setEstado(PlantillaCertificado.EstadoPlantilla.VIGENTE);
-            log.info("Plantilla {} aprobada — ahora es VIGENTE", idPlantilla);
-
-        } else {
-            // Rechazada — vuelve a PENDIENTE para que el diseñador la corrija
-            // La plantilla mantiene estado PENDIENTE pero queda la observación registrada
-            log.info("Plantilla {} rechazada — observaciones: {}",
-                idPlantilla, request.getObservaciones());
-        }
+        actualizarEstadoPlantilla(plantilla, idPlantilla, request, nuevoEstado);
 
         plantillaRepository.save(plantilla);
         return toPlantillaDto(plantilla);
@@ -172,6 +120,7 @@ public class PlantillaService {
     @Transactional(readOnly = true)
     public byte[] descargarPlantilla(Long idPlantilla) throws IOException {
         PlantillaCertificado plantilla = buscarPlantilla(idPlantilla);
+        validarPermisoDescarga(plantilla);
         Path ruta = Paths.get(plantilla.getArchivoPdf());
 
         if (!Files.exists(ruta)) {
@@ -236,9 +185,118 @@ public class PlantillaService {
 
     private boolean esPdf(MultipartFile archivo) {
         String contentType = archivo.getContentType();
-        return "application/pdf".equals(contentType)
-            || (archivo.getOriginalFilename() != null
-                && archivo.getOriginalFilename().toLowerCase().endsWith(".pdf"));
+        boolean pdfPorTipo = "application/pdf".equals(contentType);
+        boolean pdfPorNombre = archivo.getOriginalFilename() != null
+            && archivo.getOriginalFilename().toLowerCase().endsWith(".pdf");
+
+        return (pdfPorTipo || pdfPorNombre) && tieneFirmaPdf(archivo);
+    }
+
+    private void validarActividad(Long idCurso, Long idEvento) {
+        if (idCurso == null && idEvento == null) {
+            throw new BusinessException(
+                "Debe especificar un curso o un evento", 400);
+        }
+        if (idCurso != null && idEvento != null) {
+            throw new BusinessException(
+                "Una plantilla pertenece a un curso O a un evento, no a ambos", 400);
+        }
+    }
+
+    private void validarArchivoPdf(MultipartFile archivo) {
+        if (archivo.isEmpty() || !esPdf(archivo)) {
+            throw new BusinessException(
+                "El archivo debe ser un PDF válido", 400);
+        }
+
+        validarSize(archivo);
+    }
+
+    private Actividad obtenerActividad(Long idCurso, Long idEvento) {
+        if (idCurso != null) {
+            Curso curso = cursoRepository.findById(idCurso)
+                .orElseThrow(() -> new ResourceNotFoundException("Curso", idCurso));
+            return new Actividad(curso, null, idCurso, null);
+        }
+
+        Evento evento = eventoRepository.findById(idEvento)
+            .orElseThrow(() -> new ResourceNotFoundException("Evento", idEvento));
+        return new Actividad(null, evento, null, idEvento);
+    }
+
+    private void validarPlantillaPendiente(PlantillaCertificado plantilla) {
+        if (plantilla.getEstado() != PlantillaCertificado.EstadoPlantilla.PENDIENTE) {
+            throw new BusinessException(
+                "Solo se pueden revisar plantillas en estado PENDIENTE. "
+                + "Estado actual: " + plantilla.getEstado(), 400);
+        }
+    }
+
+    private Aprobacion.EstadoAprobacion parseEstadoRevision(AprobacionRequest request) {
+        try {
+            return Aprobacion.EstadoAprobacion.valueOf(request.getEstado());
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(
+                "Estado inválido. Use: APROBADA o RECHAZADA", 400);
+        }
+    }
+
+    private void validarObservaciones(AprobacionRequest request,
+                                      Aprobacion.EstadoAprobacion nuevoEstado) {
+        if (nuevoEstado == Aprobacion.EstadoAprobacion.RECHAZADA
+                && (request.getObservaciones() == null
+                    || request.getObservaciones().isBlank())) {
+            throw new BusinessException(
+                "Las observaciones son obligatorias al rechazar una plantilla", 400);
+        }
+    }
+
+    private void actualizarEstadoPlantilla(PlantillaCertificado plantilla,
+                                           Long idPlantilla,
+                                           AprobacionRequest request,
+                                           Aprobacion.EstadoAprobacion nuevoEstado) {
+        if (nuevoEstado == Aprobacion.EstadoAprobacion.APROBADA) {
+            archivarPlantillasVigentes(plantilla);
+            plantilla.setEstado(PlantillaCertificado.EstadoPlantilla.VIGENTE);
+            log.info("Plantilla {} aprobada — ahora es VIGENTE", idPlantilla);
+            return;
+        }
+
+        log.info("Plantilla {} rechazada — observaciones: {}",
+            idPlantilla, request.getObservaciones());
+    }
+
+    private void archivarPlantillasVigentes(PlantillaCertificado plantilla) {
+        if (plantilla.getCurso() != null) {
+            plantillaRepository.archivarVigentesDeCurso(
+                plantilla.getCurso().getIdCurso());
+            return;
+        }
+
+        plantillaRepository.archivarVigentesDeEvento(
+            plantilla.getEvento().getIdEvento());
+    }
+
+    private boolean tieneFirmaPdf(MultipartFile archivo) {
+        try (InputStream input = archivo.getInputStream()) {
+            byte[] header = new byte[5];
+            int read = input.read(header);
+            if (read < 5) {
+                return false;
+            }
+            return header[0] == '%' && header[1] == 'P'
+                && header[2] == 'D' && header[3] == 'F' && header[4] == '-';
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private void validarSize(MultipartFile archivo) {
+        long maxBytes = maxPlantillaSizeMb * 1024 * 1024;
+        if (archivo.getSize() > maxBytes) {
+            throw new BusinessException(
+                "El archivo supera el tamaño máximo permitido", 413);
+        }
     }
 
     private int calcularSiguienteVersion(Long idCurso, Long idEvento) {
@@ -306,5 +364,71 @@ public class PlantillaService {
             .ifPresent(a -> dto.setUltimaObservacion(a.getObservaciones()));
 
         return dto;
+    }
+
+    private record Actividad(Curso curso, Evento evento, Long idCurso, Long idEvento) {
+    }
+
+    private void validarPermisoDescarga(PlantillaCertificado plantilla) {
+        Usuario actual = getUsuarioActual();
+
+        boolean esAdmin = actual.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+        if (esAdmin) {
+            return;
+        }
+
+        boolean esCoordinador = actual.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
+        if (esCoordinador) {
+            return;
+        }
+
+        boolean esDisenador = actual.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("DISEÑADOR"));
+        if (esDisenador
+                && plantilla.getSubidaPor() != null
+                && actual.getIdUsuario().equals(plantilla.getSubidaPor().getIdUsuario())) {
+            return;
+        }
+
+        throw new BusinessException(
+            "No tienes permisos para descargar esta plantilla", 403);
+    }
+
+    private void validarCoordinadorDeActividad(Usuario coordinador,
+                                               PlantillaCertificado plantilla) {
+        boolean esAdmin = coordinador.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+        if (esAdmin) {
+            return;
+        }
+
+        boolean esCoordinador = coordinador.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
+        if (!esCoordinador) {
+            throw new BusinessException(
+                "No tienes permisos para revisar plantillas", 403);
+        }
+
+        Long idCarrera = null;
+        if (plantilla.getCurso() != null) {
+            idCarrera = plantilla.getCurso().getCarrera().getIdCarrera();
+        } else if (plantilla.getEvento() != null) {
+            idCarrera = plantilla.getEvento().getCarrera().getIdCarrera();
+        }
+
+        if (idCarrera == null) {
+            throw new BusinessException("No se pudo determinar la carrera", 500);
+        }
+
+        boolean asignado = coordinadorCarreraRepository
+            .existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                coordinador.getIdUsuario(), idCarrera);
+
+        if (!asignado) {
+            throw new BusinessException(
+                "No eres coordinador de la carrera de esta actividad", 403);
+        }
     }
 }

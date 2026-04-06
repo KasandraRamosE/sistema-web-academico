@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.AprobacionRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.PlantillaDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.service.PlantillaService;
@@ -73,6 +74,11 @@ public class PlantillaController {
     public ResponseEntity<List<PlantillaDto>> historial(
             @RequestParam(required = false) Long idCurso,
             @RequestParam(required = false) Long idEvento) {
+        if ((idCurso == null && idEvento == null)
+            || (idCurso != null && idEvento != null)) {
+            throw new BusinessException(
+            "Debe enviar exactamente uno: idCurso o idEvento", 400);
+        }
         return ResponseEntity.ok(plantillaService.historial(idCurso, idEvento));
     }
 

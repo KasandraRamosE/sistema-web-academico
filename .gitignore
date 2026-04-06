@@ -3,6 +3,8 @@
 
 # Java
 backend/target/
+backend/sistema-cursos/certificados/
+plantillas/
 
 # Node
 frontend/node_modules/
