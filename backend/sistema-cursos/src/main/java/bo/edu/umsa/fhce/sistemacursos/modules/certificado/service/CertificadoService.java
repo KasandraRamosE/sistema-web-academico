@@ -13,6 +13,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.certificado.repository.Certificado
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Curso;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.Evento;
+import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.AsistenciaRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity.EvaluacionEstudiante;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.EvaluacionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.entity.Inscripcion;
@@ -46,6 +47,7 @@ public class CertificadoService {
     private final AnulacionRepository    anulacionRepository;
     private final InscripcionRepository  inscripcionRepository;
     private final EvaluacionRepository   evaluacionRepository;
+    private final AsistenciaRepository   asistenciaRepository;
     private final CoordinadorCarreraRepository coordinadorCarreraRepository;
     private final UsuarioRepository      usuarioRepository;
     private final CertificadoPdfService  pdfService;
@@ -310,15 +312,12 @@ public class CertificadoService {
                     "El participante no aprobó el curso", 400);
             }
         } else {
-            // Evento: debe tener registro de asistencia
-            // Lo verificamos a través del trigger T7 de la BD
-            // pero también validamos en servicio para dar mensaje claro
-            boolean tieneAsistencia = inscripcion.getEstado()
-                == Inscripcion.EstadoInscripcion.CONFIRMADA;
+            boolean tieneAsistencia = asistenciaRepository
+                .existsByInscripcion_IdInscripcion(inscripcion.getIdInscripcion());
 
             if (!tieneAsistencia) {
                 throw new BusinessException(
-                    "La inscripción no está confirmada", 400);
+                    "El participante no tiene asistencia registrada", 400);
             }
         }
     }
