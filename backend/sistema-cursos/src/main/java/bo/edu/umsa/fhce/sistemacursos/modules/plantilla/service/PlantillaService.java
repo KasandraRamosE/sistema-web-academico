@@ -68,13 +68,6 @@ public class PlantillaService {
 
         Usuario disenador = getUsuarioActual();
 
-        // Calcular versión — es la siguiente a la última existente
-        int nuevaVersion = calcularSiguienteVersion(idCurso, idEvento);
-
-        // Guardar el archivo en disco
-        String rutaArchivo = guardarArchivo(archivo, disenador.getIdUsuario(),
-            idCurso, idEvento, nuevaVersion);
-
         // Obtener la actividad
         Curso curso = null;
         Evento evento = null;
@@ -86,6 +79,13 @@ public class PlantillaService {
             evento = eventoRepository.findById(idEvento)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento", idEvento));
         }
+
+        // Calcular versión — es la siguiente a la última existente
+        int nuevaVersion = calcularSiguienteVersion(idCurso, idEvento);
+
+        // Guardar el archivo en disco
+        String rutaArchivo = guardarArchivo(archivo, disenador.getIdUsuario(),
+            idCurso, idEvento, nuevaVersion);
 
         PlantillaCertificado plantilla = PlantillaCertificado.builder()
             .curso(curso)
