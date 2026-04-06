@@ -1,3 +1,7 @@
+import { getActivePinia } from 'pinia'
+import { useAuthStore } from '@/stores/auth.store'
+import { useAlertStore } from '@/stores/alert.store'
+
 const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
 
 const buildUrl = (path: string) => {
@@ -8,6 +12,20 @@ const buildUrl = (path: string) => {
 const getAuthHeader = () => {
   const token = localStorage.getItem('token')
   return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+const notifySessionExpired = () => {
+  const pinia = getActivePinia()
+  if (!pinia) return
+
+  const alertStore = useAlertStore(pinia)
+  alertStore.push({
+    type: 'warning',
+    message: 'Sesion expirada. Inicia sesion de nuevo.'
+  })
+
+  const authStore = useAuthStore(pinia)
+  authStore.logout()
 }
 
 const clearAuthAndRedirect = () => {
@@ -34,7 +52,10 @@ const request = async (path: string, options: RequestInit = {}) => {
     headers
   })
 
-  if (response.status === 401 || response.status === 403) {
+  const isAuthRequest = path.startsWith('/auth/')
+
+  if (!isAuthRequest && (response.status === 401 || response.status === 403)) {
+    notifySessionExpired()
     clearAuthAndRedirect()
     throw new Error('Unauthorized')
   }
