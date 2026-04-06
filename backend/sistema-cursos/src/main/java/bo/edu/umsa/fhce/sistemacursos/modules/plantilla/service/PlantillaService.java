@@ -1,0 +1,310 @@
+package bo.edu.umsa.fhce.sistemacursos.modules.plantilla.service;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
+import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
+import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Curso;
+import bo.edu.umsa.fhce.sistemacursos.modules.curso.repository.CursoRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.Evento;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.EventoRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.AprobacionRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.PlantillaDto;
+import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.entity.Aprobacion;
+import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.entity.PlantillaCertificado;
+import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.repository.AprobacionRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.repository.PlantillaRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
+import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
+import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class PlantillaService {
+
+    private final PlantillaRepository  plantillaRepository;
+    private final AprobacionRepository aprobacionRepository;
+    private final CursoRepository      cursoRepository;
+    private final EventoRepository     eventoRepository;
+    private final UsuarioRepository    usuarioRepository;
+
+    @Value("${app.plantillas.directorio:plantillas}")
+    private String directorioPlantillas;
+
+    // ── Subir plantilla (diseñador) ──────────────────────────────────────────
+    @Transactional
+    public PlantillaDto subirPlantilla(MultipartFile archivo,
+                                       Long idCurso,
+                                       Long idEvento) throws IOException {
+        // Validar que sea exactamente uno
+        if (idCurso == null && idEvento == null) {
+            throw new BusinessException(
+                "Debe especificar un curso o un evento", 400);
+        }
+        if (idCurso != null && idEvento != null) {
+            throw new BusinessException(
+                "Una plantilla pertenece a un curso O a un evento, no a ambos", 400);
+        }
+
+        // Validar que sea PDF
+        if (archivo.isEmpty() || !esPdf(archivo)) {
+            throw new BusinessException(
+                "El archivo debe ser un PDF válido", 400);
+        }
+
+        Usuario disenador = getUsuarioActual();
+
+        // Calcular versión — es la siguiente a la última existente
+        int nuevaVersion = calcularSiguienteVersion(idCurso, idEvento);
+
+        // Guardar el archivo en disco
+        String rutaArchivo = guardarArchivo(archivo, disenador.getIdUsuario(),
+            idCurso, idEvento, nuevaVersion);
+
+        // Obtener la actividad
+        Curso curso = null;
+        Evento evento = null;
+
+        if (idCurso != null) {
+            curso = cursoRepository.findById(idCurso)
+                .orElseThrow(() -> new ResourceNotFoundException("Curso", idCurso));
+        } else {
+            evento = eventoRepository.findById(idEvento)
+                .orElseThrow(() -> new ResourceNotFoundException("Evento", idEvento));
+        }
+
+        PlantillaCertificado plantilla = PlantillaCertificado.builder()
+            .curso(curso)
+            .evento(evento)
+            .archivoPdf(rutaArchivo)
+            .version(nuevaVersion)
+            .subidaPor(disenador)
+            .estado(PlantillaCertificado.EstadoPlantilla.PENDIENTE)
+            .build();
+
+        plantilla = plantillaRepository.save(plantilla);
+
+        log.info("Plantilla v{} subida por {} para {} {}",
+            nuevaVersion, disenador.getUsername(),
+            idCurso != null ? "curso" : "evento",
+            idCurso != null ? idCurso : idEvento);
+
+        return toPlantillaDto(plantilla);
+    }
+
+    // ── Revisar plantilla (coordinador) ─────────────────────────────────────
+    @Transactional
+    public PlantillaDto revisar(Long idPlantilla, AprobacionRequest request) {
+        PlantillaCertificado plantilla = buscarPlantilla(idPlantilla);
+        Usuario coordinador = getUsuarioActual();
+
+        // Solo se pueden revisar plantillas PENDIENTES
+        if (plantilla.getEstado() != PlantillaCertificado.EstadoPlantilla.PENDIENTE) {
+            throw new BusinessException(
+                "Solo se pueden revisar plantillas en estado PENDIENTE. "
+                + "Estado actual: " + plantilla.getEstado(), 400);
+        }
+
+        Aprobacion.EstadoAprobacion nuevoEstado;
+        try {
+            nuevoEstado = Aprobacion.EstadoAprobacion.valueOf(request.getEstado());
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(
+                "Estado inválido. Use: APROBADA o RECHAZADA", 400);
+        }
+
+        // Si se rechaza, las observaciones son obligatorias
+        if (nuevoEstado == Aprobacion.EstadoAprobacion.RECHAZADA
+                && (request.getObservaciones() == null
+                    || request.getObservaciones().isBlank())) {
+            throw new BusinessException(
+                "Las observaciones son obligatorias al rechazar una plantilla", 400);
+        }
+
+        // Registrar la revisión
+        Aprobacion aprobacion = Aprobacion.builder()
+            .plantilla(plantilla)
+            .coordinador(coordinador)
+            .estado(nuevoEstado)
+            .observaciones(request.getObservaciones())
+            .build();
+        aprobacionRepository.save(aprobacion);
+
+        if (nuevoEstado == Aprobacion.EstadoAprobacion.APROBADA) {
+            // Archivar la plantilla vigente anterior
+            if (plantilla.getCurso() != null) {
+                plantillaRepository.archivarVigentesDeCurso(
+                    plantilla.getCurso().getIdCurso());
+            } else {
+                plantillaRepository.archivarVigentesDeEvento(
+                    plantilla.getEvento().getIdEvento());
+            }
+
+            plantilla.setEstado(PlantillaCertificado.EstadoPlantilla.VIGENTE);
+            log.info("Plantilla {} aprobada — ahora es VIGENTE", idPlantilla);
+
+        } else {
+            // Rechazada — vuelve a PENDIENTE para que el diseñador la corrija
+            // La plantilla mantiene estado PENDIENTE pero queda la observación registrada
+            log.info("Plantilla {} rechazada — observaciones: {}",
+                idPlantilla, request.getObservaciones());
+        }
+
+        plantillaRepository.save(plantilla);
+        return toPlantillaDto(plantilla);
+    }
+
+    // ── Descargar plantilla para revisión ────────────────────────────────────
+    @Transactional(readOnly = true)
+    public byte[] descargarPlantilla(Long idPlantilla) throws IOException {
+        PlantillaCertificado plantilla = buscarPlantilla(idPlantilla);
+        Path ruta = Paths.get(plantilla.getArchivoPdf());
+
+        if (!Files.exists(ruta)) {
+            throw new BusinessException(
+                "Archivo de plantilla no encontrado en el servidor", 500);
+        }
+
+        return Files.readAllBytes(ruta);
+    }
+
+    // ── Obtener plantilla VIGENTE de una actividad ───────────────────────────
+    // Usada por CertificadoService antes de generar el PDF
+    @Transactional(readOnly = true)
+    public PlantillaCertificado obtenerVigente(Long idCurso, Long idEvento) {
+        if (idCurso != null) {
+            return plantillaRepository.findByCurso_IdCursoAndEstado(
+                idCurso, PlantillaCertificado.EstadoPlantilla.VIGENTE)
+                .orElseThrow(() -> new BusinessException(
+                    "No hay una plantilla aprobada para este curso. "
+                    + "El diseñador debe subir una plantilla y el coordinador aprobarla.", 400));
+        } else {
+            return plantillaRepository.findByEvento_IdEventoAndEstado(
+                idEvento, PlantillaCertificado.EstadoPlantilla.VIGENTE)
+                .orElseThrow(() -> new BusinessException(
+                    "No hay una plantilla aprobada para este evento.", 400));
+        }
+    }
+
+    // ── Listar plantillas pendientes (bandeja coordinador) ───────────────────
+    @Transactional(readOnly = true)
+    public List<PlantillaDto> listarPendientes() {
+        return plantillaRepository
+            .findByEstadoOrderByFechaSubidaAsc(
+                PlantillaCertificado.EstadoPlantilla.PENDIENTE)
+            .stream()
+            .map(this::toPlantillaDto)
+            .toList();
+    }
+
+    // ── Listar mis plantillas (diseñador) ────────────────────────────────────
+    @Transactional(readOnly = true)
+    public List<PlantillaDto> misPlantillas() {
+        Usuario actual = getUsuarioActual();
+        return plantillaRepository
+            .findBySubidaPor_IdUsuario(actual.getIdUsuario())
+            .stream()
+            .map(this::toPlantillaDto)
+            .toList();
+    }
+
+    // ── Historial de versiones de plantillas de una actividad ────────────────
+    @Transactional(readOnly = true)
+    public List<PlantillaDto> historial(Long idCurso, Long idEvento) {
+        List<PlantillaCertificado> plantillas = (idCurso != null)
+            ? plantillaRepository.findByCurso_IdCursoOrderByVersionDesc(idCurso)
+            : plantillaRepository.findByEvento_IdEventoOrderByVersionDesc(idEvento);
+
+        return plantillas.stream().map(this::toPlantillaDto).toList();
+    }
+
+    // ── Helpers privados ─────────────────────────────────────────────────────
+
+    private boolean esPdf(MultipartFile archivo) {
+        String contentType = archivo.getContentType();
+        return "application/pdf".equals(contentType)
+            || (archivo.getOriginalFilename() != null
+                && archivo.getOriginalFilename().toLowerCase().endsWith(".pdf"));
+    }
+
+    private int calcularSiguienteVersion(Long idCurso, Long idEvento) {
+        List<PlantillaCertificado> existentes = (idCurso != null)
+            ? plantillaRepository.findByCurso_IdCursoOrderByVersionDesc(idCurso)
+            : plantillaRepository.findByEvento_IdEventoOrderByVersionDesc(idEvento);
+
+        return existentes.isEmpty() ? 1 : existentes.get(0).getVersion() + 1;
+    }
+
+    private String guardarArchivo(MultipartFile archivo, Long idUsuario,
+                                   Long idCurso, Long idEvento,
+                                   int version) throws IOException {
+        Path dirPath = Paths.get(directorioPlantillas);
+        Files.createDirectories(dirPath);
+
+        // Nombre único: plantilla_{tipo}_{id}_v{version}_{uuid}.pdf
+        String tipo = idCurso != null ? "curso" : "evento";
+        Long idActividad = idCurso != null ? idCurso : idEvento;
+        String nombre = String.format("plantilla_%s_%d_v%d_%s.pdf",
+            tipo, idActividad, version,
+            UUID.randomUUID().toString().substring(0, 8));
+
+        Path rutaArchivo = dirPath.resolve(nombre);
+        archivo.transferTo(rutaArchivo.toFile());
+        return rutaArchivo.toString();
+    }
+
+    private PlantillaCertificado buscarPlantilla(Long idPlantilla) {
+        return plantillaRepository.findById(idPlantilla)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Plantilla", idPlantilla));
+    }
+
+    private Usuario getUsuarioActual() {
+        CustomUserDetails userDetails = (CustomUserDetails)
+            SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return usuarioRepository.findById(userDetails.getIdUsuario())
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Usuario", userDetails.getIdUsuario()));
+    }
+
+    private PlantillaDto toPlantillaDto(PlantillaCertificado p) {
+        PlantillaDto dto = new PlantillaDto();
+        dto.setIdPlantilla(p.getIdPlantilla());
+        dto.setVersion(p.getVersion());
+        dto.setEstado(p.getEstado().name());
+        dto.setFechaSubida(p.getFechaSubida());
+        dto.setSubidaPor(
+            p.getSubidaPor().getNombres() + " " + p.getSubidaPor().getApellidos());
+
+        if (p.getCurso() != null) {
+            dto.setIdCurso(p.getCurso().getIdCurso());
+            dto.setNombreActividad(p.getCurso().getNombre());
+            dto.setTipoActividad("CURSO");
+        } else {
+            dto.setIdEvento(p.getEvento().getIdEvento());
+            dto.setNombreActividad(p.getEvento().getNombre());
+            dto.setTipoActividad("EVENTO");
+        }
+
+        // Última observación del coordinador
+        aprobacionRepository
+            .findTopByPlantilla_IdPlantillaOrderByFechaRevisionDesc(p.getIdPlantilla())
+            .ifPresent(a -> dto.setUltimaObservacion(a.getObservaciones()));
+
+        return dto;
+    }
+}
