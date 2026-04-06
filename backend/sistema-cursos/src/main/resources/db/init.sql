@@ -382,6 +382,7 @@ CREATE TABLE certificado (
 
     FOREIGN KEY (id_inscripcion) REFERENCES inscripcion(id_inscripcion) ON DELETE CASCADE,
 
+    UNIQUE KEY uq_certificado_inscripcion (id_inscripcion),
     INDEX idx_inscripcion    (id_inscripcion),
     INDEX idx_estado_emision (estado_emision),
     INDEX idx_version        (version)
