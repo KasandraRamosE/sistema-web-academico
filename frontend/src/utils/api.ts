@@ -10,6 +10,18 @@ const getAuthHeader = () => {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+const clearAuthAndRedirect = () => {
+  localStorage.removeItem('user')
+  localStorage.removeItem('token')
+  localStorage.removeItem('currentRole')
+
+  const currentPath = `${window.location.pathname}${window.location.search}`
+  const loginUrl = `/auth/login?redirect=${encodeURIComponent(currentPath)}`
+  if (window.location.pathname !== '/auth/login') {
+    window.location.assign(loginUrl)
+  }
+}
+
 const request = async (path: string, options: RequestInit = {}) => {
   const headers = {
     'Content-Type': 'application/json',
@@ -21,6 +33,11 @@ const request = async (path: string, options: RequestInit = {}) => {
     ...options,
     headers
   })
+
+  if (response.status === 401 || response.status === 403) {
+    clearAuthAndRedirect()
+    throw new Error('Unauthorized')
+  }
 
   if (!response.ok) {
     let message = 'Request failed'
