@@ -26,6 +26,10 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     @Query("SELECT u FROM Usuario u JOIN FETCH u.roles WHERE u.username = :username")
     Optional<Usuario> findByUsernameWithRoles(@Param("username") String username);
 
+    long countByPasswordHashIsNull();
+
+    long countByPasswordHashIsNotNull();
+
     @Modifying
     @Query(value = "UPDATE usuario_rol SET asignado_por = :asignadoPor WHERE id_usuario = :idUsuario AND id_rol = :idRol", nativeQuery = true)
     int actualizarAsignadoPor(

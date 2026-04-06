@@ -23,4 +23,6 @@ public interface CursoRepository extends JpaRepository<Curso, Long> {
 
     // Cursos gestionados por un coordinador específico
     List<Curso> findByOrganizador_IdUsuario(Long idUsuario);
+
+    long countByEstado(Curso.EstadoCurso estado);
 }

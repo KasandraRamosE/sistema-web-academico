@@ -30,4 +30,6 @@ public interface CertificadoRepository extends JpaRepository<Certificado, Long> 
         @Param("idCurso") Long idCurso,
         @Param("codigo") String codigo
     );
+
+    long countByEstadoEmision(Certificado.EstadoEmision estadoEmision);
 }

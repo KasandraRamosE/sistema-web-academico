@@ -60,4 +60,10 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
         AND i.estado = 'CONFIRMADA'
         """)
     int contarConfirmadasEnEvento(@Param("idEvento") Long idEvento);
+
+    long countByEstado(Inscripcion.EstadoInscripcion estado);
+
+    long countByCurso_IdCursoAndEstado(Long idCurso, Inscripcion.EstadoInscripcion estado);
+
+    long countByEvento_IdEventoAndEstado(Long idEvento, Inscripcion.EstadoInscripcion estado);
 }

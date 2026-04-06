@@ -29,5 +29,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
         AND i.estado = 'CONFIRMADA'
         """)
     int contarInscritos(@Param("idEvento") Long idEvento);
+
+    long countByEstado(Evento.EstadoEvento estado);
     
 }

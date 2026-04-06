@@ -15,4 +15,6 @@ public interface SolicitudEmisionRepository
 
     // Solicitudes de un docente específico
     List<SolicitudEmision> findByDocente_IdUsuario(Long idDocente);
+
+    long countByEstado(SolicitudEmision.EstadoSolicitud estado);
 }
