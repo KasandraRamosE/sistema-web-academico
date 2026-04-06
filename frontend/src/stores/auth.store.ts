@@ -29,6 +29,10 @@ interface LoginResponse {
   roles: string[]
 }
 
+interface MensajeResponse {
+  mensaje: string
+}
+
 /**
  * Store de autenticación con Composition API
  */
@@ -110,6 +114,31 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('❌ Error en login:', error)
       return false
     }
+  }
+
+  const register = async (payload: {
+    username: string
+    nombres: string
+    apellidos: string
+    email: string
+    password: string
+    tipoParticipante: 'UMSA' | 'EXTERNO'
+  }): Promise<string> => {
+    const response = await api.post('/auth/registro', payload) as MensajeResponse
+    return response.mensaje
+  }
+
+  const verifyEmail = async (payload: {
+    username: string
+    codigo: string
+  }): Promise<string> => {
+    const response = await api.post('/auth/verificar-email', payload) as MensajeResponse
+    return response.mensaje
+  }
+
+  const resendCode = async (username: string): Promise<string> => {
+    const response = await api.post(`/auth/reenviar-codigo?username=${encodeURIComponent(username)}`) as MensajeResponse
+    return response.mensaje
   }
 
   /**
@@ -224,6 +253,9 @@ export const useAuthStore = defineStore('auth', () => {
 
     // Actions
     login,
+    register,
+    verifyEmail,
+    resendCode,
     logout,
     changeRole,
     updateUser,  // ← AGREGADO

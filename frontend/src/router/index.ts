@@ -112,7 +112,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'registro',
         name: 'register',
-        component: () => import('@/views/auth/Login.vue'), // TODO: Crear RegisterView
+        component: () => import('@/views/auth/Register.vue'),
         meta: {
           title: 'Registrarse',
           requiresAuth: false,
@@ -122,7 +122,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'verificar-email',
         name: 'verify-email',
-        component: () => import('@/views/auth/Login.vue'), // TODO: Crear VerifyEmailView
+        component: () => import('@/views/auth/VerifyEmail.vue'),
         meta: {
           title: 'Verificar Email',
           requiresAuth: false
