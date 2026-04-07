@@ -295,6 +295,9 @@ const navigationItems = computed((): NavItem[] => {
  * Verifica si la ruta está activa
  */
 const isActive = (path: string): boolean => {
+  if (path === '/admin' || path === '/coordinador' || path === '/docente' || path === '/auxiliar' || path === '/disenador') {
+    return route.path === path
+  }
   return route.path === path || route.path.startsWith(path + '/')
 }
 

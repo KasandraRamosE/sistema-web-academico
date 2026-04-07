@@ -212,7 +212,7 @@
                     <div
                       class="h-2 rounded-full"
                       :class="getCupoColor(actividad.inscritos, actividad.cupoMaximo)"
-                      :style="{ width: `${(actividad.inscritos / actividad.cupoMaximo) * 100}%` }"
+                      :style="{ width: `${getCupoPorcentaje(actividad.inscritos, actividad.cupoMaximo)}%` }"
                     ></div>
                   </div>
                 </div>
@@ -530,6 +530,7 @@ import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
+import { api } from '@/utils/api'
 // ============================================
 // TIPOS
 // ============================================
@@ -549,6 +550,7 @@ interface Actividad {
   esGratuito: boolean
   notaMinimaAprobacion: number | null
   estado: 'ABIERTO' | 'LLENO' | 'FINALIZADO'
+  idCarrera: number | null
   carrera: string
   inscritos: number
 }
@@ -627,7 +629,7 @@ const actividadesFiltradas = computed(() => {
   }
 
   if (filtros.value.carrera) {
-    resultado = resultado.filter(a => a.carrera === filtros.value.carrera)
+    resultado = resultado.filter(a => a.idCarrera === Number(filtros.value.carrera))
   }
 
   if (filtros.value.modalidad) {
@@ -657,54 +659,71 @@ const {
 const cargarDatos = async () => {
   loading.value = true
   try {
-    // MOCK DATA
-    await new Promise(resolve => setTimeout(resolve, 500))
+    const [carrerasResponse, cursosResponse, eventosResponse] = await Promise.all([
+      api.get('/carreras/todas'),
+      api.get('/cursos/todos'),
+      api.get('/eventos/todos')
+    ])
 
-    carreras.value = [
-      { id: 1, nombre: 'Psicología' },
-      { id: 2, nombre: 'Filosofía' },
-      { id: 3, nombre: 'Ciencias de la Educación' },
-      { id: 4, nombre: 'Lingüística' }
-    ]
+    carreras.value = (carrerasResponse as Carrera[])
 
-    actividades.value = [
-      {
-        idActividad: 1,
-        tipo: 'CURSO',
-        nombre: 'Introducción a la Psicología Clínica',
-        descripcion: 'Curso básico de psicología clínica',
-        cargaHoraria: 40,
-        modalidad: 'PRESENCIAL',
-        fechaInicio: '2024-03-01',
-        fechaFin: '2024-04-30',
-        cupoMaximo: 30,
-        costoExterno: 500,
-        costoUmsa: 300,
-        esGratuito: false,
-        notaMinimaAprobacion: 51,
-        estado: 'ABIERTO',
-        carrera: 'Psicología',
-        inscritos: 18
-      },
-      {
-        idActividad: 2,
-        tipo: 'EVENTO',
-        nombre: 'Congreso Internacional de Psicología',
-        descripcion: 'Evento internacional',
-        cargaHoraria: 20,
-        modalidad: 'MIXTO',
-        fechaInicio: '2024-05-10',
-        fechaFin: '2024-05-12',
-        cupoMaximo: 200,
-        costoExterno: 150,
-        costoUmsa: 50,
-        esGratuito: false,
-        notaMinimaAprobacion: null,
-        estado: 'ABIERTO',
-        carrera: 'Psicología',
-        inscritos: 85
+    const cursos = (cursosResponse as Array<Record<string, unknown>>).map(curso => {
+      const costoExterno = Number(curso.costoExterno ?? 0)
+      const costoUmsa = Number(curso.costoUmsa ?? 0)
+      const paralelos = Array.isArray(curso.paralelos)
+        ? (curso.paralelos as Array<Record<string, unknown>>)
+        : []
+      const inscritos = paralelos.reduce((sum, p) => sum + Number(p.inscritos ?? 0), 0)
+      const cupoMaximo = paralelos.reduce((sum, p) => sum + Number(p.cupoMaximo ?? 0), 0)
+
+      return {
+        idActividad: Number(curso.idCurso),
+        tipo: 'CURSO' as const,
+        nombre: String(curso.nombre ?? ''),
+        descripcion: String(curso.descripcion ?? ''),
+        cargaHoraria: Number(curso.cargaHoraria ?? 0),
+        modalidad: 'PRESENCIAL' as const,
+        fechaInicio: String(curso.fechaInicio ?? ''),
+        fechaFin: String(curso.fechaInicio ?? ''),
+        cupoMaximo,
+        costoExterno,
+        costoUmsa,
+        esGratuito: costoExterno === 0 && costoUmsa === 0,
+        notaMinimaAprobacion: curso.notaAprobacion !== undefined ? Number(curso.notaAprobacion) : null,
+        estado: String(curso.estado ?? 'ABIERTO') as Actividad['estado'],
+        idCarrera: curso.idCarrera !== undefined ? Number(curso.idCarrera) : null,
+        carrera: String(curso.nombreCarrera ?? ''),
+        inscritos
       }
-    ]
+    })
+
+    const eventos = (eventosResponse as Array<Record<string, unknown>>).map(evento => {
+      const costoExterno = Number(evento.costoExterno ?? 0)
+      const costoUmsa = Number(evento.costoUmsa ?? 0)
+      const fechaHora = evento.fechaHora ? String(evento.fechaHora) : ''
+
+      return {
+        idActividad: Number(evento.idEvento),
+        tipo: 'EVENTO' as const,
+        nombre: String(evento.nombre ?? ''),
+        descripcion: String(evento.descripcion ?? ''),
+        cargaHoraria: Number(evento.cargaHoraria ?? 0),
+        modalidad: String(evento.modalidad ?? 'PRESENCIAL') as Actividad['modalidad'],
+        fechaInicio: fechaHora,
+        fechaFin: fechaHora,
+        cupoMaximo: Number(evento.cupoMaximo ?? 0),
+        costoExterno,
+        costoUmsa,
+        esGratuito: costoExterno === 0 && costoUmsa === 0,
+        notaMinimaAprobacion: null,
+        estado: String(evento.estado ?? 'ABIERTO') as Actividad['estado'],
+        idCarrera: evento.idCarrera !== undefined ? Number(evento.idCarrera) : null,
+        carrera: String(evento.nombreCarrera ?? ''),
+        inscritos: Number(evento.inscritos ?? 0)
+      }
+    })
+
+    actividades.value = [...cursos, ...eventos]
 
     calcularEstadisticas()
   } catch (error) {
@@ -728,7 +747,6 @@ const submitActividad = async () => {
   saving.value = true
   try {
     console.log('Guardando actividad:', formActividad.value)
-    await new Promise(resolve => setTimeout(resolve, 1000))
     closeActividadModal()
     await cargarDatos()
   } catch (error) {
@@ -795,6 +813,7 @@ const limpiarFiltros = () => {
 }
 
 const formatDate = (date: string) => {
+  if (!date) return '-'
   return new Date(date).toLocaleDateString('es-BO', {
     day: '2-digit',
     month: '2-digit',
@@ -821,10 +840,16 @@ const getModalidadBadge = (modalidad: string): 'primary' | 'secondary' | 'succes
 }
 
 const getCupoColor = (inscritos: number, maximo: number) => {
+  if (!maximo || maximo <= 0) return 'bg-gray-400'
   const porcentaje = (inscritos / maximo) * 100
   if (porcentaje >= 90) return 'bg-red-600'
   if (porcentaje >= 70) return 'bg-yellow-600'
   return 'bg-green-600'
+}
+
+const getCupoPorcentaje = (inscritos: number, maximo: number) => {
+  if (!maximo || maximo <= 0) return 0
+  return Math.min(100, (inscritos / maximo) * 100)
 }
 
 onMounted(() => {

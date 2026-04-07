@@ -20,20 +20,20 @@
       </Card>
       <Card>
         <div class="text-center">
-          <p class="text-2xl font-bold text-green-600">{{ estadisticas.totalAsistencias }}</p>
-          <p class="text-sm text-gray-600">Asistencias</p>
+          <p class="text-2xl font-bold text-blue-600">{{ estadisticas.totalInscritos }}</p>
+          <p class="text-sm text-gray-600">Inscritos</p>
         </div>
       </Card>
       <Card>
         <div class="text-center">
-          <p class="text-2xl font-bold text-blue-600">{{ estadisticas.conCertificado }}</p>
-          <p class="text-sm text-gray-600">Con Certificado</p>
+          <p class="text-2xl font-bold text-green-600">{{ estadisticas.asistieron }}</p>
+          <p class="text-sm text-gray-600">Asistieron</p>
         </div>
       </Card>
       <Card>
         <div class="text-center">
-          <p class="text-2xl font-bold text-orange-600">{{ estadisticas.sinCertificado }}</p>
-          <p class="text-sm text-gray-600">Sin Certificado</p>
+          <p class="text-2xl font-bold text-red-600">{{ estadisticas.noAsistieron }}</p>
+          <p class="text-sm text-gray-600">No asistieron</p>
         </div>
       </Card>
     </div>
@@ -44,12 +44,21 @@
         <h3 class="text-lg font-semibold text-gray-800">Seleccionar Evento</h3>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Busqueda de evento -->
+          <div class="md:col-span-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Buscar evento</label>
+            <input
+              v-model="busquedaEvento"
+              type="text"
+              placeholder="Nombre del evento..."
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
           <!-- Carrera -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Carrera</label>
             <select
               v-model="filtros.carrera"
-              @change="cargarEventos"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Todas las carreras</option>
@@ -68,8 +77,8 @@
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option :value="null">Seleccionar evento</option>
-              <option v-for="evento in eventosDisponibles" :key="evento.id" :value="evento.id">
-                {{ evento.nombre }} ({{ evento.fechaInicio }})
+              <option v-for="evento in eventosFiltrados" :key="evento.id" :value="evento.id">
+                {{ evento.nombre }} ({{ formatDate(evento.fechaInicio) }})
               </option>
             </select>
           </div>
@@ -107,14 +116,6 @@
           <h3 class="text-lg font-semibold text-gray-800">
             Asistencias - {{ infoEvento?.nombre }}
           </h3>
-          <div class="flex space-x-2">
-            <Button @click="exportarAsistencias" variant="outline" size="sm">
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Exportar
-            </Button>
-          </div>
         </div>
 
         <!-- Estado de carga -->
@@ -168,15 +169,7 @@
 
                 <!-- Certificado -->
                 <td class="px-4 py-3 text-center">
-                  <div v-if="asistencia.certificado">
-                    <Badge :variant="getCertificadoBadge(asistencia.certificado.estado)" size="sm">
-                      {{ asistencia.certificado.estado }}
-                    </Badge>
-                    <p class="text-xs text-gray-500 mt-1">
-                      #{{ asistencia.certificado.id }}
-                    </p>
-                  </div>
-                  <span v-else class="text-xs text-gray-400">Sin certificado</span>
+                  <span class="text-xs text-gray-400">No disponible</span>
                 </td>
 
                 <!-- Registrado Por -->
@@ -285,42 +278,7 @@
           </div>
         </div>
 
-        <!-- Advertencia si tiene certificado -->
-        <div v-if="asistenciaSeleccionada.certificado && formAsistencia.asistio !== asistenciaSeleccionada.asistio" 
-             class="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div class="flex items-start space-x-3">
-            <svg class="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-            </svg>
-            <div class="flex-1">
-              <p class="text-sm font-semibold text-red-800">Advertencia: Certificado Emitido</p>
-              <p class="text-sm text-red-700 mt-1">
-                Este participante tiene el certificado <strong>#{{ asistenciaSeleccionada.certificado.id }}</strong> 
-                en estado <strong>{{ asistenciaSeleccionada.certificado.estado }}</strong>.
-              </p>
-              <p v-if="!formAsistencia.asistio" class="text-sm text-red-700 mt-2">
-                ⚠️ <strong>Al cambiar a "NO ASISTIÓ", el certificado será ANULADO automáticamente.</strong>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Motivo (obligatorio si tiene certificado) -->
-        <div v-if="asistenciaSeleccionada.certificado && formAsistencia.asistio !== asistenciaSeleccionada.asistio">
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            Motivo del Cambio <span class="text-red-600">*</span>
-          </label>
-          <textarea
-            v-model="formAsistencia.motivo"
-            rows="3"
-            required
-            placeholder="Explica el motivo de la corrección (obligatorio cuando hay certificado emitido)"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          ></textarea>
-        </div>
-
-        <!-- Observaciones (opcional) -->
-        <div v-else>
+        <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Observaciones (Opcional)
           </label>
@@ -343,6 +301,7 @@
         </div>
       </form>
     </Modal>
+
   </div>
 </template>
 
@@ -352,6 +311,7 @@ import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
+import { api } from '@/utils/api'
 
 // ============================================
 // TIPOS
@@ -371,11 +331,12 @@ interface Certificado {
 
 interface RegistradoPor {
   nombre: string
-  rol: string
+  rol?: string
 }
 
 interface Asistencia {
   idAsistencia: number
+  idInscripcion: number
   participante: Participante
   asistio: boolean
   certificado: Certificado | null
@@ -389,6 +350,7 @@ interface Evento {
   nombre: string
   fechaInicio: string
   inscritos: number
+  idCarrera?: number | null
 }
 
 interface Carrera {
@@ -409,14 +371,16 @@ const asistencias = ref<Asistencia[]>([])
 
 const estadisticas = ref({
   totalEventos: 0,
-  totalAsistencias: 0,
-  conCertificado: 0,
-  sinCertificado: 0
+  totalInscritos: 0,
+  asistieron: 0,
+  noAsistieron: 0
 })
 
 const filtros = ref({
   carrera: ''
 })
+
+const busquedaEvento = ref('')
 
 const eventoSeleccionado = ref<number | null>(null)
 const infoEvento = ref<Evento | null>(null)
@@ -426,7 +390,6 @@ const asistenciaSeleccionada = ref<Asistencia | null>(null)
 
 const formAsistencia = ref({
   asistio: null as boolean | null,
-  motivo: '',
   observaciones: ''
 })
 
@@ -435,7 +398,17 @@ const formAsistencia = ref({
 // ============================================
 
 const asistenciasRegistradas = computed(() => {
-  return asistencias.value.filter(a => a.asistio !== null).length
+  return asistencias.value.filter(a => a.asistio).length
+})
+const eventosFiltrados = computed(() => {
+  const term = busquedaEvento.value.trim().toLowerCase()
+  const idCarrera = filtros.value.carrera ? Number(filtros.value.carrera) : null
+
+  return eventosDisponibles.value.filter(evento => {
+    const carreraOk = !idCarrera || evento.idCarrera === idCarrera
+    const searchOk = !term || evento.nombre.toLowerCase().includes(term)
+    return carreraOk && searchOk
+  })
 })
 
 // ============================================
@@ -444,12 +417,8 @@ const asistenciasRegistradas = computed(() => {
 
 const cargarCarreras = async () => {
   try {
-    // TODO: Implementar llamada a API
-    carreras.value = [
-      { id: 1, nombre: 'Psicología' },
-      { id: 2, nombre: 'Filosofía' },
-      { id: 3, nombre: 'Ciencias de la Educación' }
-    ]
+    const response = await api.get('/carreras/todas')
+    carreras.value = response as Carrera[]
   } catch (error) {
     console.error('Error al cargar carreras:', error)
   }
@@ -457,21 +426,15 @@ const cargarCarreras = async () => {
 
 const cargarEventos = async () => {
   try {
-    // TODO: Implementar llamada a API filtrada por carrera
-    eventosDisponibles.value = [
-      {
-        id: 1,
-        nombre: 'Congreso Internacional de Psicología',
-        fechaInicio: '2024-05-10',
-        inscritos: 85
-      },
-      {
-        id: 2,
-        nombre: 'Taller de Escritura Creativa',
-        fechaInicio: '2024-03-15',
-        inscritos: 25
-      }
-    ]
+    const response = await api.get('/eventos/todos')
+
+    eventosDisponibles.value = (response as Array<Record<string, unknown>>).map(evento => ({
+      id: Number(evento.idEvento),
+      nombre: String(evento.nombre ?? ''),
+      fechaInicio: String(evento.fechaHora ?? ''),
+      inscritos: Number(evento.inscritos ?? 0),
+      idCarrera: evento.idCarrera !== undefined ? Number(evento.idCarrera) : null
+    }))
 
     eventoSeleccionado.value = null
     asistencias.value = []
@@ -488,48 +451,33 @@ const cargarAsistencias = async () => {
   try {
     infoEvento.value = eventosDisponibles.value.find(e => e.id === eventoSeleccionado.value) || null
 
-    // TODO: Implementar llamada a API
-    await new Promise(resolve => setTimeout(resolve, 500))
+    const response = await api.get(`/asistencias/evento/${eventoSeleccionado.value}/detalle`)
+    const items = response as Array<Record<string, unknown>>
 
-    asistencias.value = [
-      {
-        idAsistencia: 1,
+    asistencias.value = items.map(item => {
+      const nombreParticipante = String(item.nombreParticipante ?? '')
+      const nombreParts = nombreParticipante.split(' ')
+      const nombres = nombreParts.slice(0, -1).join(' ') || nombreParticipante
+      const apellidos = nombreParts.length > 1 ? nombreParts.slice(-1).join(' ') : ''
+
+      return {
+        idAsistencia: Number(item.idAsistencia),
+        idInscripcion: Number(item.idInscripcion),
         participante: {
-          nombres: 'Juan',
-          apellidos: 'Pérez López',
-          email: 'juan.perez@umsa.bo',
-          username: '202012345'
+          nombres,
+          apellidos,
+          email: String(item.email ?? '-'),
+          username: String(item.username ?? '-')
         },
-        asistio: true,
-        certificado: {
-          id: 123,
-          estado: 'GENERADO'
-        },
-        registradoPor: {
-          nombre: 'María García',
-          rol: 'Auxiliar'
-        },
-        fechaRegistro: '2024-05-10T14:30:00',
-        observaciones: null
-      },
-      {
-        idAsistencia: 2,
-        participante: {
-          nombres: 'Ana',
-          apellidos: 'Silva Rojas',
-          email: 'ana.silva@gmail.com',
-          username: 'asilva'
-        },
-        asistio: false,
+        asistio: Boolean(item.asistio),
         certificado: null,
-        registradoPor: {
-          nombre: 'María García',
-          rol: 'Auxiliar'
-        },
-        fechaRegistro: '2024-05-10T14:32:00',
+        registradoPor: item.registradoPor
+          ? { nombre: String(item.registradoPor), rol: '' }
+          : null,
+        fechaRegistro: String(item.fechaRegistro ?? ''),
         observaciones: null
       }
-    ]
+    })
 
     calcularEstadisticas()
   } catch (error) {
@@ -542,9 +490,9 @@ const cargarAsistencias = async () => {
 const calcularEstadisticas = () => {
   estadisticas.value = {
     totalEventos: eventosDisponibles.value.length,
-    totalAsistencias: asistencias.value.filter(a => a.asistio).length,
-    conCertificado: asistencias.value.filter(a => a.certificado !== null).length,
-    sinCertificado: asistencias.value.filter(a => a.asistio && a.certificado === null).length
+    totalInscritos: asistencias.value.length,
+    asistieron: asistencias.value.filter(a => a.asistio).length,
+    noAsistieron: asistencias.value.filter(a => !a.asistio).length
   }
 }
 
@@ -556,7 +504,6 @@ const editarAsistencia = (asistencia: Asistencia) => {
   asistenciaSeleccionada.value = asistencia
   formAsistencia.value = {
     asistio: asistencia.asistio,
-    motivo: '',
     observaciones: asistencia.observaciones || ''
   }
   showEditModal.value = true
@@ -567,20 +514,15 @@ const guardarAsistencia = async () => {
 
   saving.value = true
   try {
-    // TODO: Implementar llamada a API
-    console.log('Guardando asistencia:', formAsistencia.value)
-    
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Actualizar en la lista
-    asistenciaSeleccionada.value.asistio = formAsistencia.value.asistio!
-    asistenciaSeleccionada.value.observaciones = formAsistencia.value.observaciones || formAsistencia.value.motivo
-
-    // Si cambió a NO ASISTIÓ y tenía certificado, anularlo
-    if (!formAsistencia.value.asistio && asistenciaSeleccionada.value.certificado) {
-      asistenciaSeleccionada.value.certificado.estado = 'ANULADO'
+    if (formAsistencia.value.asistio) {
+      await api.post('/asistencias', {
+        idInscripcion: asistenciaSeleccionada.value.idInscripcion
+      })
+    } else {
+      await api.delete(`/asistencias/${asistenciaSeleccionada.value.idInscripcion}`)
     }
 
+    await cargarAsistencias()
     calcularEstadisticas()
     closeEditModal()
   } catch (error) {
@@ -590,19 +532,13 @@ const guardarAsistencia = async () => {
   }
 }
 
-const exportarAsistencias = () => {
-  // TODO: Implementar exportación
-  console.log('Exportando asistencias...')
-  alert('Funcionalidad de exportación en desarrollo')
-}
-
 // ============================================
 // MÉTODOS - MODALES
 // ============================================
 
 const verDetalle = (asistencia: Asistencia) => {
-  // TODO: Abrir modal de detalle
-  console.log('Ver detalle:', asistencia)
+  asistenciaSeleccionada.value = asistencia
+  showEditModal.value = true
 }
 
 const closeEditModal = () => {
@@ -610,7 +546,6 @@ const closeEditModal = () => {
   asistenciaSeleccionada.value = null
   formAsistencia.value = {
     asistio: null,
-    motivo: '',
     observaciones: ''
   }
 }
@@ -620,6 +555,7 @@ const closeEditModal = () => {
 // ============================================
 
 const formatDate = (date: string) => {
+  if (!date) return '-'
   return new Date(date).toLocaleDateString('es-BO', {
     day: '2-digit',
     month: '2-digit',
@@ -628,6 +564,7 @@ const formatDate = (date: string) => {
 }
 
 const formatDatetime = (datetime: string) => {
+  if (!datetime) return '-'
   return new Date(datetime).toLocaleString('es-BO', {
     day: '2-digit',
     month: '2-digit',
@@ -637,21 +574,13 @@ const formatDatetime = (datetime: string) => {
   })
 }
 
-const getCertificadoBadge = (estado: string): 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'gray' => {
-  const variants: Record<string, 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'gray'> = {
-    'GENERADO': 'success',
-    'ANULADO': 'danger',
-    'REEMITIDO': 'info'
-  }
-  return variants[estado] || 'gray'
-}
-
 // ============================================
 // LIFECYCLE
 // ============================================
 
 onMounted(() => {
   cargarCarreras()
+  cargarEventos()
 })
 </script>
 

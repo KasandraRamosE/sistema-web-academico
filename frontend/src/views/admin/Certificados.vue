@@ -343,53 +343,6 @@
           </div>
         </div>
 
-        <!-- Lista de participantes para emitir -->
-        <div>
-          <h3 class="text-lg font-semibold text-gray-800 mb-3">Participantes Aprobados</h3>
-          <div class="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
-            <div class="space-y-2">
-              <label
-                v-for="participante in participantesAprobados"
-                :key="participante.id"
-                class="flex items-center p-3 bg-white border rounded-lg hover:bg-gray-50"
-              >
-                <input
-                  type="checkbox"
-                  v-model="participantesSeleccionados"
-                  :value="participante.id"
-                  class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                />
-                <div class="ml-3 flex-1">
-                  <p class="font-medium text-gray-800">
-                    {{ participante.nombres }} {{ participante.apellidos }}
-                  </p>
-                  <p class="text-xs text-gray-500">{{ participante.email }}</p>
-                </div>
-                <div v-if="participante.nota" class="text-right">
-                  <p class="text-sm text-gray-600">Nota:</p>
-                  <p class="text-lg font-bold text-green-600">{{ participante.nota }}</p>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Selector de todos -->
-          <div class="mt-3 flex items-center justify-between">
-            <label class="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                :checked="participantesSeleccionados.length === participantesAprobados.length"
-                @change="toggleTodos"
-                class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-              />
-              <span class="ml-2 text-sm text-gray-700">Seleccionar todos</span>
-            </label>
-            <p class="text-sm text-gray-600">
-              {{ participantesSeleccionados.length }} de {{ participantesAprobados.length }} seleccionados
-            </p>
-          </div>
-        </div>
-
         <!-- Botones de acción -->
         <div class="flex justify-between items-center pt-4 border-t">
           <Button variant="outline" @click="closeSolicitudModal">
@@ -397,10 +350,17 @@
           </Button>
           <div class="flex space-x-3">
             <Button
-              @click="emitirCertificadosLote"
-              :disabled="participantesSeleccionados.length === 0 || procesando"
+              variant="outline"
+              @click="actualizarEstadoSolicitud('EN_PROCESO')"
+              :disabled="procesando"
             >
-              {{ procesando ? 'Emitiendo...' : `Emitir en Lote (${participantesSeleccionados.length})` }}
+              {{ procesando ? 'Actualizando...' : 'Marcar en proceso' }}
+            </Button>
+            <Button
+              @click="actualizarEstadoSolicitud('COMPLETADO')"
+              :disabled="procesando"
+            >
+              {{ procesando ? 'Actualizando...' : 'Marcar completado' }}
             </Button>
           </div>
         </div>
@@ -465,6 +425,7 @@ import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
+import { api } from '@/utils/api'
 // ============================================
 // TIPOS
 // ============================================
@@ -487,15 +448,8 @@ interface SolicitudEmision {
   actividad: Actividad
   docente: string
   cantidadAprobados: number
+  estado?: string
   fechaSolicitud: string
-}
-
-interface Participante {
-  id: number
-  nombres: string
-  apellidos: string
-  email: string
-  nota?: number
 }
 
 interface Certificado {
@@ -539,10 +493,6 @@ const showSolicitudModal = ref(false)
 const showAnularModal = ref(false)
 const solicitudSeleccionada = ref<SolicitudEmision | null>(null)
 const certificadoSeleccionado = ref<Certificado | null>(null)
-
-// Emisión de certificados
-const participantesAprobados = ref<Participante[]>([])
-const participantesSeleccionados = ref<number[]>([])
 
 // Anulación
 const motivoAnulacion = ref('')
@@ -604,67 +554,55 @@ const cargarDatos = async () => {
 }
 
 const cargarSolicitudes = async () => {
-  // TODO: Implementar llamada a API
-  await new Promise(resolve => setTimeout(resolve, 300))
+  const response = await api.get('/evaluaciones/solicitudes')
+  const items = response as Array<Record<string, unknown>>
 
-  solicitudesPendientes.value = [
-    {
-      idSolicitud: 1,
-      actividad: {
-        nombre: 'Introducción a la Psicología Clínica',
-        tipo: 'CURSO',
-        carrera: 'Psicología',
-        cargaHoraria: 40
-      },
-      docente: 'Dr. Juan Pérez',
-      cantidadAprobados: 25,
-      fechaSolicitud: '2024-02-05T10:30:00'
-    }
-  ]
+  solicitudesPendientes.value = items.map(item => ({
+    idSolicitud: Number(item.idSolicitud),
+    actividad: {
+      nombre: String(item.nombreActividad ?? ''),
+      tipo: 'CURSO',
+      carrera: '-',
+      cargaHoraria: 0
+    },
+    docente: String(item.nombreDocente ?? ''),
+    cantidadAprobados: Number(item.cantidadAprobados ?? 0),
+    estado: String(item.estado ?? 'PENDIENTE'),
+    fechaSolicitud: String(item.fechaSolicitud ?? '')
+  }))
 }
 
 const cargarCertificados = async () => {
-  // TODO: Implementar llamada a API
-  await new Promise(resolve => setTimeout(resolve, 300))
+  const response = await api.get('/certificados/admin')
+  const items = response as Array<Record<string, unknown>>
 
-  certificados.value = [
-    {
-      idCertificado: 1,
+  certificados.value = items.map(item => {
+    const nombreParticipante = String(item.nombreParticipante ?? '')
+    const nombreParts = nombreParticipante.split(' ')
+    const nombres = nombreParts.slice(0, -1).join(' ') || nombreParticipante
+    const apellidos = nombreParts.length > 1 ? nombreParts.slice(-1).join(' ') : ''
+
+    const tipoActividad = String(item.tipoActividad ?? 'EVENTO') as 'CURSO' | 'EVENTO'
+
+    return {
+      idCertificado: Number(item.idCertificado),
       usuario: {
-        nombres: 'María',
-        apellidos: 'García López',
-        email: 'maria.garcia@umsa.bo'
+        nombres,
+        apellidos,
+        email: '-'
       },
       actividad: {
-        nombre: 'Metodología de la Investigación',
-        tipo: 'CURSO',
-        carrera: 'Ciencias de la Educación',
-        cargaHoraria: 30
+        nombre: String(item.nombreActividad ?? ''),
+        tipo: tipoActividad,
+        carrera: '-',
+        cargaHoraria: Number(item.cargaHoraria ?? 0)
       },
-      tipo: 'APROBACION',
-      version: 1,
-      estadoEmision: 'GENERADO',
-      fechaEmision: '2024-01-20'
-    },
-    {
-      idCertificado: 2,
-      usuario: {
-        nombres: 'Pedro',
-        apellidos: 'Mamani Quispe',
-        email: 'pedro.mamani@gmail.com'
-      },
-      actividad: {
-        nombre: 'Congreso Internacional de Filosofía',
-        tipo: 'EVENTO',
-        carrera: 'Filosofía',
-        cargaHoraria: 20
-      },
-      tipo: 'PARTICIPACION',
-      version: 2,
-      estadoEmision: 'REEMITIDO',
-      fechaEmision: '2024-01-25'
+      tipo: tipoActividad === 'CURSO' ? 'APROBACION' : 'PARTICIPACION',
+      version: Number(item.version ?? 1),
+      estadoEmision: String(item.estadoEmision ?? 'GENERADO') as Certificado['estadoEmision'],
+      fechaEmision: String(item.fechaEmision ?? '')
     }
-  ]
+  })
 }
 
 const calcularEstadisticas = () => {
@@ -683,50 +621,19 @@ const calcularEstadisticas = () => {
 
 const verSolicitud = async (solicitud: SolicitudEmision) => {
   solicitudSeleccionada.value = solicitud
-  
-  // Cargar participantes aprobados
-  // TODO: Implementar llamada a API
-  participantesAprobados.value = [
-    {
-      id: 1,
-      nombres: 'Ana',
-      apellidos: 'Silva Rojas',
-      email: 'ana.silva@umsa.bo',
-      nota: 75
-    },
-    {
-      id: 2,
-      nombres: 'Carlos',
-      apellidos: 'Mendoza Cruz',
-      email: 'carlos.mendoza@umsa.bo',
-      nota: 82
-    }
-  ]
-
-  participantesSeleccionados.value = participantesAprobados.value.map(p => p.id)
   showSolicitudModal.value = true
 }
 
-const toggleTodos = (event: Event) => {
-  const checked = (event.target as HTMLInputElement).checked
-  if (checked) {
-    participantesSeleccionados.value = participantesAprobados.value.map(p => p.id)
-  } else {
-    participantesSeleccionados.value = []
-  }
-}
+const actualizarEstadoSolicitud = async (estado: 'EN_PROCESO' | 'COMPLETADO') => {
+  if (!solicitudSeleccionada.value) return
 
-const emitirCertificadosLote = async () => {
   procesando.value = true
   try {
-    // TODO: Implementar llamada a API
-    console.log('Emitiendo certificados para:', participantesSeleccionados.value)
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    closeSolicitudModal()
+    await api.patch(`/evaluaciones/solicitudes/${solicitudSeleccionada.value.idSolicitud}?estado=${estado}`)
     await cargarDatos()
+    closeSolicitudModal()
   } catch (error) {
-    console.error('Error al emitir certificados:', error)
+    console.error('Error al actualizar solicitud:', error)
   } finally {
     procesando.value = false
   }
@@ -737,8 +644,27 @@ const emitirCertificadosLote = async () => {
 // ============================================
 
 const verCertificado = (certificado: Certificado) => {
-  // TODO: Abrir visor de certificado o modal de detalle
-  console.log('Ver certificado:', certificado)
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+  const token = localStorage.getItem('token')
+
+  fetch(`${baseUrl}/certificados/${certificado.idCertificado}/descargar`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  })
+    .then(async response => {
+      if (!response.ok) {
+        const message = response.statusText || 'No se pudo descargar el certificado.'
+        throw new Error(message)
+      }
+      return response.blob()
+    })
+    .then(blob => {
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank', 'noopener,noreferrer')
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+    })
+    .catch(error => {
+      console.error('Error al ver certificado:', error)
+    })
 }
 
 const anularCertificado = (certificado: Certificado) => {
@@ -752,13 +678,10 @@ const confirmarAnulacion = async () => {
 
   procesando.value = true
   try {
-    // TODO: Implementar llamada a API
-    console.log('Anulando certificado:', {
-      id: certificadoSeleccionado.value.idCertificado,
-      motivo: motivoAnulacion.value
+    await api.patch(`/certificados/${certificadoSeleccionado.value.idCertificado}/anular`, {
+      motivo: motivoAnulacion.value,
+      reemitir: false
     })
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
     closeAnularModal()
     await cargarDatos()
   } catch (error) {
@@ -771,8 +694,10 @@ const confirmarAnulacion = async () => {
 const reemitirCertificado = async (certificado: Certificado) => {
   if (confirm('¿Reemitir este certificado con una nueva versión?')) {
     try {
-      // TODO: Implementar llamada a API
-      console.log('Reemitiendo certificado:', certificado.idCertificado)
+      await api.patch(`/certificados/${certificado.idCertificado}/anular`, {
+        motivo: 'Reemision solicitada por administrador',
+        reemitir: true
+      })
       await cargarDatos()
     } catch (error) {
       console.error('Error al reemitir certificado:', error)
@@ -787,8 +712,6 @@ const reemitirCertificado = async (certificado: Certificado) => {
 const closeSolicitudModal = () => {
   showSolicitudModal.value = false
   solicitudSeleccionada.value = null
-  participantesAprobados.value = []
-  participantesSeleccionados.value = []
 }
 
 const closeAnularModal = () => {
@@ -810,6 +733,7 @@ const limpiarFiltrosCertificados = () => {
 }
 
 const formatDate = (date: string) => {
+  if (!date) return '-'
   return new Date(date).toLocaleDateString('es-BO', {
     day: '2-digit',
     month: '2-digit',
@@ -818,6 +742,7 @@ const formatDate = (date: string) => {
 }
 
 const formatDatetime = (datetime: string) => {
+  if (!datetime) return '-'
   return new Date(datetime).toLocaleString('es-BO', {
     day: '2-digit',
     month: '2-digit',

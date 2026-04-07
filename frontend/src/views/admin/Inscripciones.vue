@@ -10,12 +10,6 @@
         <h1 class="text-3xl font-bold text-gray-800 mb-2">Gestión de Inscripciones</h1>
         <p class="text-gray-600">Ver y modificar todas las inscripciones del sistema</p>
       </div>
-      <Button @click="exportarInscripciones" variant="outline">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-        Exportar Excel
-      </Button>
     </div>
 
     <!-- Estadísticas -->
@@ -192,9 +186,13 @@
                     <p class="text-sm font-medium text-gray-800">
                       {{ inscripcion.usuario.nombres }} {{ inscripcion.usuario.apellidos }}
                     </p>
-                    <p class="text-xs text-gray-500">{{ inscripcion.usuario.email }}</p>
-                    <Badge :variant="inscripcion.usuario.tipoUsuario === 'INTERNO' ? 'info' : 'secondary'" size="sm" class="mt-1">
-                      {{ inscripcion.usuario.tipoUsuario }}
+                    <p class="text-xs text-gray-500">{{ inscripcion.usuario.email || '-' }}</p>
+                    <Badge
+                      :variant="inscripcion.usuario.tipoUsuario === 'INTERNO' ? 'info' : 'secondary'"
+                      size="sm"
+                      class="mt-1"
+                    >
+                      {{ inscripcion.usuario.tipoUsuario || 'N/A' }}
                     </Badge>
                   </div>
                 </td>
@@ -269,22 +267,11 @@
                       </svg>
                     </Button>
                     <Button
-                      v-if="inscripcion.estado !== 'CONFIRMADA'"
-                      variant="ghost"
-                      size="sm"
-                      class="text-green-600 hover:text-green-800"
-                      @click="cambiarEstado(inscripcion, 'CONFIRMADA')"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </Button>
-                    <Button
                       v-if="inscripcion.estado !== 'CANCELADA'"
                       variant="ghost"
                       size="sm"
                       class="text-red-600 hover:text-red-800"
-                      @click="cambiarEstado(inscripcion, 'CANCELADA')"
+                      @click="cambiarEstado(inscripcion)"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -337,16 +324,16 @@
               <div>
                 <p class="text-xs text-gray-600">Tipo de Usuario</p>
                 <Badge :variant="inscripcionSeleccionada.usuario.tipoUsuario === 'INTERNO' ? 'info' : 'secondary'">
-                  {{ inscripcionSeleccionada.usuario.tipoUsuario }}
+                  {{ inscripcionSeleccionada.usuario.tipoUsuario || 'N/A' }}
                 </Badge>
               </div>
               <div>
                 <p class="text-xs text-gray-600">Email</p>
-                <p class="font-medium text-gray-800">{{ inscripcionSeleccionada.usuario.email }}</p>
+                <p class="font-medium text-gray-800">{{ inscripcionSeleccionada.usuario.email || '-' }}</p>
               </div>
               <div>
                 <p class="text-xs text-gray-600">RU/Username</p>
-                <p class="font-medium text-gray-800">{{ inscripcionSeleccionada.usuario.username }}</p>
+                <p class="font-medium text-gray-800">{{ inscripcionSeleccionada.usuario.username || '-' }}</p>
               </div>
             </div>
           </div>
@@ -373,7 +360,7 @@
               </div>
               <div>
                 <p class="text-xs text-gray-600">Modalidad</p>
-                <p class="font-medium text-gray-800">{{ inscripcionSeleccionada.actividad.modalidad }}</p>
+                <p class="font-medium text-gray-800">{{ inscripcionSeleccionada.actividad.modalidad || '-' }}</p>
               </div>
               <div>
                 <p class="text-xs text-gray-600">Carga Horaria</p>
@@ -382,8 +369,8 @@
               <div>
                 <p class="text-xs text-gray-600">Fechas</p>
                 <p class="text-sm text-gray-800">
-                  {{ formatDate(inscripcionSeleccionada.actividad.fechaInicio) }} - 
-                  {{ formatDate(inscripcionSeleccionada.actividad.fechaFin) }}
+                  {{ inscripcionSeleccionada.actividad.fechaInicio ? formatDate(inscripcionSeleccionada.actividad.fechaInicio) : '-' }} - 
+                  {{ inscripcionSeleccionada.actividad.fechaFin ? formatDate(inscripcionSeleccionada.actividad.fechaFin) : '-' }}
                 </p>
               </div>
             </div>
@@ -432,15 +419,8 @@
               </div>
               <div class="flex space-x-2">
                 <Button
-                  v-if="inscripcionSeleccionada.estado !== 'CONFIRMADA'"
-                  @click="cambiarEstado(inscripcionSeleccionada, 'CONFIRMADA')"
-                  size="sm"
-                >
-                  Confirmar
-                </Button>
-                <Button
                   v-if="inscripcionSeleccionada.estado !== 'CANCELADA'"
-                  @click="cambiarEstado(inscripcionSeleccionada, 'CANCELADA')"
+                  @click="cambiarEstado(inscripcionSeleccionada)"
                   variant="danger"
                   size="sm"
                 >
@@ -470,18 +450,19 @@ import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
+import { api } from '@/utils/api'
 
 // ============================================
 // TIPOS CORREGIDOS
 // ============================================
 
 interface Usuario {
-  idUsuario: number  // ← Agregar
+  idUsuario: number
   nombres: string
   apellidos: string
   email: string
   username: string
-  tipoUsuario: 'INTERNO' | 'EXTERNO'
+  tipoUsuario?: 'INTERNO' | 'EXTERNO' | null
 }
 
 interface Actividad {
@@ -489,11 +470,11 @@ interface Actividad {
   nombre: string
   tipo: 'CURSO' | 'EVENTO'
   idCarrera: number | null
-  carreraNombre?: string  // Para mostrar en UI
-  modalidad: 'PRESENCIAL' | 'VIRTUAL' | 'MIXTO'
+  carreraNombre?: string
+  modalidad?: 'PRESENCIAL' | 'VIRTUAL' | 'MIXTO' | ''
   cargaHoraria: number
   fechaInicio: string
-  fechaFin: string
+  fechaFin?: string
 }
 
 interface Inscripcion {
@@ -501,7 +482,7 @@ interface Inscripcion {
   usuario: Usuario
   actividad: Actividad
   paralelo: string | null
-  tipoPrecio: 'UMSA' | 'EXTERNO'
+  tipoPrecio: 'UMSA' | 'EXTERNO' | 'GRATUITO' | ''
   montoPagado: number
   fechaInscripcion: string
   estado: 'CONFIRMADA' | 'PENDIENTE' | 'CANCELADA'
@@ -559,9 +540,15 @@ const inscripcionesFiltradas = computed(() => {
 
   // ✅ FILTRO POR CARRERA CORREGIDO
   if (filtros.value.carrera) {
-    resultado = resultado.filter(i => 
-      i.actividad.idCarrera === Number(filtros.value.carrera)
-    )
+    const idCarrera = Number(filtros.value.carrera)
+    const carreraNombre = carreras.value.find(c => c.id === idCarrera)?.nombre || ''
+    const carreraNombreLower = carreraNombre.toLowerCase()
+
+    resultado = resultado.filter(i => {
+      const actividadCarrera = (i.actividad.carreraNombre || '').toLowerCase()
+      return i.actividad.idCarrera === idCarrera
+        || (carreraNombreLower && actividadCarrera === carreraNombreLower)
+    })
   }
 
   return resultado
@@ -574,101 +561,118 @@ const inscripcionesFiltradas = computed(() => {
 const cargarDatos = async () => {
   loading.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 500))
+    const [carrerasResponse, cursosResponse, eventosResponse] = await Promise.all([
+      api.get('/carreras'),
+      api.get('/cursos/todos'),
+      api.get('/eventos/todos')
+    ])
 
-    carreras.value = [
-      { id: 1, nombre: 'Psicología' },
-      { id: 2, nombre: 'Filosofía' },
-      { id: 3, nombre: 'Ciencias de la Educación' },
-      { id: 4, nombre: 'Lingüística' }
-    ]
+    carreras.value = (carrerasResponse as Carrera[])
 
-    // ✅ MOCK DATA CORREGIDO
-    inscripciones.value = [
-      {
-        idInscripcion: 1,
-        usuario: {
-          idUsuario: 1,
-          nombres: 'Juan Carlos',
-          apellidos: 'Pérez López',
-          email: 'juan.perez@umsa.bo',
-          username: '202012345',
-          tipoUsuario: 'INTERNO'
-        },
-        actividad: {
-          idActividad: 1,
-          nombre: 'Introducción a la Psicología Clínica',
-          tipo: 'CURSO',
-          idCarrera: 1,  // ← ID numérico
-          carreraNombre: 'Psicología',  // ← Nombre para mostrar
-          modalidad: 'PRESENCIAL',
-          cargaHoraria: 40,
-          fechaInicio: '2024-03-01',
-          fechaFin: '2024-04-30'
-        },
-        paralelo: 'A',
-        tipoPrecio: 'UMSA',
-        montoPagado: 300,
-        fechaInscripcion: '2024-02-15T10:30:00',
-        estado: 'CONFIRMADA'
-      },
-      {
-        idInscripcion: 2,
-        usuario: {
-          idUsuario: 2,
-          nombres: 'María Elena',
-          apellidos: 'García Sánchez',
-          email: 'maria.garcia@gmail.com',
-          username: 'mgarcia',
-          tipoUsuario: 'EXTERNO'
-        },
-        actividad: {
-          idActividad: 2,
-          nombre: 'Congreso Internacional de Psicología',
-          tipo: 'EVENTO',
-          idCarrera: 1,  // ← ID numérico
-          carreraNombre: 'Psicología',  // ← Nombre para mostrar
-          modalidad: 'MIXTO',
-          cargaHoraria: 20,
-          fechaInicio: '2024-05-10',
-          fechaFin: '2024-05-12'
-        },
-        paralelo: null,
-        tipoPrecio: 'EXTERNO',
-        montoPagado: 150,
-        fechaInscripcion: '2024-04-20T14:15:00',
-        estado: 'CONFIRMADA'
-      },
-      {
-        idInscripcion: 3,
-        usuario: {
-          idUsuario: 3,
-          nombres: 'Pedro',
-          apellidos: 'Mamani Quispe',
-          email: 'pedro.mamani@umsa.bo',
-          username: '202098765',
-          tipoUsuario: 'INTERNO'
-        },
-        actividad: {
-          idActividad: 3,
-          nombre: 'Taller de Escritura Creativa',
-          tipo: 'EVENTO',
-          idCarrera: 4,  // ← ID numérico (Lingüística)
-          carreraNombre: 'Lingüística',  // ← Nombre para mostrar
-          modalidad: 'VIRTUAL',
-          cargaHoraria: 12,
-          fechaInicio: '2024-03-15',
-          fechaFin: '2024-03-17'
-        },
-        paralelo: null,
-        tipoPrecio: 'UMSA',
-        montoPagado: 0,
-        fechaInscripcion: '2024-03-10T09:00:00',
-        estado: 'PENDIENTE'
+    const cursos = (cursosResponse as Array<Record<string, unknown>>)
+    const eventos = (eventosResponse as Array<Record<string, unknown>>)
+
+    const inscripcionesCurso = await Promise.all(
+      cursos.map(curso => api.get(`/inscripciones/curso/${curso.idCurso}`))
+    )
+
+    const inscripcionesEvento = await Promise.all(
+      eventos.map(evento => api.get(`/inscripciones/evento/${evento.idEvento}`))
+    )
+
+    const cursosById = new Map<number, Record<string, unknown>>(
+      cursos.map(curso => [Number(curso.idCurso), curso])
+    )
+
+    const eventosById = new Map<number, Record<string, unknown>>(
+      eventos.map(evento => [Number(evento.idEvento), evento])
+    )
+
+    const resolveCarreraId = (nombreCarrera: string) => {
+      if (!nombreCarrera) return null
+      const target = nombreCarrera.trim().toLowerCase()
+      const encontrada = carreras.value.find(c => c.nombre.trim().toLowerCase() === target)
+      return encontrada ? encontrada.id : null
+    }
+
+    const mapInscripcion = (item: Record<string, unknown>): Inscripcion => {
+      const nombreParticipante = String(item.nombreParticipante ?? '')
+      const nombreParts = nombreParticipante.split(' ')
+      const nombres = nombreParts.slice(0, -1).join(' ') || nombreParticipante
+      const apellidos = nombreParts.length > 1 ? nombreParts.slice(-1).join(' ') : ''
+
+      const tipoActividad = String(item.tipoActividad ?? '') as 'CURSO' | 'EVENTO'
+      const idCurso = item.idCurso !== undefined ? Number(item.idCurso) : null
+      const idEvento = item.idEvento !== undefined ? Number(item.idEvento) : null
+
+      const curso = idCurso ? cursosById.get(idCurso) : null
+      const evento = idEvento ? eventosById.get(idEvento) : null
+
+      const nombreCarrera = tipoActividad === 'CURSO'
+        ? String(curso?.nombreCarrera ?? '')
+        : String(evento?.nombreCarrera ?? '')
+
+      const idCarrera = tipoActividad === 'CURSO'
+        ? Number(curso?.idCarrera ?? 0) || resolveCarreraId(nombreCarrera)
+        : Number(evento?.idCarrera ?? 0) || resolveCarreraId(nombreCarrera)
+
+      const carreraNombreResolvida = idCarrera
+        ? String(carreras.value.find(c => c.id === idCarrera)?.nombre ?? '')
+        : nombreCarrera
+
+      const actividad: Actividad = {
+        idActividad: idCurso ?? idEvento ?? 0,
+        nombre: String(item.nombreActividad ?? ''),
+        tipo: tipoActividad,
+        idCarrera,
+        carreraNombre: carreraNombreResolvida,
+        modalidad: tipoActividad === 'CURSO'
+          ? ''
+          : (String(evento?.modalidad ?? '') as Actividad['modalidad']),
+        cargaHoraria: Number(
+          tipoActividad === 'CURSO'
+            ? (curso?.cargaHoraria ?? 0)
+            : (evento?.cargaHoraria ?? 0)
+        ),
+        fechaInicio: String(
+          tipoActividad === 'CURSO'
+            ? (curso?.fechaInicio ?? '')
+            : (evento?.fechaHora ?? '')
+        ),
+        fechaFin: String(
+          tipoActividad === 'CURSO'
+            ? (curso?.fechaInicio ?? '')
+            : (evento?.fechaHora ?? '')
+        )
       }
+
+      const saldo = Number(item.saldo ?? 0)
+      const tipoPrecio = saldo === 0 ? 'GRATUITO' : String(item.tipoPrecio ?? '') as Inscripcion['tipoPrecio']
+
+      return {
+        idInscripcion: Number(item.idInscripcion),
+        usuario: {
+          idUsuario: Number(item.idParticipante ?? 0),
+          nombres,
+          apellidos,
+          email: '-',
+          username: '-',
+          tipoUsuario: null
+        },
+        actividad,
+        paralelo: (item.codigoParalelo ? String(item.codigoParalelo) : null),
+        tipoPrecio,
+        montoPagado: saldo,
+        fechaInscripcion: String(item.fechaInscripcion ?? ''),
+        estado: String(item.estado ?? 'PENDIENTE') as Inscripcion['estado']
+      }
+    }
+
+    inscripciones.value = [
+      ...inscripcionesCurso.flat().map(item => mapInscripcion(item as Record<string, unknown>)),
+      ...inscripcionesEvento.flat().map(item => mapInscripcion(item as Record<string, unknown>))
     ]
 
-    calcularEstadisticas()
   } catch (error) {
     console.error('Error al cargar datos:', error)
   } finally {
@@ -685,12 +689,17 @@ const loading = ref(false)
 const inscripciones = ref<Inscripcion[]>([])
 const carreras = ref<Carrera[]>([])
 
-const estadisticas = ref({
-  total: 0,
-  confirmadas: 0,
-  pendientes: 0,
-  canceladas: 0,
-  totalIngresos: 0
+const estadisticas = computed(() => {
+  const base = inscripcionesFiltradas.value
+  return {
+    total: base.length,
+    confirmadas: base.filter(i => i.estado === 'CONFIRMADA').length,
+    pendientes: base.filter(i => i.estado === 'PENDIENTE').length,
+    canceladas: base.filter(i => i.estado === 'CANCELADA').length,
+    totalIngresos: base
+      .filter(i => i.estado === 'CONFIRMADA')
+      .reduce((sum, i) => sum + i.montoPagado, 0)
+  }
 })
 
 const filtros = ref({
@@ -721,40 +730,17 @@ const {
 })
 
 
-const calcularEstadisticas = () => {
-  estadisticas.value = {
-    total: inscripciones.value.length,
-    confirmadas: inscripciones.value.filter(i => i.estado === 'CONFIRMADA').length,
-    pendientes: inscripciones.value.filter(i => i.estado === 'PENDIENTE').length,
-    canceladas: inscripciones.value.filter(i => i.estado === 'CANCELADA').length,
-    totalIngresos: inscripciones.value
-      .filter(i => i.estado === 'CONFIRMADA')
-      .reduce((sum, i) => sum + i.montoPagado, 0)
+
+const cambiarEstado = async (inscripcion: Inscripcion) => {
+  if (!confirm('¿Cancelar esta inscripción?')) return
+
+  try {
+    await api.patch(`/inscripciones/${inscripcion.idInscripcion}/cancelar`)
+    inscripcion.estado = 'CANCELADA'
+    closeDetalleModal()
+  } catch (error) {
+    console.error('Error al cambiar estado:', error)
   }
-}
-
-const cambiarEstado = async (inscripcion: Inscripcion, nuevoEstado: 'CONFIRMADA' | 'CANCELADA') => {
-  const mensaje = nuevoEstado === 'CONFIRMADA' 
-    ? '¿Confirmar esta inscripción?' 
-    : '¿Cancelar esta inscripción?'
-
-  if (confirm(mensaje)) {
-    try {
-      // TODO: Implementar llamada a API
-      console.log(`Cambiando estado de inscripción ${inscripcion.idInscripcion} a ${nuevoEstado}`)
-      inscripcion.estado = nuevoEstado
-      calcularEstadisticas()
-      closeDetalleModal()
-    } catch (error) {
-      console.error('Error al cambiar estado:', error)
-    }
-  }
-}
-
-const exportarInscripciones = () => {
-  // TODO: Implementar exportación a Excel
-  console.log('Exportando inscripciones a Excel...')
-  alert('Funcionalidad de exportación en desarrollo')
 }
 
 // ============================================
@@ -787,6 +773,7 @@ const limpiarFiltros = () => {
 }
 
 const formatDate = (date: string) => {
+  if (!date) return '-'
   return new Date(date).toLocaleDateString('es-BO', {
     day: '2-digit',
     month: '2-digit',
@@ -795,6 +782,7 @@ const formatDate = (date: string) => {
 }
 
 const formatDatetime = (datetime: string) => {
+  if (!datetime) return '-'
   return new Date(datetime).toLocaleString('es-BO', {
     day: '2-digit',
     month: '2-digit',

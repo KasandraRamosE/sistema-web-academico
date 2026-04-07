@@ -393,6 +393,7 @@ import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
+import { api } from '@/utils/api'
 
 // ============================================
 // TIPOS
@@ -404,7 +405,7 @@ interface Estudiante {
   apellidos: string
   email: string
   username: string
-  tipoUsuario: 'INTERNO' | 'EXTERNO'
+  tipoUsuario?: 'INTERNO' | 'EXTERNO' | null
 }
 
 interface DetalleCalificacion {
@@ -430,9 +431,9 @@ interface Calificacion {
 }
 
 interface Paralelo {
-  idParalelo: number
+  idParalelo: string
   codigo: string
-  idActividad: number
+  idCurso: number
   actividadNombre: string
   idCarrera: number
   carreraNombre: string
@@ -453,6 +454,7 @@ const loading = ref(false)
 const saving = ref(false)
 
 const carreras = ref<Carrera[]>([])
+const cursos = ref<Array<Record<string, unknown>>>([])
 const paralelosDisponibles = ref<Paralelo[]>([])
 const calificaciones = ref<Calificacion[]>([])
 
@@ -535,12 +537,14 @@ const certificadoAccion = computed(() => {
 
 const cargarCarreras = async () => {
   try {
-    carreras.value = [
-      { idCarrera: 1, nombre: 'Psicología' },
-      { idCarrera: 2, nombre: 'Filosofía' },
-      { idCarrera: 3, nombre: 'Ciencias de la Educación' },
-      { idCarrera: 4, nombre: 'Lingüística' }
-    ]
+    const [carrerasResponse, cursosResponse] = await Promise.all([
+      api.get('/carreras/todas'),
+      api.get('/cursos/todos')
+    ])
+
+    carreras.value = carrerasResponse as Carrera[]
+    cursos.value = cursosResponse as Array<Record<string, unknown>>
+    await cargarParalelos()
     await cargarEstadisticasGenerales()
   } catch (error) {
     console.error('Error:', error)
@@ -549,9 +553,8 @@ const cargarCarreras = async () => {
 
 const cargarEstadisticasGenerales = async () => {
   try {
-    await new Promise(resolve => setTimeout(resolve, 300))
-    estadisticas.value.totalParalelos = 15
-    estadisticas.value.totalCalificaciones = 420
+    estadisticas.value.totalParalelos = paralelosDisponibles.value.length
+    estadisticas.value.totalCalificaciones = calificaciones.value.length
   } catch (error) {
     console.error('Error:', error)
   }
@@ -559,26 +562,41 @@ const cargarEstadisticasGenerales = async () => {
 
 const cargarParalelos = async () => {
   try {
-    await new Promise(resolve => setTimeout(resolve, 300))
-    
-    let todosParalelos = [
-      {
-        idParalelo: 1,
-        codigo: 'A',
-        idActividad: 1,
-        actividadNombre: 'Introducción a la Psicología Clínica',
-        idCarrera: 1,
-        carreraNombre: 'Psicología',
-        inscritos: 28,
-        notaMinima: 51
-      }
-    ]
+    const todosParalelos: Paralelo[] = []
 
-    if (filtros.value.carrera) {
-      todosParalelos = todosParalelos.filter(p => p.idCarrera === Number(filtros.value.carrera))
-    }
+    cursos.value.forEach(curso => {
+      const idCurso = Number(curso.idCurso ?? 0)
+      const nombreCurso = String(curso.nombre ?? '')
+      const idCarrera = Number(curso.idCarrera ?? 0)
+      const nombreCarrera = String(curso.nombreCarrera ?? '')
+      const notaMinima = Number(curso.notaAprobacion ?? 51)
 
-    paralelosDisponibles.value = todosParalelos
+      const paralelos = Array.isArray(curso.paralelos)
+        ? (curso.paralelos as Array<Record<string, unknown>>)
+        : []
+
+      paralelos.forEach(paralelo => {
+        const codigo = String(paralelo.codigo ?? '')
+        const inscritos = Number(paralelo.inscritos ?? 0)
+
+        todosParalelos.push({
+          idParalelo: `${idCurso}-${codigo}`,
+          codigo,
+          idCurso,
+          actividadNombre: nombreCurso,
+          idCarrera,
+          carreraNombre: nombreCarrera,
+          inscritos,
+          notaMinima
+        })
+      })
+    })
+
+    const filtrados = filtros.value.carrera
+      ? todosParalelos.filter(p => p.idCarrera === Number(filtros.value.carrera))
+      : todosParalelos
+
+    paralelosDisponibles.value = filtrados
     paraleloSeleccionado.value = null
     calificaciones.value = []
     infoParalelo.value = null
@@ -596,33 +614,48 @@ const cargarCalificaciones = async () => {
       p => p.idParalelo === paraleloSeleccionado.value
     ) || null
 
-    await new Promise(resolve => setTimeout(resolve, 500))
+    if (!infoParalelo.value) return
 
-    calificaciones.value = [
-      {
-        idCalificacion: 1,
-        idInscripcion: 1,
+    const [idCursoStr, codigo] = infoParalelo.value.idParalelo.split('-')
+    const idCurso = Number(idCursoStr)
+
+    const response = await api.get(`/evaluaciones/paralelo/${idCurso}/${codigo}`)
+    const evaluaciones = response as Array<Record<string, unknown>>
+
+    calificaciones.value = evaluaciones.map(item => {
+      const nombreParticipante = String(item.nombreParticipante ?? '')
+      const nombreParts = nombreParticipante.split(' ')
+      const nombres = nombreParts.slice(0, -1).join(' ') || nombreParticipante
+      const apellidos = nombreParts.length > 1 ? nombreParts.slice(-1).join(' ') : ''
+      const notaFinal = item.notaFinal !== undefined && item.notaFinal !== null
+        ? Number(item.notaFinal)
+        : null
+
+      return {
+        idCalificacion: Number(item.idEvaluacion),
+        idInscripcion: Number(item.idInscripcion),
         estudiante: {
-          idUsuario: 1,
-          nombres: 'Juan Carlos',
-          apellidos: 'Pérez López',
-          email: 'juan.perez@umsa.bo',
-          username: '202012345',
-          tipoUsuario: 'INTERNO'
+          idUsuario: 0,
+          nombres,
+          apellidos,
+          email: '-',
+          username: String(item.username ?? ''),
+          tipoUsuario: null
         },
-        notaFinal: 75,
-        estado: 'APROBADO',
-        confirmadaPorDocente: true,
-        fechaConfirmacion: '2024-06-15T14:30:00',
-        idDocenteConfirma: 2,
-        nombreDocenteConfirma: 'María Elena Sánchez',
-        certificadoId: 456,
+        notaFinal,
+        estado: item.estado ? String(item.estado) as Calificacion['estado'] : null,
+        confirmadaPorDocente: Boolean(item.estado),
+        fechaConfirmacion: null,
+        idDocenteConfirma: null,
+        nombreDocenteConfirma: undefined,
+        certificadoId: undefined,
         detalles: [],
-        fechaRegistro: '2024-06-10T10:00:00'
+        fechaRegistro: String(item.fechaRegistro ?? '')
       }
-    ]
+    })
 
     calcularEstadisticasCurso()
+    await cargarEstadisticasGenerales()
   } catch (error) {
     console.error('Error:', error)
   } finally {
@@ -648,21 +681,12 @@ const editarCalificacion = (calificacion: Calificacion) => {
 const guardarCalificacion = async () => {
   if (!calificacionSeleccionada.value) return
 
-  if (certificadoAccion.value === 'ANULAR' && !formCalificacion.value.motivo.trim()) {
-    alert('El motivo es obligatorio al anular un certificado')
-    return
-  }
-
   saving.value = true
   try {
-    // TODO: API call
-    console.log('Guardando:', {
-      idCalificacion: calificacionSeleccionada.value.idCalificacion,
-      notaFinal: formCalificacion.value.notaFinal,
+    await api.patch(`/evaluaciones/${calificacionSeleccionada.value.idCalificacion}/nota`, {
+      notaNueva: formCalificacion.value.notaFinal,
       motivo: formCalificacion.value.motivo
     })
-    
-    await new Promise(resolve => setTimeout(resolve, 800))
 
     const notaMinima = infoParalelo.value?.notaMinima || 51
     calificacionSeleccionada.value.notaFinal = formCalificacion.value.notaFinal
@@ -675,10 +699,8 @@ const guardarCalificacion = async () => {
     calcularEstadisticasCurso()
     closeEditModal()
     
-    alert('✅ Calificación actualizada correctamente')
   } catch (error) {
     console.error('Error:', error)
-    alert('❌ Error al guardar')
   } finally {
     saving.value = false
   }
