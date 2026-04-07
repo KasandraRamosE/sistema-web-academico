@@ -11,6 +11,8 @@ public class InscripcionDto {
     private Long idInscripcion;
     private Long idParticipante;
     private String nombreParticipante;
+    private String emailParticipante;
+    private String usernameParticipante;
 
     // Info de la actividad
     private Long idCurso;

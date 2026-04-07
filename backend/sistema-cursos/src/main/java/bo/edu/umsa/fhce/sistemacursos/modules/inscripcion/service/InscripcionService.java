@@ -363,6 +363,8 @@ public class InscripcionService {
         dto.setIdParticipante(i.getParticipante().getIdUsuario());
         dto.setNombreParticipante(
             i.getParticipante().getNombres() + " " + i.getParticipante().getApellidos());
+        dto.setEmailParticipante(i.getParticipante().getEmail());
+        dto.setUsernameParticipante(i.getParticipante().getUsername());
         dto.setTipoPrecio(i.getTipoPrecio().name());
         dto.setSaldo(i.getSaldo());
         dto.setEstado(i.getEstado().name());
