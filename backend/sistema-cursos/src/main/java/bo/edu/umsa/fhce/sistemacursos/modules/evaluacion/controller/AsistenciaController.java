@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.AsistenciaAdminDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.AsistenciaDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.RegistrarAsistenciaRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.service.AsistenciaService;
@@ -46,6 +47,14 @@ public class AsistenciaController {
     @Operation(summary = "Ver lista de asistentes de un evento")
     public ResponseEntity<List<AsistenciaDto>> porEvento(@PathVariable Long idEvento) {
         return ResponseEntity.ok(asistenciaService.asistentesDeEvento(idEvento));
+    }
+
+    // GET /api/asistencias/evento/{idEvento}/detalle
+    @GetMapping("/evento/{idEvento}/detalle")
+    @PreAuthorize("hasAnyRole('COORDINADOR', 'AUXILIAR', 'ADMINISTRADOR')")
+    @Operation(summary = "Ver inscripciones de un evento con estado de asistencia")
+    public ResponseEntity<List<AsistenciaAdminDto>> detalleEvento(@PathVariable Long idEvento) {
+        return ResponseEntity.ok(asistenciaService.inscripcionesConAsistencia(idEvento));
     }
 
     // DELETE /api/asistencias/{idInscripcion}

@@ -12,10 +12,15 @@ import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Curso;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Paralelo;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.ParaleloId;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.repository.ParaleloRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.certificado.dto.EmitirCertificadoRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.certificado.entity.Certificado;
+import bo.edu.umsa.fhce.sistemacursos.modules.certificado.repository.CertificadoRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.certificado.service.CertificadoService;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.ConfirmarNotasRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.EvaluacionDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.ModificarNotaRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.RegistrarNotaRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.SolicitudEventoRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.SolicitudEmisionDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity.EvaluacionEstudiante;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity.Historial;
@@ -24,6 +29,9 @@ import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.AsistenciaRe
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.EvaluacionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.HistorialRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.SolicitudEmisionRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity.Asistencia;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.Evento;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.EventoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.entity.Inscripcion;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.repository.InscripcionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
@@ -43,6 +51,9 @@ public class EvaluacionService {
     private final SolicitudEmisionRepository solicitudRepository;
     private final InscripcionRepository     inscripcionRepository;
     private final ParaleloRepository        paraleloRepository;
+    private final CertificadoRepository     certificadoRepository;
+    private final CertificadoService        certificadoService;
+    private final EventoRepository          eventoRepository;
     private final UsuarioRepository         usuarioRepository;
     
 
@@ -244,6 +255,52 @@ public class EvaluacionService {
         solicitud.setFechaProcesamiento(java.time.LocalDateTime.now());
         solicitudRepository.save(solicitud);
 
+        if (solicitud.getEvento() != null
+                && solicitud.getEstado() == SolicitudEmision.EstadoSolicitud.COMPLETADO) {
+            emitirCertificadosEvento(solicitud.getEvento().getIdEvento());
+        }
+
+        return toSolicitudDto(solicitud);
+    }
+
+    // ── Crear solicitud de emisión para evento (coordinador/admin) ─────────
+    @Transactional
+    public SolicitudEmisionDto solicitarEmisionEvento(
+            Long idEvento,
+            SolicitudEventoRequest request) {
+        Evento evento = eventoRepository.findById(idEvento)
+            .orElseThrow(() -> new ResourceNotFoundException("Evento", idEvento));
+
+        boolean existePendiente = solicitudRepository
+            .existsByEvento_IdEventoAndEstado(
+                idEvento, SolicitudEmision.EstadoSolicitud.PENDIENTE);
+        boolean existeEnProceso = solicitudRepository
+            .existsByEvento_IdEventoAndEstado(
+                idEvento, SolicitudEmision.EstadoSolicitud.EN_PROCESO);
+        boolean existeCompletada = solicitudRepository
+            .existsByEvento_IdEventoAndEstado(
+                idEvento, SolicitudEmision.EstadoSolicitud.COMPLETADO);
+
+        if (existePendiente || existeEnProceso || existeCompletada) {
+            throw new BusinessException(
+                "Ya existe una solicitud de emisión para este evento", 409);
+        }
+
+        int asistentes = (int) asistenciaRepository
+            .countByInscripcion_Evento_IdEvento(idEvento);
+
+        SolicitudEmision solicitud = SolicitudEmision.builder()
+            .evento(evento)
+            .cantidadAprobados(asistentes)
+            .estado(SolicitudEmision.EstadoSolicitud.PENDIENTE)
+            .notas(request != null ? request.getNotas() : null)
+            .build();
+
+        solicitud = solicitudRepository.save(solicitud);
+
+        log.info("Solicitud de emisión creada para evento {} — asistentes: {} — solicitud: {}",
+            idEvento, asistentes, solicitud.getIdSolicitud());
+
         return toSolicitudDto(solicitud);
     }
 
@@ -286,6 +343,32 @@ public class EvaluacionService {
                 "Usuario", userDetails.getIdUsuario()));
     }
 
+    private void emitirCertificadosEvento(Long idEvento) {
+        List<Asistencia> asistencias = asistenciaRepository.findByIdEvento(idEvento);
+
+        for (Asistencia asistencia : asistencias) {
+            Long idInscripcion = asistencia.getInscripcion().getIdInscripcion();
+
+            boolean yaGenerado = certificadoRepository
+                .findByInscripcion_IdInscripcion(idInscripcion)
+                .map(c -> c.getEstadoEmision() == Certificado.EstadoEmision.GENERADO)
+                .orElse(false);
+
+            if (yaGenerado) {
+                continue;
+            }
+
+            try {
+                EmitirCertificadoRequest request = new EmitirCertificadoRequest();
+                request.setIdInscripcion(idInscripcion);
+                certificadoService.emitir(request);
+            } catch (BusinessException ex) {
+                log.warn("No se pudo emitir certificado de evento para inscripción {}: {}",
+                    idInscripcion, ex.getMessage());
+            }
+        }
+    }
+
     private EvaluacionDto toEvaluacionDto(EvaluacionEstudiante e) {
         EvaluacionDto dto = new EvaluacionDto();
         dto.setIdEvaluacion(e.getIdEvaluacion());
@@ -304,8 +387,10 @@ public class EvaluacionService {
         SolicitudEmisionDto dto = new SolicitudEmisionDto();
         dto.setIdSolicitud(s.getIdSolicitud());
         dto.setCodigoParalelo(s.getCodigoParalelo());
-        dto.setNombreDocente(
-            s.getDocente().getNombres() + " " + s.getDocente().getApellidos());
+        if (s.getDocente() != null) {
+            dto.setNombreDocente(
+                s.getDocente().getNombres() + " " + s.getDocente().getApellidos());
+        }
         dto.setCantidadAprobados(s.getCantidadAprobados());
         dto.setEstado(s.getEstado().name());
         dto.setNotas(s.getNotas());

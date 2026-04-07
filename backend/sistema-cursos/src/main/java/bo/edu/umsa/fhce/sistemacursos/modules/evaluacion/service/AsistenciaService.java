@@ -4,10 +4,17 @@ package bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.service;
 
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
+import bo.edu.umsa.fhce.sistemacursos.modules.certificado.dto.AnularCertificadoRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.certificado.dto.EmitirCertificadoRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.certificado.entity.Certificado;
+import bo.edu.umsa.fhce.sistemacursos.modules.certificado.repository.CertificadoRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.certificado.service.CertificadoService;
+import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.AsistenciaAdminDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.AsistenciaDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.RegistrarAsistenciaRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity.Asistencia;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.AsistenciaRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.SolicitudEmisionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.AuxiliarEventoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.entity.Inscripcion;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.repository.InscripcionRepository;
@@ -30,6 +37,9 @@ public class AsistenciaService {
     private final AsistenciaRepository    asistenciaRepository;
     private final InscripcionRepository   inscripcionRepository;
     private final AuxiliarEventoRepository auxiliarEventoRepository;
+    private final SolicitudEmisionRepository solicitudRepository;
+    private final CertificadoRepository  certificadoRepository;
+    private final CertificadoService     certificadoService;
     private final UsuarioRepository       usuarioRepository;
 
     // ── Registrar asistencia ─────────────────────────────────────────────────
@@ -73,6 +83,8 @@ public class AsistenciaService {
         log.info("Asistencia registrada — inscripción: {} — registrado por: {}",
             inscripcion.getIdInscripcion(), registrador.getUsername());
 
+        actualizarCertificadoPorAsistencia(inscripcion, true);
+
         return toAsistenciaDto(asistencia);
     }
 
@@ -82,6 +94,37 @@ public class AsistenciaService {
         return asistenciaRepository.findByIdEvento(idEvento)
             .stream()
             .map(this::toAsistenciaDto)
+            .toList();
+    }
+
+    // ── Ver inscripciones de un evento con asistencia ─────────────────────
+    @Transactional(readOnly = true)
+    public List<AsistenciaAdminDto> inscripcionesConAsistencia(Long idEvento) {
+        return inscripcionRepository.findByEvento_IdEvento(idEvento)
+            .stream()
+            .map(inscripcion -> {
+                AsistenciaAdminDto dto = new AsistenciaAdminDto();
+                dto.setIdInscripcion(inscripcion.getIdInscripcion());
+                dto.setNombreParticipante(
+                    inscripcion.getParticipante().getNombres()
+                        + " " + inscripcion.getParticipante().getApellidos());
+                dto.setUsername(inscripcion.getParticipante().getUsername());
+                dto.setEmail(inscripcion.getParticipante().getEmail());
+                dto.setEstadoInscripcion(inscripcion.getEstado().name());
+
+                asistenciaRepository.findByInscripcion_IdInscripcion(
+                    inscripcion.getIdInscripcion())
+                    .ifPresentOrElse(asistencia -> {
+                        dto.setIdAsistencia(asistencia.getIdAsistencia());
+                        dto.setAsistio(true);
+                        dto.setRegistradoPor(
+                            asistencia.getRegistradoPor().getNombres()
+                                + " " + asistencia.getRegistradoPor().getApellidos());
+                        dto.setFechaRegistro(asistencia.getFechaRegistro());
+                    }, () -> dto.setAsistio(false));
+
+                return dto;
+            })
             .toList();
     }
 
@@ -95,6 +138,8 @@ public class AsistenciaService {
 
         asistenciaRepository.delete(asistencia);
         log.info("Asistencia anulada — inscripción: {}", idInscripcion);
+
+        actualizarCertificadoPorAsistencia(asistencia.getInscripcion(), false);
     }
 
     // ── Helpers privados ─────────────────────────────────────────────────────
@@ -127,6 +172,48 @@ public class AsistenciaService {
         return usuarioRepository.findById(userDetails.getIdUsuario())
             .orElseThrow(() -> new ResourceNotFoundException(
                 "Usuario", userDetails.getIdUsuario()));
+    }
+
+    private void actualizarCertificadoPorAsistencia(Inscripcion inscripcion, boolean asistio) {
+        if (inscripcion.getEvento() == null) {
+            return;
+        }
+
+        if (!asistio) {
+            certificadoRepository
+                .findByInscripcion_IdInscripcion(inscripcion.getIdInscripcion())
+                .ifPresent(certificado -> {
+                    if (certificado.getEstadoEmision() != Certificado.EstadoEmision.ANULADO) {
+                        AnularCertificadoRequest request = new AnularCertificadoRequest();
+                        request.setMotivo("Auto-anulado por inasistencia");
+                        request.setReemitir(false);
+                        certificadoService.anular(certificado.getIdCertificado(), request);
+                    }
+                });
+            return;
+        }
+
+        boolean loteEmitido = solicitudRepository.existsByEvento_IdEventoAndEstado(
+            inscripcion.getEvento().getIdEvento(),
+            bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity.SolicitudEmision.EstadoSolicitud.COMPLETADO
+        );
+
+        if (!loteEmitido) {
+            return;
+        }
+
+        boolean yaGenerado = certificadoRepository
+            .findByInscripcion_IdInscripcion(inscripcion.getIdInscripcion())
+            .map(c -> c.getEstadoEmision() == Certificado.EstadoEmision.GENERADO)
+            .orElse(false);
+
+        if (yaGenerado) {
+            return;
+        }
+
+        EmitirCertificadoRequest request = new EmitirCertificadoRequest();
+        request.setIdInscripcion(inscripcion.getIdInscripcion());
+        certificadoService.emitir(request);
     }
 
     private AsistenciaDto toAsistenciaDto(Asistencia a) {

@@ -90,6 +90,17 @@ public class EvaluacionController {
         return ResponseEntity.ok(evaluacionService.solicitudesPendientes());
     }
 
+    // POST /api/evaluaciones/solicitudes/evento/{idEvento}
+    @PostMapping("/solicitudes/evento/{idEvento}")
+    @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
+    @Operation(summary = "Crear solicitud de emisión para un evento")
+    public ResponseEntity<SolicitudEmisionDto> solicitarEvento(
+            @PathVariable Long idEvento,
+            @Valid @RequestBody SolicitudEventoRequest request) {
+        return ResponseEntity.status(201)
+            .body(evaluacionService.solicitarEmisionEvento(idEvento, request));
+    }
+
     // PATCH /api/evaluaciones/solicitudes/{id}
     @PatchMapping("/solicitudes/{id}")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")

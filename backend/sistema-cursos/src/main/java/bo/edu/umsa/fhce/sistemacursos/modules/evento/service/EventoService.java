@@ -217,7 +217,6 @@ public class EventoService {
         if (e.getCupoMaximo() != null) {
             dto.setCuposDisponibles(Math.max(0, e.getCupoMaximo() - inscritos));
         }
-        dto.setInscritos(0);
 
         return dto;
     }

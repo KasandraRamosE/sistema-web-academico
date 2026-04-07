@@ -52,6 +52,14 @@ public class CertificadoController {
         return ResponseEntity.ok(certificadoService.misCertificados());
     }
 
+    // GET /api/certificados/admin
+    @GetMapping("/admin")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Listar certificados (admin/coordinador)")
+    public ResponseEntity<List<CertificadoDto>> listarTodos() {
+        return ResponseEntity.ok(certificadoService.listarTodos());
+    }
+
     // GET /api/certificados/{id}/descargar
     // Devuelve el PDF como bytes para descarga directa
     @GetMapping("/{id}/descargar")

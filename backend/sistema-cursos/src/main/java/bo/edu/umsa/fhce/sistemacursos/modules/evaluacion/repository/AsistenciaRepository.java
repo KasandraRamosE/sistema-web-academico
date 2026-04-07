@@ -14,6 +14,8 @@ public interface AsistenciaRepository extends JpaRepository<Asistencia, Long> {
 
     boolean existsByInscripcion_IdInscripcion(Long idInscripcion);
 
+    long countByInscripcion_Evento_IdEvento(Long idEvento);
+
     // Todos los asistentes de un evento
     @Query("""
         SELECT a FROM Asistencia a

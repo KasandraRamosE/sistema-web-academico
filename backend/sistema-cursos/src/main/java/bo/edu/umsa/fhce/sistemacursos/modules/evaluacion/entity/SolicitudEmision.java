@@ -37,7 +37,7 @@ public class SolicitudEmision {
     private Evento evento;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_docente", nullable = false)
+    @JoinColumn(name = "id_docente", nullable = true)
     private Usuario docente;
 
     @Column(name = "cantidad_aprobados", nullable = false)
