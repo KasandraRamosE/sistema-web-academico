@@ -81,13 +81,17 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
-        path: 'verificar-certificado/:codigo',
+        path: 'verificar/:codigo',
         name: 'verify-certificate',
-        component: () => import('@/views/public/Home.vue'), // TODO: Crear VerifyCertificateView
+        component: () => import('@/views/public/VerifyCertificate.vue'),
         meta: {
           title: 'Verificar Certificado',
           requiresAuth: false
         }
+      },
+      {
+        path: 'verificar-certificado/:codigo',
+        redirect: { name: 'verify-certificate' }
       }
     ]
   },
