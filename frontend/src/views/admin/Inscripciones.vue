@@ -120,12 +120,18 @@
           <!-- Carrera -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Carrera</label>
+            <!-- ✅ Reemplaza el select de carrera en el template -->
             <select
-              v-model="filtros.carrera"
+              :value="filtros.carrera"
+              @change="(e) => filtros.carrera = (e.target as HTMLSelectElement).value"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Todas</option>
-              <option v-for="carrera in carreras" :key="carrera.id" :value="carrera.id">
+              <option 
+                v-for="carrera in carreras" 
+                :key="carrera.id" 
+                :value="String(carrera.id)"
+              >
                 {{ carrera.nombre }}
               </option>
             </select>
@@ -538,21 +544,15 @@ const inscripcionesFiltradas = computed(() => {
     }
   }
 
-  // ✅ FILTRO POR CARRERA CORREGIDO
   if (filtros.value.carrera) {
     const idCarrera = Number(filtros.value.carrera)
-    const carreraNombre = carreras.value.find(c => c.id === idCarrera)?.nombre || ''
-    const carreraNombreLower = carreraNombre.toLowerCase()
-
-    resultado = resultado.filter(i => {
-      const actividadCarrera = (i.actividad.carreraNombre || '').toLowerCase()
-      return i.actividad.idCarrera === idCarrera
-        || (carreraNombreLower && actividadCarrera === carreraNombreLower)
-    })
+    
+    // ✅ Console.log corregido — i dentro del callback
+    resultado = resultado.filter(i => i.actividad.idCarrera === idCarrera)
   }
 
-  return resultado
-})
+    return resultado
+  })
 
 // ============================================
 // MOCK DATA CORREGIDO
@@ -588,10 +588,12 @@ const cargarDatos = async () => {
       eventos.map(evento => [Number(evento.idEvento), evento])
     )
 
-    const resolveCarreraId = (nombreCarrera: string) => {
-      if (!nombreCarrera) return null
+    const resolveCarreraId = (nombreCarrera: string): number | null => {
+      if (!nombreCarrera?.trim()) return null
       const target = nombreCarrera.trim().toLowerCase()
-      const encontrada = carreras.value.find(c => c.nombre.trim().toLowerCase() === target)
+      const encontrada = carreras.value.find(
+        c => c.nombre.trim().toLowerCase() === target
+      )
       return encontrada ? encontrada.id : null
     }
 
@@ -608,13 +610,27 @@ const cargarDatos = async () => {
       const curso = idCurso ? cursosById.get(idCurso) : null
       const evento = idEvento ? eventosById.get(idEvento) : null
 
-      const nombreCarrera = tipoActividad === 'CURSO'
-        ? String(curso?.nombreCarrera ?? '')
-        : String(evento?.nombreCarrera ?? '')
+      const dtoIdCarrera = item.idCarrera !== undefined && item.idCarrera !== null
+        ? Number(item.idCarrera)
+        : null
+      const dtoNombreCarrera = String(item.nombreCarrera ?? '')
 
-      const idCarrera = tipoActividad === 'CURSO'
-        ? Number(curso?.idCarrera ?? 0) || resolveCarreraId(nombreCarrera)
-        : Number(evento?.idCarrera ?? 0) || resolveCarreraId(nombreCarrera)
+      const nombreCarrera = dtoNombreCarrera || (tipoActividad === 'CURSO'
+        ? String(curso?.nombreCarrera ?? '')
+        : String(evento?.nombreCarrera ?? ''))
+        
+      const rawIdCarrera = dtoIdCarrera ?? (tipoActividad === 'CURSO'
+        ? curso?.idCarrera
+        : evento?.idCarrera)
+
+      // Parsear independientemente del tipo que venga del API
+      const parsedId = rawIdCarrera !== undefined && rawIdCarrera !== null
+        ? Number(rawIdCarrera)
+        : NaN
+
+      const idCarrera: number | null = !isNaN(parsedId) && parsedId > 0
+        ? parsedId
+        : resolveCarreraId(nombreCarrera)
 
       const carreraNombreResolvida = idCarrera
         ? String(carreras.value.find(c => c.id === idCarrera)?.nombre ?? '')
@@ -648,15 +664,15 @@ const cargarDatos = async () => {
 
       const saldo = Number(item.saldo ?? 0)
       const tipoPrecio = saldo === 0 ? 'GRATUITO' : String(item.tipoPrecio ?? '') as Inscripcion['tipoPrecio']
-
+// Poner esto dentro de mapInscripcion, justo después de definir curso/evento
       return {
         idInscripcion: Number(item.idInscripcion),
         usuario: {
           idUsuario: Number(item.idParticipante ?? 0),
           nombres,
           apellidos,
-          email: '-',
-          username: '-',
+          email: String(item.emailParticipante ?? ''),
+          username: String(item.usernameParticipante ?? ''),
           tipoUsuario: null
         },
         actividad,
@@ -666,6 +682,7 @@ const cargarDatos = async () => {
         fechaInscripcion: String(item.fechaInscripcion ?? ''),
         estado: String(item.estado ?? 'PENDIENTE') as Inscripcion['estado']
       }
+      
     }
 
     inscripciones.value = [
