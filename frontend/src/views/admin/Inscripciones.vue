@@ -636,15 +636,17 @@ const cargarDatos = async () => {
         ? String(carreras.value.find(c => c.id === idCarrera)?.nombre ?? '')
         : nombreCarrera
 
+      const modalidadActividad = String(item.modalidadActividad ?? '')
+
       const actividad: Actividad = {
         idActividad: idCurso ?? idEvento ?? 0,
         nombre: String(item.nombreActividad ?? ''),
         tipo: tipoActividad,
         idCarrera,
         carreraNombre: carreraNombreResolvida,
-        modalidad: tipoActividad === 'CURSO'
+        modalidad: (modalidadActividad || (tipoActividad === 'CURSO'
           ? ''
-          : (String(evento?.modalidad ?? '') as Actividad['modalidad']),
+          : String(evento?.modalidad ?? ''))) as Actividad['modalidad'],
         cargaHoraria: Number(
           tipoActividad === 'CURSO'
             ? (curso?.cargaHoraria ?? 0)

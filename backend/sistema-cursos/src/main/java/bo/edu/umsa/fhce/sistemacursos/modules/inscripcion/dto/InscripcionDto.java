@@ -20,6 +20,9 @@ public class InscripcionDto {
     private String nombreActividad;  // nombre del curso o evento
     private String codigoParalelo;
     private String tipoActividad;    // "CURSO" o "EVENTO"
+    private Long idCarrera;
+    private String nombreCarrera;
+    private String modalidadActividad;
 
     private String tipoPrecio;
     private BigDecimal saldo;

@@ -375,10 +375,24 @@ public class InscripcionService {
             dto.setIdCurso(i.getCurso().getIdCurso());
             dto.setNombreActividad(i.getCurso().getNombre());
             dto.setTipoActividad("CURSO");
+            dto.setIdCarrera(i.getCurso().getCarrera().getIdCarrera());
+            dto.setNombreCarrera(i.getCurso().getCarrera().getNombre());
+            if (i.getCodigoParalelo() != null) {
+                ParaleloId pk = new ParaleloId(
+                    i.getCurso().getIdCurso(),
+                    i.getCodigoParalelo()
+                );
+                paraleloRepository.findById(pk)
+                    .ifPresent(paralelo -> dto.setModalidadActividad(
+                        paralelo.getModalidad().name()));
+            }
         } else {
             dto.setIdEvento(i.getEvento().getIdEvento());
             dto.setNombreActividad(i.getEvento().getNombre());
             dto.setTipoActividad("EVENTO");
+            dto.setIdCarrera(i.getEvento().getCarrera().getIdCarrera());
+            dto.setNombreCarrera(i.getEvento().getCarrera().getNombre());
+            dto.setModalidadActividad(i.getEvento().getModalidad().name());
         }
 
         // Info del pago si existe
