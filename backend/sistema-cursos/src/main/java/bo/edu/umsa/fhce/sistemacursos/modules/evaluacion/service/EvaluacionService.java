@@ -13,6 +13,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Paralelo;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.ParaleloId;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.repository.ParaleloRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.dto.EmitirCertificadoRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.certificado.dto.AnularCertificadoRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.entity.Certificado;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.repository.CertificadoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.service.CertificadoService;
@@ -160,9 +161,54 @@ public class EvaluacionService {
                 ? EvaluacionEstudiante.EstadoEvaluacion.APROBADO
                 : EvaluacionEstudiante.EstadoEvaluacion.REPROBADO;
 
+        EvaluacionEstudiante.EstadoEvaluacion estadoAnterior = evaluacion.getEstado();
+
         evaluacion.setNotaFinal(request.getNotaNueva());
         evaluacion.setEstado(nuevoEstado);
         evaluacionRepository.save(evaluacion);
+
+        if (estadoAnterior == EvaluacionEstudiante.EstadoEvaluacion.APROBADO
+                && nuevoEstado == EvaluacionEstudiante.EstadoEvaluacion.REPROBADO) {
+            certificadoRepository.findByInscripcion_IdInscripcion(
+                evaluacion.getInscripcion().getIdInscripcion())
+                .ifPresent(certificado -> {
+                    if (certificado.getEstadoEmision() == Certificado.EstadoEmision.GENERADO) {
+                        AnularCertificadoRequest anularRequest = new AnularCertificadoRequest();
+                        anularRequest.setMotivo(
+                            "Anulado por cambio de nota: " + request.getMotivo());
+                        anularRequest.setReemitir(false);
+                        certificadoService.anular(certificado.getIdCertificado(), anularRequest);
+                    }
+                });
+        }
+
+        if (estadoAnterior == EvaluacionEstudiante.EstadoEvaluacion.REPROBADO
+                && nuevoEstado == EvaluacionEstudiante.EstadoEvaluacion.APROBADO) {
+            Inscripcion inscripcion = evaluacion.getInscripcion();
+            String codigoParalelo = inscripcion.getCodigoParalelo();
+
+            if (codigoParalelo != null) {
+                boolean loteEmitido = solicitudRepository
+                    .existsByCurso_IdCursoAndCodigoParaleloAndEstado(
+                        inscripcion.getCurso().getIdCurso(),
+                        codigoParalelo,
+                        SolicitudEmision.EstadoSolicitud.COMPLETADO
+                    );
+
+                if (loteEmitido) {
+                    boolean yaGenerado = certificadoRepository
+                        .findByInscripcion_IdInscripcion(inscripcion.getIdInscripcion())
+                        .map(c -> c.getEstadoEmision() == Certificado.EstadoEmision.GENERADO)
+                        .orElse(false);
+
+                    if (!yaGenerado) {
+                        EmitirCertificadoRequest emitirRequest = new EmitirCertificadoRequest();
+                        emitirRequest.setIdInscripcion(inscripcion.getIdInscripcion());
+                        certificadoService.emitir(emitirRequest);
+                    }
+                }
+            }
+        }
 
         log.info("Nota modificada por admin {} — evaluación: {} — nueva nota: {}",
             admin.getUsername(), idEvaluacion, request.getNotaNueva());

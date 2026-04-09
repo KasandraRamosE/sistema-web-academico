@@ -21,5 +21,11 @@ public interface SolicitudEmisionRepository
         SolicitudEmision.EstadoSolicitud estado
     );
 
+    boolean existsByCurso_IdCursoAndCodigoParaleloAndEstado(
+        Long idCurso,
+        String codigoParalelo,
+        SolicitudEmision.EstadoSolicitud estado
+    );
+
     long countByEstado(SolicitudEmision.EstadoSolicitud estado);
 }

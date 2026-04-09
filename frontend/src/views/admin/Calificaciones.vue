@@ -325,7 +325,9 @@
           certificadoAccion === 'ANULAR' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'
         ]">
           <p class="text-sm font-semibold" :class="certificadoAccion === 'ANULAR' ? 'text-red-800' : 'text-yellow-800'">
-            {{ certificadoAccion === 'ANULAR' ? '⚠️ Se anulará el certificado' : '✅ Se generará certificado' }}
+            {{ certificadoAccion === 'ANULAR'
+              ? '⚠️ Se anulará el certificado si existe'
+              : '✅ Se generará el certificado si el lote ya fue emitido; si no, quedará pendiente' }}
           </p>
         </div>
 
@@ -333,15 +335,17 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Motivo de Corrección 
-            <span v-if="certificadoAccion === 'ANULAR'" class="text-red-600">*</span>
+            <span class="text-red-600">*</span>
           </label>
           <textarea
             v-model="formCalificacion.motivo"
             rows="3"
-            :required="certificadoAccion === 'ANULAR'"
+            required
             placeholder="Explica el motivo de la corrección..."
             class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            @input="errorMotivo = ''"
           ></textarea>
+          <p v-if="errorMotivo" class="text-xs text-red-600 mt-1">{{ errorMotivo }}</p>
         </div>
 
         <!-- Botones -->
@@ -484,6 +488,8 @@ const formCalificacion = ref({
   motivo: ''
 })
 
+const errorMotivo = ref('')
+
 // ============================================
 // COMPUTED
 // ============================================
@@ -524,7 +530,7 @@ const certificadoAccion = computed(() => {
     return 'EMITIR'
   }
 
-  if (estabaAprobado && !estaraAprobado && calificacionSeleccionada.value.certificadoId) {
+  if (estabaAprobado && !estaraAprobado) {
     return 'ANULAR'
   }
 
@@ -542,7 +548,10 @@ const cargarCarreras = async () => {
       api.get('/cursos/todos')
     ])
 
-    carreras.value = carrerasResponse as Carrera[]
+    carreras.value = (carrerasResponse as Array<Record<string, unknown>>).map(carrera => ({
+      idCarrera: Number(carrera.idCarrera ?? carrera.id ?? 0),
+      nombre: String(carrera.nombre ?? '')
+    }))
     cursos.value = cursosResponse as Array<Record<string, unknown>>
     await cargarParalelos()
     await cargarEstadisticasGenerales()
@@ -675,11 +684,17 @@ const editarCalificacion = (calificacion: Calificacion) => {
   calificacionSeleccionada.value = calificacion
   formCalificacion.value.notaFinal = calificacion.notaFinal
   formCalificacion.value.motivo = ''
+  errorMotivo.value = ''
   showEditModal.value = true
 }
 
 const guardarCalificacion = async () => {
   if (!calificacionSeleccionada.value) return
+
+  if (!formCalificacion.value.motivo.trim()) {
+    errorMotivo.value = 'El motivo es obligatorio.'
+    return
+  }
 
   saving.value = true
   try {
@@ -715,6 +730,7 @@ const closeEditModal = () => {
   showEditModal.value = false
   calificacionSeleccionada.value = null
   formCalificacion.value = { notaFinal: null, motivo: '' }
+  errorMotivo.value = ''
 }
 
 const closeDetalleModal = () => {
