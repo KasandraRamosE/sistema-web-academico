@@ -4,55 +4,48 @@
     SOLO Sidebar + Contenido (SIN header público)
     El sidebar incluye: logo, navegación, perfil, logout
   -->
-  <div class="min-h-screen flex bg-gray-50">
-    <!-- Sidebar con todo integrado -->
-    <Sidebar />
-    
-    <!-- Contenido principal -->
-    <main class="flex-1 overflow-y-auto">
-      <div class="p-8">
-        <!-- Breadcrumbs (opcional) -->
-        <div v-if="showBreadcrumbs" class="mb-6">
-          <nav class="flex text-sm text-gray-600">
-            <span class="text-gray-800 font-medium">{{ currentPageTitle }}</span>
-          </nav>
-        </div>
+  <div class="min-h-screen bg-gray-50">
+    <div class="flex">
+      <!-- Sidebar con todo integrado -->
+      <Sidebar :mobileOpen="isSidebarOpen" @close="closeSidebar" />
 
-        <!-- Vista hija (contenido del dashboard) -->
-        <router-view />
-      </div>
-    </main>
+      <!-- Contenido principal -->
+      <main class="flex-1 overflow-y-auto">
+        <div class="sticky top-0 z-30 flex items-center gap-3 bg-white px-4 py-3 shadow md:hidden">
+          <button
+            type="button"
+            class="rounded-lg border border-slate-200 p-2 text-slate-700"
+            @click="toggleSidebar"
+            aria-label="Abrir menu"
+          >
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <span class="text-sm font-semibold text-slate-800">Menu</span>
+        </div>
+        <div class="p-6 md:p-8">
+          <!-- Vista hija (contenido del dashboard) -->
+          <router-view />
+        </div>
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref } from 'vue'
 import Sidebar from '@/components/common/Sidebar.vue'
 
-// ============================================
-// COMPOSABLES
-// ============================================
+const isSidebarOpen = ref(false)
 
-const route = useRoute()
+const toggleSidebar = () => {
+  isSidebarOpen.value = !isSidebarOpen.value
+}
 
-// ============================================
-// COMPUTED
-// ============================================
-
-/**
- * Obtiene el título de la página actual
- */
-const currentPageTitle = computed(() => {
-  return (route.meta.title as string) || 'Dashboard'
-})
-
-/**
- * Controla si se muestran los breadcrumbs
- */
-const showBreadcrumbs = computed(() => {
-  return route.meta.breadcrumb !== false
-})
+const closeSidebar = () => {
+  isSidebarOpen.value = false
+}
 </script>
 
 <style scoped>

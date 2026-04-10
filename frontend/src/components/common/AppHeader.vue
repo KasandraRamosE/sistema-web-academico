@@ -157,9 +157,6 @@
               <p class="text-sm font-semibold text-gray-800">
                 {{ authStore.fullName }}
               </p>
-              <p class="text-xs text-gray-500">
-                {{ authStore.user?.email }}
-              </p>
             </div>
 
             <!-- Botón de perfil (solo para participante) -->
@@ -312,7 +309,6 @@
             <p class="font-semibold text-gray-800">
               {{ authStore.fullName }}
             </p>
-            <p class="text-xs text-gray-500">{{ authStore.user?.email }}</p>
           </div>
           
           <!-- Selector de rol en mobile -->
@@ -441,8 +437,8 @@ const redirectToDashboard = (role: Rol) => {
     'COORDINADOR': '/coordinador',
     'DOCENTE': '/docente',
     'PARTICIPANTE': '/participante',
-    'AUXILIAR': '/participante', // TODO: Crear dashboard auxiliar
-    'DISENADOR': '/participante'  // TODO: Crear dashboard DISENADOR
+    'AUXILIAR': '/auxiliar',
+    'DISENADOR': '/disenador'
   }
   
   router.push(routes[role] || '/')

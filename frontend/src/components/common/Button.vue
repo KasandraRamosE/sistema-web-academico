@@ -115,10 +115,10 @@ const buttonClasses = computed(() => {
   // Variantes
   const variantClasses = {
     primary: [
-      'bg-gradient-to-r from-purple-600 to-blue-500',
+      'bg-slate-900',
       'text-white',
-      'hover:shadow-lg hover:scale-105',
-      'focus:ring-purple-500'
+      'hover:bg-slate-800',
+      'focus:ring-slate-600'
     ],
     secondary: [
       'bg-gray-600 text-white',

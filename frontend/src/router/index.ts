@@ -319,7 +319,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'coordinator-dashboard',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear CoordinatorDashboard
+        component: () => import('@/views/coordinator/Dashboard.vue'),
         meta: {
           title: 'Panel de Coordinador',
           breadcrumb: 'Dashboard'
@@ -328,16 +328,34 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'actividades',
         name: 'coordinator-activities',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear ActivitiesView
+        component: () => import('@/views/coordinator/Cursos.vue'),
         meta: {
           title: 'Gestión de Actividades',
           breadcrumb: 'Actividades'
         }
       },
       {
+        path: 'eventos',
+        name: 'coordinator-events',
+        component: () => import('@/views/coordinator/Eventos.vue'),
+        meta: {
+          title: 'Gestión de Eventos',
+          breadcrumb: 'Eventos'
+        }
+      },
+      {
+        path: 'inscritos',
+        name: 'coordinator-enrolled',
+        component: () => import('@/views/coordinator/Inscritos.vue'),
+        meta: {
+          title: 'Inscritos',
+          breadcrumb: 'Inscritos'
+        }
+      },
+      {
         path: 'bandeja',
         name: 'coordinator-inbox',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear InboxView
+        component: () => import('@/views/coordinator/Bandeja.vue'),
         meta: {
           title: 'Solicitudes de Certificados',
           breadcrumb: 'Bandeja'
@@ -346,19 +364,10 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'emitir',
         name: 'coordinator-emit',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear EmitCertificatesView
+        component: () => import('@/views/coordinator/EmitirCertificados.vue'),
         meta: {
           title: 'Emitir Certificados',
           breadcrumb: 'Emitir'
-        }
-      },
-      {
-        path: 'reportes',
-        name: 'coordinator-reports',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear ReportsView
-        meta: {
-          title: 'Reportes',
-          breadcrumb: 'Reportes'
         }
       }
     ]
@@ -378,7 +387,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'teacher-dashboard',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear TeacherDashboard
+        component: () => import('@/views/docente/Dashboard.vue'),
         meta: {
           title: 'Panel de Docente',
           breadcrumb: 'Dashboard'
@@ -387,7 +396,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'mis-cursos',
         name: 'teacher-courses',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear MyCoursesView
+        component: () => import('@/views/docente/MisCursos.vue'),
         meta: {
           title: 'Mis Cursos',
           breadcrumb: 'Mis Cursos'
@@ -396,19 +405,10 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'calificaciones',
         name: 'teacher-grades',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear GradesView
+        component: () => import('@/views/docente/Calificaciones.vue'),
         meta: {
           title: 'Calificaciones',
           breadcrumb: 'Calificaciones'
-        }
-      },
-      {
-        path: 'asistencias',
-        name: 'teacher-attendance',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear AttendanceView
-        meta: {
-          title: 'Asistencias',
-          breadcrumb: 'Asistencias'
         }
       }
     ]
@@ -427,17 +427,12 @@ const routes: RouteRecordRaw[] = [
     children: [
       {
         path: '',
-        name: 'auxiliary-dashboard',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear AuxiliaryDashboard
-        meta: {
-          title: 'Panel de Auxiliar',
-          breadcrumb: 'Dashboard'
-        }
+        redirect: { name: 'auxiliary-attendance' }
       },
       {
         path: 'eventos',
         name: 'auxiliary-events',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear MyEventsView
+        component: () => import('@/views/auxiliar/Eventos.vue'),
         meta: {
           title: 'Mis Eventos',
           breadcrumb: 'Mis Eventos'
@@ -446,7 +441,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'asistencia',
         name: 'auxiliary-attendance',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear RegisterAttendanceView
+        component: () => import('@/views/auxiliar/Asistencia.vue'),
         meta: {
           title: 'Registrar Asistencia',
           breadcrumb: 'Asistencia'
@@ -463,31 +458,22 @@ const routes: RouteRecordRaw[] = [
     component: DashboardLayout,
     meta: {
       requiresAuth: true,
-      roles: ['DISEÑADOR']
+      roles: ['DISENADOR']
     },
     children: [
       {
         path: '',
         name: 'designer-dashboard',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear DesignerDashboard
+        redirect: { name: 'designer-templates' },
         meta: {
-          title: 'Panel de Diseñador',
-          breadcrumb: 'Dashboard'
-        }
-      },
-      {
-        path: 'actividades',
-        name: 'designer-activities',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear ActivitiesListView
-        meta: {
-          title: 'Lista de Actividades',
-          breadcrumb: 'Actividades'
+          title: 'Plantillas',
+          breadcrumb: 'Plantillas'
         }
       },
       {
         path: 'plantillas',
         name: 'designer-templates',
-        component: () => import('@/views/admin/DashboardAdmin.vue'), // TODO: Crear UploadTemplateView
+        component: () => import('@/views/disenador/Plantillas.vue'),
         meta: {
           title: 'Gestión de Plantillas',
           breadcrumb: 'Plantillas'

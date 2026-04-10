@@ -171,12 +171,6 @@ export const useAuthStore = defineStore('auth', () => {
       return false
     }
 
-    // No permitir cambiar si es DISENADOR
-    if (currentRole.value === 'DISENADOR' || newRole === 'DISENADOR') {
-      console.warn('⚠️ El rol DISENADOR es fijo')
-      return false
-    }
-
     currentRole.value = newRole
     localStorage.setItem('currentRole', newRole)
     
@@ -211,13 +205,19 @@ export const useAuthStore = defineStore('auth', () => {
       const savedRole = localStorage.getItem('currentRole')
 
       if (savedUser && savedToken) {
-        user.value = JSON.parse(savedUser)
+        const parsedUser = JSON.parse(savedUser) as Usuario
+        const normalizedRoles = normalizeRoles(parsedUser.roles as unknown as string[])
+        user.value = {
+          ...parsedUser,
+          roles: normalizedRoles
+        }
         token.value = savedToken
         
         // Validar que el rol sea válido
         const validRoles: Rol[] = ['ADMINISTRADOR', 'COORDINADOR', 'DOCENTE', 'PARTICIPANTE', 'AUXILIAR', 'DISENADOR']
-        if (savedRole && validRoles.includes(savedRole as Rol)) {
-          currentRole.value = savedRole as Rol
+        const normalizedSavedRole = savedRole ? normalizeRoles([savedRole])[0] : null
+        if (normalizedSavedRole && validRoles.includes(normalizedSavedRole)) {
+          currentRole.value = normalizedSavedRole
         } else {
           // Verificar que user.value no sea null antes de acceder a roles
           currentRole.value = user.value?.roles[0] || null
@@ -232,7 +232,10 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const normalizeRoles = (roles: string[]): Rol[] => {
-    return roles.map(role => role.replace('ROLE_', '') as Rol)
+    return roles.map((role) => {
+      const cleaned = role.replace('ROLE_', '').replace('DISEÑADOR', 'DISENADOR')
+      return cleaned as Rol
+    })
   }
 
   // ============================================

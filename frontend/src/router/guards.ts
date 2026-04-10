@@ -86,6 +86,10 @@ function getDashboardRoute(role: Rol | null): { name: string } {
       return { name: 'coordinator-dashboard' }
     case 'DOCENTE':
       return { name: 'teacher-dashboard' }
+    case 'AUXILIAR':
+      return { name: 'auxiliary-attendance' }
+   case 'DISENADOR':
+     return { name: 'designer-templates' }
     case 'PARTICIPANTE':
       return { name: 'participant-home' }
     default:

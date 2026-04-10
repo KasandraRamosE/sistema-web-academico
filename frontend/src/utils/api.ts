@@ -28,6 +28,17 @@ const notifySessionExpired = () => {
   authStore.logout()
 }
 
+const notifyForbidden = () => {
+  const pinia = getActivePinia()
+  if (!pinia) return
+
+  const alertStore = useAlertStore(pinia)
+  alertStore.push({
+    type: 'warning',
+    message: 'No tienes permisos para esta accion.'
+  })
+}
+
 const clearAuthAndRedirect = () => {
   localStorage.removeItem('user')
   localStorage.removeItem('token')
@@ -54,10 +65,15 @@ const request = async (path: string, options: RequestInit = {}) => {
 
   const isAuthRequest = path.startsWith('/auth/')
 
-  if (!isAuthRequest && (response.status === 401 || response.status === 403)) {
+  if (!isAuthRequest && response.status === 401) {
     notifySessionExpired()
     clearAuthAndRedirect()
     throw new Error('Unauthorized')
+  }
+
+  if (!isAuthRequest && response.status === 403) {
+    notifyForbidden()
+    throw new Error('Forbidden')
   }
 
   if (!response.ok) {
