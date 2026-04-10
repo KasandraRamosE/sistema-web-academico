@@ -29,6 +29,8 @@
             placeholder="Buscar por nombre o descripción..."
             class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             @input="debouncedEmit"
+            @focus="showSuggestions = true"
+            @blur="showSuggestions = false"
           />
           <svg 
             class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" 
@@ -38,6 +40,21 @@
           >
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
+
+          <div
+            v-if="showSuggestions && matchingSuggestions.length > 0"
+            class="absolute z-10 mt-2 w-full rounded-lg border border-gray-200 bg-white shadow-lg"
+          >
+            <button
+              v-for="option in matchingSuggestions"
+              :key="option"
+              type="button"
+              class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-50"
+              @mousedown.prevent="selectSuggestion(option)"
+            >
+              {{ option }}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -155,6 +172,7 @@ import type { FiltrosActividad, Carrera, TipoActividad, Modalidad } from '@/type
 
 interface Props {
   careers: Carrera[]
+  activityNames?: string[]
   modelValue: FiltrosActividad
 }
 
@@ -176,6 +194,7 @@ const emit = defineEmits<{
  * Copia local de los filtros para v-model
  */
 const localFilters = ref<FiltrosActividad>({ ...props.modelValue })
+const showSuggestions = ref(false)
 
 // Timer para debounce en búsqueda
 let searchTimeout: number | null = null
@@ -198,6 +217,16 @@ const hasActiveFilters = computed(() => {
   )
 })
 
+const matchingSuggestions = computed(() => {
+  const query = (localFilters.value.busqueda || '').trim().toLowerCase()
+  if (!query || !props.activityNames || props.activityNames.length === 0) return []
+
+  const unique = Array.from(new Set(props.activityNames))
+  return unique
+    .filter(name => name.toLowerCase().includes(query))
+    .slice(0, 6)
+})
+
 // ============================================
 // MÉTODOS
 // ============================================
@@ -217,9 +246,16 @@ const debouncedEmit = () => {
     clearTimeout(searchTimeout)
   }
   
+  showSuggestions.value = true
   searchTimeout = window.setTimeout(() => {
     emitFilters()
   }, 500) // Espera 500ms después de que el usuario deje de escribir
+}
+
+const selectSuggestion = (value: string) => {
+  localFilters.value.busqueda = value
+  showSuggestions.value = false
+  emitFilters()
 }
 
 /**

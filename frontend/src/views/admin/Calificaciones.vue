@@ -476,7 +476,7 @@ const filtros = ref({
   carrera: ''
 })
 
-const paraleloSeleccionado = ref<number | null>(null)
+const paraleloSeleccionado = ref<string | null>(null)
 const infoParalelo = ref<Paralelo | null>(null)
 
 const showEditModal = ref(false)

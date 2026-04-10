@@ -418,7 +418,10 @@ const eventosFiltrados = computed(() => {
 const cargarCarreras = async () => {
   try {
     const response = await api.get('/carreras/todas')
-    carreras.value = response as Carrera[]
+    carreras.value = (response as Array<Record<string, unknown>>).map(carrera => ({
+      id: Number(carrera.idCarrera ?? carrera.id ?? 0),
+      nombre: String(carrera.nombre ?? '')
+    }))
   } catch (error) {
     console.error('Error al cargar carreras:', error)
   }

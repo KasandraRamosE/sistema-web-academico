@@ -567,7 +567,10 @@ const cargarDatos = async () => {
       api.get('/eventos/todos')
     ])
 
-    carreras.value = (carrerasResponse as Carrera[])
+    carreras.value = (carrerasResponse as Array<Record<string, unknown>>).map(carrera => ({
+      id: Number(carrera.idCarrera ?? carrera.id ?? 0),
+      nombre: String(carrera.nombre ?? '')
+    }))
 
     const cursos = (cursosResponse as Array<Record<string, unknown>>)
     const eventos = (eventosResponse as Array<Record<string, unknown>>)
@@ -633,7 +636,7 @@ const cargarDatos = async () => {
         : resolveCarreraId(nombreCarrera)
 
       const carreraNombreResolvida = idCarrera
-        ? String(carreras.value.find(c => c.id === idCarrera)?.nombre ?? '')
+        ? String(carreras.value.find(c => c.id === idCarrera)?.nombre ?? '') || nombreCarrera
         : nombreCarrera
 
       const modalidadActividad = String(item.modalidadActividad ?? '')

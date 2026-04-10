@@ -665,7 +665,10 @@ const cargarDatos = async () => {
       api.get('/eventos/todos')
     ])
 
-    carreras.value = (carrerasResponse as Carrera[])
+    carreras.value = (carrerasResponse as Array<Record<string, unknown>>).map(carrera => ({
+      id: Number(carrera.idCarrera ?? carrera.id ?? 0),
+      nombre: String(carrera.nombre ?? '')
+    }))
 
     const cursos = (cursosResponse as Array<Record<string, unknown>>).map(curso => {
       const costoExterno = Number(curso.costoExterno ?? 0)
