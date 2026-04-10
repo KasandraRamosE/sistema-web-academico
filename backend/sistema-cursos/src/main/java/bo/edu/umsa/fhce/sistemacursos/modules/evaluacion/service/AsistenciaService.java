@@ -27,6 +27,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -136,6 +138,9 @@ public class AsistenciaService {
             .orElseThrow(() -> new BusinessException(
                 "No existe registro de asistencia para esta inscripción", 404));
 
+        Usuario usuario = getUsuarioActual();
+        validarPermisoAnulacion(usuario, asistencia);
+
         asistenciaRepository.delete(asistencia);
         log.info("Asistencia anulada — inscripción: {}", idInscripcion);
 
@@ -172,6 +177,44 @@ public class AsistenciaService {
         return usuarioRepository.findById(userDetails.getIdUsuario())
             .orElseThrow(() -> new ResourceNotFoundException(
                 "Usuario", userDetails.getIdUsuario()));
+    }
+
+    private void validarPermisoAnulacion(Usuario usuario, Asistencia asistencia) {
+        boolean esAdmin = usuario.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+        boolean esCoordinador = usuario.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
+
+        if (esAdmin || esCoordinador) {
+            return;
+        }
+
+        boolean esAuxiliar = usuario.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("AUXILIAR"));
+
+        if (!esAuxiliar) {
+            throw new BusinessException(
+                "No tienes permisos para anular asistencias", 403);
+        }
+
+        boolean esAuxiliarAsignado = auxiliarEventoRepository
+            .existsByAuxiliar_IdUsuarioAndEvento_IdEvento(
+                usuario.getIdUsuario(),
+                asistencia.getInscripcion().getEvento().getIdEvento()
+            );
+
+        if (!esAuxiliarAsignado) {
+            throw new BusinessException(
+                "No tienes permisos para anular asistencias en este evento", 403);
+        }
+
+        LocalDateTime ahora = LocalDateTime.now();
+        Duration transcurrido = Duration.between(asistencia.getFechaRegistro(), ahora);
+
+        if (transcurrido.toMinutes() > 60) {
+            throw new BusinessException(
+                "Solo puedes anular asistencias dentro de la primera hora", 403);
+        }
     }
 
     private void actualizarCertificadoPorAsistencia(Inscripcion inscripcion, boolean asistio) {

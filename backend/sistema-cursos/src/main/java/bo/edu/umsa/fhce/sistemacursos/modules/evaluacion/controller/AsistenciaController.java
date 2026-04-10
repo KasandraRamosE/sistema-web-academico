@@ -59,7 +59,7 @@ public class AsistenciaController {
 
     // DELETE /api/asistencias/{idInscripcion}
     @DeleteMapping("/{idInscripcion}")
-    @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR', 'AUXILIAR')")
     @Operation(summary = "Anular registro de asistencia")
     public ResponseEntity<Void> anular(@PathVariable Long idInscripcion) {
         asistenciaService.anular(idInscripcion);
