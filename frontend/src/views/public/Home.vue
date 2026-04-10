@@ -173,7 +173,8 @@ import ActivityFilters from '@/components/activities/ActivityFilters.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
-import { mockActivities, mockCareers, filterActivities } from '@/utils/mockData'
+import { filterActivities } from '@/utils/mockData'
+import { api } from '@/utils/api'
 import type { Actividad, FiltrosActividad } from '@/types'
 
 // ============================================
@@ -188,10 +189,14 @@ const authStore = useAuthStore()
 // ============================================
 
 /** Actividades disponibles */
-const activities = ref<Actividad[]>(mockActivities)
+const activities = ref<Actividad[]>([])
+
+type Carrera = NonNullable<Actividad['carrera']>
 
 /** Carreras disponibles */
-const careers = ref(mockCareers)
+const careers = ref<Carrera[]>([])
+
+const loading = ref(false)
 
 /** Filtros activos */
 const filters = ref<FiltrosActividad>({
@@ -253,6 +258,10 @@ const sortedActivities = computed(() => {
       })
   }
 })
+
+const activityNames = computed(() =>
+  activities.value.map(activity => activity.nombre).filter(Boolean)
+)
 
 /**
  * Verifica si hay filtros activos
@@ -348,14 +357,117 @@ const applyMobileFilters = () => {
 // LIFECYCLE
 // ============================================
 
+const buildCarrera = (idCarrera: number, nombreCarrera: string) => {
+  const encontrada = careers.value.find((c): c is Carrera => !!c && c.id_carrera === idCarrera)
+  if (encontrada) return encontrada
+  return {
+    id_carrera: idCarrera,
+    nombre: nombreCarrera,
+    estado: 'ACTIVA' as const
+  }
+}
+
+const loadActivities = async () => {
+  loading.value = true
+  try {
+    const [carrerasResponse, cursosResponse, eventosResponse] = await Promise.all([
+      api.get('/carreras'),
+      api.get('/cursos'),
+      api.get('/eventos')
+    ])
+
+    careers.value = (carrerasResponse as Array<Record<string, unknown>>).map(carrera => ({
+      id_carrera: Number(carrera.idCarrera ?? carrera.id ?? 0),
+      nombre: String(carrera.nombre ?? ''),
+      estado: String(carrera.estado ?? 'ACTIVA') as 'ACTIVA' | 'INACTIVA'
+    }))
+
+    const cursos = (cursosResponse as Array<Record<string, unknown>>).map(curso => {
+      const paralelos = Array.isArray(curso.paralelos)
+        ? (curso.paralelos as Array<Record<string, unknown>>)
+        : []
+
+      const cupoMaximo = paralelos.reduce((sum, p) => sum + Number(p.cupoMaximo ?? 0), 0)
+      const inscritos = paralelos.reduce((sum, p) => sum + Number(p.inscritos ?? 0), 0)
+      const modalidades = Array.from(new Set(
+        paralelos
+          .map(p => String(p.modalidad ?? ''))
+          .filter(Boolean)
+      ))
+
+      const modalidad = modalidades.length === 1
+        ? modalidades[0]
+        : modalidades.length > 1
+          ? 'MIXTO'
+          : 'PRESENCIAL'
+
+      const idCarrera = Number(curso.idCarrera ?? 0)
+      const nombreCarrera = String(curso.nombreCarrera ?? '')
+
+      return {
+        id_actividad: Number(curso.idCurso),
+        tipo: 'CURSO' as const,
+        nombre: String(curso.nombre ?? ''),
+        descripcion: String(curso.descripcion ?? ''),
+        carga_horaria: Number(curso.cargaHoraria ?? 0),
+        modalidad: modalidad as Actividad['modalidad'],
+        fecha_inicio: String(curso.fechaInicio ?? ''),
+        fecha_fin: String(curso.fechaInicio ?? ''),
+        cupo_maximo: cupoMaximo,
+        cupos_disponibles: Math.max(0, cupoMaximo - inscritos),
+        costo_externo: Number(curso.costoExterno ?? 0),
+        costo_umsa: Number(curso.costoUmsa ?? 0),
+        es_gratuito: Number(curso.costoExterno ?? 0) === 0 && Number(curso.costoUmsa ?? 0) === 0,
+        nota_minima_aprobacion: curso.notaAprobacion !== undefined ? Number(curso.notaAprobacion) : undefined,
+        estado: String(curso.estado ?? 'ABIERTO') as Actividad['estado'],
+        carrera: idCarrera ? buildCarrera(idCarrera, nombreCarrera) : undefined,
+        fecha_creacion: String(curso.fechaCreacion ?? '')
+      }
+    })
+
+    const eventos = (eventosResponse as Array<Record<string, unknown>>).map(evento => {
+      const cupoMaximo = Number(evento.cupoMaximo ?? 0)
+      const inscritos = Number(evento.inscritos ?? 0)
+      const idCarrera = Number(evento.idCarrera ?? 0)
+      const nombreCarrera = String(evento.nombreCarrera ?? '')
+      const fechaHora = String(evento.fechaHora ?? '')
+
+      return {
+        id_actividad: Number(evento.idEvento),
+        tipo: 'EVENTO' as const,
+        nombre: String(evento.nombre ?? ''),
+        descripcion: String(evento.descripcion ?? ''),
+        carga_horaria: Number(evento.cargaHoraria ?? 0),
+        modalidad: String(evento.modalidad ?? 'PRESENCIAL') as Actividad['modalidad'],
+        fecha_inicio: fechaHora,
+        fecha_fin: fechaHora,
+        cupo_maximo: cupoMaximo,
+        cupos_disponibles: Math.max(0, cupoMaximo - inscritos),
+        costo_externo: Number(evento.costoExterno ?? 0),
+        costo_umsa: Number(evento.costoUmsa ?? 0),
+        es_gratuito: Number(evento.costoExterno ?? 0) === 0 && Number(evento.costoUmsa ?? 0) === 0,
+        estado: String(evento.estado ?? 'ABIERTO') as Actividad['estado'],
+        carrera: idCarrera ? buildCarrera(idCarrera, nombreCarrera) : undefined,
+        fecha_creacion: String(evento.fechaCreacion ?? '')
+      }
+    })
+
+    activities.value = [...cursos, ...eventos]
+  } catch (error) {
+    console.error('Error al cargar actividades:', error)
+    activities.value = []
+    careers.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
 onMounted(() => {
-  console.log('✅ Home cargado con', activities.value.length, 'actividades')
-  
-  // Aplicar filtro predeterminado de la ruta (si existe)
   const defaultFilter = router.currentRoute.value.meta.defaultFilter as FiltrosActividad | undefined
   if (defaultFilter) {
     filters.value = { ...filters.value, ...defaultFilter }
   }
+  loadActivities()
 })
 </script>
 

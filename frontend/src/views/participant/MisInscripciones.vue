@@ -50,7 +50,12 @@
     </div>
 
     <!-- Lista de inscripciones -->
-    <div v-if="inscripcionesFiltradas.length > 0" class="space-y-4">
+    <div v-if="loading" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <p class="mt-4 text-gray-600">Cargando inscripciones...</p>
+    </div>
+
+    <div v-else-if="inscripcionesFiltradas.length > 0" class="space-y-4">
       <Card 
         v-for="inscripcion in inscripcionesFiltradas" 
         :key="inscripcion.id"
@@ -140,7 +145,7 @@
               v-if="inscripcion.certificado_disponible" 
               variant="success" 
               size="sm"
-              @click="descargarCertificado(inscripcion.id)"
+              @click="descargarCertificado(inscripcion.certificadoId)"
             >
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -179,17 +184,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
+import { api } from '@/utils/api'
 
 // ============================================
 // COMPOSABLES
 // ============================================
-
-const router = useRouter()
 
 // ============================================
 // ESTADO
@@ -197,76 +200,24 @@ const router = useRouter()
 
 type FiltroTipo = 'TODAS' | 'ACTIVAS' | 'COMPLETADAS' | 'CURSOS' | 'EVENTOS'
 
-const filtroActivo = ref<FiltroTipo>('TODAS')
+interface InscripcionItem {
+  id: number
+  tipo: 'CURSO' | 'EVENTO'
+  nombre: string
+  fecha_inicio: string
+  fecha_fin: string
+  carga_horaria: number
+  modalidad: string
+  monto_pagado: number
+  estado: 'ACTIVO' | 'COMPLETADO' | 'CANCELADO'
+  nota: number | null
+  certificado_disponible: boolean
+  certificadoId?: number
+}
 
-// Inscripciones (MOCK)
-const inscripciones = ref([
-  {
-    id: 1,
-    tipo: 'CURSO',
-    nombre: 'Metodología de la Investigación Cualitativa',
-    fecha_inicio: '2025-02-20',
-    fecha_fin: '2025-03-20',
-    carga_horaria: 32,
-    modalidad: 'Virtual',
-    monto_pagado: 250,
-    estado: 'ACTIVO',
-    nota: null,
-    certificado_disponible: false
-  },
-  {
-    id: 2,
-    tipo: 'CURSO',
-    nombre: 'Introducción a la Psicología Clínica',
-    fecha_inicio: '2025-01-10',
-    fecha_fin: '2025-02-15',
-    carga_horaria: 40,
-    modalidad: 'Presencial',
-    monto_pagado: 200,
-    estado: 'COMPLETADO',
-    nota: 85,
-    certificado_disponible: true
-  },
-  {
-    id: 3,
-    tipo: 'EVENTO',
-    nombre: 'Congreso Internacional de Psicología',
-    fecha_inicio: '2025-04-15',
-    fecha_fin: '2025-04-17',
-    carga_horaria: 24,
-    modalidad: 'Presencial',
-    monto_pagado: 50,
-    estado: 'ACTIVO',
-    nota: null,
-    certificado_disponible: false
-  },
-  {
-    id: 4,
-    tipo: 'CURSO',
-    nombre: 'Filosofía Contemporánea',
-    fecha_inicio: '2024-10-01',
-    fecha_fin: '2024-12-15',
-    carga_horaria: 48,
-    modalidad: 'Mixto',
-    monto_pagado: 300,
-    estado: 'COMPLETADO',
-    nota: 72,
-    certificado_disponible: true
-  },
-  {
-    id: 5,
-    tipo: 'EVENTO',
-    nombre: 'Taller de Escritura Creativa',
-    fecha_inicio: '2024-12-05',
-    fecha_fin: '2024-12-07',
-    carga_horaria: 12,
-    modalidad: 'Presencial',
-    monto_pagado: 50,
-    estado: 'COMPLETADO',
-    nota: null,
-    certificado_disponible: true
-  }
-])
+const filtroActivo = ref<FiltroTipo>('TODAS')
+const loading = ref(false)
+const inscripciones = ref<InscripcionItem[]>([])
 
 // ============================================
 // COMPUTED
@@ -357,11 +308,135 @@ const getEstadoBadge = (estado: string) => {
   }
 }
 
-const descargarCertificado = (inscripcionId: number) => {
-  // TODO: Implementar descarga real
-  console.log('Descargando certificado de inscripción:', inscripcionId)
-  alert('Funcionalidad de descarga de certificado en desarrollo')
+const descargarCertificado = (certificadoId?: number) => {
+  if (!certificadoId) return
+
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+  const token = localStorage.getItem('token')
+
+  fetch(`${baseUrl}/certificados/${certificadoId}/descargar`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  })
+    .then(async response => {
+      if (!response.ok) {
+        const message = response.statusText || 'No se pudo descargar el certificado.'
+        throw new Error(message)
+      }
+      return response.blob()
+    })
+    .then(blob => {
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank', 'noopener,noreferrer')
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+    })
+    .catch(error => {
+      console.error('Error al descargar certificado:', error)
+    })
 }
+
+const cargarInscripciones = async () => {
+  loading.value = true
+  try {
+    const [inscripcionesResponse, certificadosResponse] = await Promise.all([
+      api.get('/inscripciones/mis-inscripciones'),
+      api.get('/certificados/mis-certificados')
+    ])
+
+    const certificados = certificadosResponse as Array<Record<string, unknown>>
+    const certificadosPorInscripcion = new Map<number, Record<string, unknown>>()
+
+    certificados.forEach(cert => {
+      const idInscripcion = Number(cert.idInscripcion ?? 0)
+      if (!idInscripcion) return
+      const estadoEmision = String(cert.estadoEmision ?? '')
+      if (estadoEmision === 'ANULADO') return
+      certificadosPorInscripcion.set(idInscripcion, cert)
+    })
+
+    const inscripcionesApi = inscripcionesResponse as Array<Record<string, unknown>>
+
+    const detalles = await Promise.all(inscripcionesApi.map(async item => {
+      const tipo = String(item.tipoActividad ?? '') as 'CURSO' | 'EVENTO'
+      const idCurso = item.idCurso !== undefined ? Number(item.idCurso) : null
+      const idEvento = item.idEvento !== undefined ? Number(item.idEvento) : null
+
+      if (tipo === 'CURSO' && idCurso) {
+        const curso = await api.get(`/cursos/${idCurso}`) as Record<string, unknown>
+        return { item, detalle: curso }
+      }
+      if (tipo === 'EVENTO' && idEvento) {
+        const evento = await api.get(`/eventos/${idEvento}`) as Record<string, unknown>
+        return { item, detalle: evento }
+      }
+      return { item, detalle: null }
+    }))
+
+    inscripciones.value = detalles.map(({ item, detalle }) => {
+      const tipo = String(item.tipoActividad ?? '') as 'CURSO' | 'EVENTO'
+      const certificado = certificadosPorInscripcion.get(Number(item.idInscripcion ?? 0))
+      const certificadoId = certificado ? Number(certificado.idCertificado ?? 0) : undefined
+      const notaFinal = certificado?.notaFinal !== undefined && certificado?.notaFinal !== null
+        ? Number(certificado.notaFinal)
+        : null
+
+      let fechaInicio = ''
+      let fechaFin = ''
+      let cargaHoraria = 0
+      let modalidad = ''
+
+      if (tipo === 'CURSO' && detalle) {
+        fechaInicio = String(detalle.fechaInicio ?? '')
+        fechaFin = String(detalle.fechaInicio ?? '')
+        cargaHoraria = Number(detalle.cargaHoraria ?? 0)
+
+        const codigoParalelo = String(item.codigoParalelo ?? '')
+        const paralelos = Array.isArray(detalle.paralelos)
+          ? (detalle.paralelos as Array<Record<string, unknown>>)
+          : []
+
+        const paralelo = paralelos.find(p => String(p.codigo ?? '') === codigoParalelo)
+        modalidad = paralelo ? String(paralelo.modalidad ?? '') : ''
+      }
+
+      if (tipo === 'EVENTO' && detalle) {
+        const fechaHora = String(detalle.fechaHora ?? '')
+        fechaInicio = fechaHora
+        fechaFin = fechaHora
+        cargaHoraria = Number(detalle.cargaHoraria ?? 0)
+        modalidad = String(detalle.modalidad ?? '')
+      }
+
+      const estadoInscripcion = String(item.estado ?? 'PENDIENTE')
+      const estado = certificadoId
+        ? 'COMPLETADO'
+        : (estadoInscripcion === 'CANCELADA' ? 'CANCELADO' : 'ACTIVO')
+
+      return {
+        id: Number(item.idInscripcion),
+        tipo,
+        nombre: String(item.nombreActividad ?? ''),
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+        carga_horaria: cargaHoraria,
+        modalidad: modalidad || '-',
+        monto_pagado: Number(item.saldo ?? 0),
+        estado,
+        nota: notaFinal,
+        certificado_disponible: Boolean(certificadoId),
+        certificadoId
+      }
+    })
+  } catch (error) {
+    console.error('Error al cargar inscripciones:', error)
+    inscripciones.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  cargarInscripciones()
+})
 </script>
 
 <style scoped>

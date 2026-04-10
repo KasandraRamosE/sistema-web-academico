@@ -50,7 +50,12 @@
     </div>
 
     <!-- Grid de certificados -->
-    <div v-if="certificados.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div v-if="loading" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <p class="mt-4 text-gray-600">Cargando certificados...</p>
+    </div>
+
+    <div v-else-if="certificados.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <Card 
         v-for="certificado in certificados" 
         :key="certificado.id"
@@ -154,68 +159,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
+import { api } from '@/utils/api'
 
 // ============================================
 // ESTADO
 // ============================================
 
-// Certificados (MOCK)
-const certificados = ref([
-  {
-    id: 1,
-    tipo: 'APROBACION',
-    nombre_actividad: 'Introducción a la Psicología Clínica',
-    carga_horaria: 40,
-    nota: 85,
-    fecha_emision: '2025-02-20',
-    codigo_verificacion: 'CERT-2025-001-ABC123',
-    actividad_tipo: 'CURSO'
-  },
-  {
-    id: 2,
-    tipo: 'APROBACION',
-    nombre_actividad: 'Filosofía Contemporánea',
-    carga_horaria: 48,
-    nota: 72,
-    fecha_emision: '2024-12-20',
-    codigo_verificacion: 'CERT-2024-045-XYZ789',
-    actividad_tipo: 'CURSO'
-  },
-  {
-    id: 3,
-    tipo: 'PARTICIPACION',
-    nombre_actividad: 'Taller de Escritura Creativa',
-    carga_horaria: 12,
-    nota: null,
-    fecha_emision: '2024-12-10',
-    codigo_verificacion: 'CERT-2024-042-DEF456',
-    actividad_tipo: 'EVENTO'
-  },
-  {
-    id: 4,
-    tipo: 'PARTICIPACION',
-    nombre_actividad: 'Seminario de Innovación Educativa',
-    carga_horaria: 8,
-    nota: null,
-    fecha_emision: '2024-11-15',
-    codigo_verificacion: 'CERT-2024-038-GHI789',
-    actividad_tipo: 'EVENTO'
-  },
-  {
-    id: 5,
-    tipo: 'APROBACION',
-    nombre_actividad: 'Metodología de Investigación',
-    carga_horaria: 36,
-    nota: 91,
-    fecha_emision: '2024-10-30',
-    codigo_verificacion: 'CERT-2024-032-JKL012',
-    actividad_tipo: 'CURSO'
-  }
-])
+interface CertificadoItem {
+  id: number
+  tipo: 'APROBACION' | 'PARTICIPACION'
+  nombre_actividad: string
+  carga_horaria: number
+  nota: number | null
+  fecha_emision: string
+  codigo_verificacion: string
+  actividad_tipo: 'CURSO' | 'EVENTO'
+}
+
+const certificados = ref<CertificadoItem[]>([])
+const loading = ref(false)
 
 // ============================================
 // COMPUTED
@@ -243,16 +209,69 @@ const formatDate = (dateString: string): string => {
 }
 
 const descargarCertificado = (certificadoId: number) => {
-  // TODO: Implementar descarga real del PDF
-  console.log('Descargando certificado:', certificadoId)
-  alert('Funcionalidad de descarga en desarrollo')
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+  const token = localStorage.getItem('token')
+
+  fetch(`${baseUrl}/certificados/${certificadoId}/descargar`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {}
+  })
+    .then(async response => {
+      if (!response.ok) {
+        const message = response.statusText || 'No se pudo descargar el certificado.'
+        throw new Error(message)
+      }
+      return response.blob()
+    })
+    .then(blob => {
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank', 'noopener,noreferrer')
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+    })
+    .catch(error => {
+      console.error('Error al descargar certificado:', error)
+    })
 }
 
 const verificarCertificado = (codigo: string) => {
-  // TODO: Redirigir a página de verificación pública
-  console.log('Verificando certificado:', codigo)
-  window.open(`/verificar-certificado/${codigo}`, '_blank')
+  window.open(`/verificar/${codigo}`, '_blank')
 }
+
+const cargarCertificados = async () => {
+  loading.value = true
+  try {
+    const response = await api.get('/certificados/mis-certificados')
+    const items = response as Array<Record<string, unknown>>
+
+    certificados.value = items
+      .filter(item => String(item.estadoEmision ?? '') !== 'ANULADO')
+      .map(item => {
+        const tipoActividad = String(item.tipoActividad ?? 'EVENTO') as 'CURSO' | 'EVENTO'
+        const notaFinal = item.notaFinal !== undefined && item.notaFinal !== null
+          ? Number(item.notaFinal)
+          : null
+
+        return {
+          id: Number(item.idCertificado),
+          tipo: tipoActividad === 'CURSO' ? 'APROBACION' : 'PARTICIPACION',
+          nombre_actividad: String(item.nombreActividad ?? ''),
+          carga_horaria: Number(item.cargaHoraria ?? 0),
+          nota: notaFinal,
+          fecha_emision: String(item.fechaEmision ?? ''),
+          codigo_verificacion: String(item.codigoVerificacion ?? ''),
+          actividad_tipo: tipoActividad
+        }
+      })
+  } catch (error) {
+    console.error('Error al cargar certificados:', error)
+    certificados.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  cargarCertificados()
+})
 </script>
 
 <style scoped>
