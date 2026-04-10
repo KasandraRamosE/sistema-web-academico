@@ -125,6 +125,14 @@ public class EventoService {
         return toEventoDto(evento);
     }
 
+    // ── Eliminar evento ─────────────────────────────────────────────────────
+    @Transactional
+    public void eliminar(Long idEvento) {
+        Evento evento = buscarEvento(idEvento);
+        eventoRepository.delete(evento);
+        log.info("Evento eliminado: {}", idEvento);
+    }
+
     // ── Asignar auxiliar a evento ────────────────────────────────────────────
     @Transactional
     public void asignarAuxiliar(Long idEvento, AsignarAuxiliarRequest request) {

@@ -77,6 +77,15 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.actualizar(id, request));
     }
 
+    // DELETE /api/eventos/{id}
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Eliminar evento")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        eventoService.eliminar(id);
+        return ResponseEntity.noContent().build();
+    }
+
     // PATCH /api/eventos/{id}/estado
     @PatchMapping("/{id}/estado")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")

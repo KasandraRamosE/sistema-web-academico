@@ -54,6 +54,33 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarios);
     }
 
+    // GET /api/usuarios/docentes
+    // ADMIN y COORDINADOR pueden listar docentes
+    @GetMapping("/docentes")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Listar usuarios con rol DOCENTE")
+    public ResponseEntity<List<UsuarioResumenDto>> listarDocentes() {
+        return ResponseEntity.ok(usuarioService.listarPorRol("DOCENTE"));
+    }
+
+    // GET /api/usuarios/participantes
+    // ADMIN y COORDINADOR pueden listar participantes
+    @GetMapping("/participantes")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Listar usuarios con rol PARTICIPANTE")
+    public ResponseEntity<List<UsuarioResumenDto>> listarParticipantes() {
+        return ResponseEntity.ok(usuarioService.listarPorRol("PARTICIPANTE"));
+    }
+
+    // GET /api/usuarios/auxiliares
+    // ADMIN y COORDINADOR pueden listar auxiliares
+    @GetMapping("/auxiliares")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Listar usuarios con rol AUXILIAR")
+    public ResponseEntity<List<UsuarioResumenDto>> listarAuxiliares() {
+        return ResponseEntity.ok(usuarioService.listarPorRol("AUXILIAR"));
+    }
+
     // GET /api/usuarios/{id}
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
@@ -75,7 +102,7 @@ public class UsuarioController {
 
     // POST /api/usuarios/{id}/roles
     @PostMapping("/{id}/roles")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Asignar rol a usuario",
                description = "Para DOCENTE requiere 'titulo'. Para PARTICIPANTE requiere 'tipoParticipante'.")
     public ResponseEntity<UsuarioDetalleDto> asignarRol(

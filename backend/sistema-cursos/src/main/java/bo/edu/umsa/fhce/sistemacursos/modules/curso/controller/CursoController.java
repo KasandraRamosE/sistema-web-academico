@@ -67,6 +67,15 @@ public class CursoController {
         return ResponseEntity.ok(cursoService.actualizar(id, request));
     }
 
+    // DELETE /api/cursos/{id}
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Eliminar curso")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        cursoService.eliminar(id);
+        return ResponseEntity.noContent().build();
+    }
+
     // PATCH /api/cursos/{id}/estado
     @PatchMapping("/{id}/estado")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")

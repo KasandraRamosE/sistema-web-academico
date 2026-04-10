@@ -130,6 +130,15 @@ public class CursoService {
         return toCursoDto(curso);
     }
 
+    // ── Eliminar curso ─────────────────────────────────────────────────────
+    @Transactional
+    public void eliminar(Long idCurso) {
+        Curso curso = buscarCurso(idCurso);
+        verificarAccesoCarrera(getUsuarioActual(), curso.getCarrera());
+        cursoRepository.delete(curso);
+        log.info("Curso eliminado: {}", idCurso);
+    }
+
     // ── Agregar paralelo a un curso ──────────────────────────────────────────
     @Transactional
     public ParaleloDto agregarParalelo(Long idCurso, ParaleloRequest request) {

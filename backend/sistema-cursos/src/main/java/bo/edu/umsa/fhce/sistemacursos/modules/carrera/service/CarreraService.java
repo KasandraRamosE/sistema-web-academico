@@ -137,6 +137,15 @@ public class CarreraService {
             .toList();
     }
 
+    // ── Listar carreras de un coordinador ───────────────────────────────────
+    @Transactional(readOnly = true)
+    public List<CarreraDto> listarCarrerasDeCoordinador(Long idCoordinador) {
+        return coordinadorCarreraRepository.findByIdCoordinador(idCoordinador)
+            .stream()
+            .map(cc -> modelMapper.map(cc.getCarrera(), CarreraDto.class))
+            .toList();
+    }
+
     // ── Helper ───────────────────────────────────────────────────────────────
     private Carrera buscarCarrera(Long idCarrera) {
         return carreraRepository.findById(idCarrera)

@@ -22,6 +22,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.curso.repository.ParaleloRepositor
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -99,6 +100,16 @@ public class UsuarioService {
     @Transactional
     public UsuarioDetalleDto asignarRol(Long idUsuario, AsignarRolRequest request) {
         Usuario usuario = buscarUsuario(idUsuario);
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        boolean esCoordinador = authentication != null
+            && authentication.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_COORDINADOR"));
+
+        if (esCoordinador && !request.getNombreRol().equals("DOCENTE")
+                && !request.getNombreRol().equals("AUXILIAR")) {
+            throw new BusinessException(
+                "Solo puedes asignar roles DOCENTE o AUXILIAR", 403);
+        }
 
         // Verificar que el rol existe
         Rol rol = rolRepository.findByNombre(request.getNombreRol())
