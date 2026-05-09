@@ -17,7 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.AsignarRolRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.CambiarEstadoRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.CambiarPasswordRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarCarrerasRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarPerfilRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarEventosRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarParalelosRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ParaleloRefRequest;
@@ -81,12 +83,48 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarioService.listarPorRol("AUXILIAR"));
     }
 
+    // GET /api/usuarios/disenadores
+    // ADMIN y COORDINADOR pueden listar disenadores
+    @GetMapping("/disenadores")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Listar usuarios con rol DISENADOR")
+    public ResponseEntity<List<UsuarioResumenDto>> listarDisenadores() {
+        return ResponseEntity.ok(usuarioService.listarPorRol("DISENADOR"));
+    }
+
     // GET /api/usuarios/{id}
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     @Operation(summary = "Ver detalle de un usuario")
     public ResponseEntity<UsuarioDetalleDto> detalle(@PathVariable Long id) {
         return ResponseEntity.ok(usuarioService.obtenerDetalle(id));
+    }
+
+    // GET /api/usuarios/me
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Obtener perfil del usuario autenticado")
+    public ResponseEntity<UsuarioDetalleDto> perfilActual() {
+        return ResponseEntity.ok(usuarioService.obtenerActual());
+    }
+
+    // PUT /api/usuarios/me
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Actualizar perfil del usuario autenticado")
+    public ResponseEntity<UsuarioDetalleDto> actualizarPerfil(
+            @Valid @RequestBody ActualizarPerfilRequest request) {
+        return ResponseEntity.ok(usuarioService.actualizarPerfilExterno(request));
+    }
+
+    // POST /api/usuarios/me/password
+    @PostMapping("/me/password")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Cambiar contrasena del usuario autenticado")
+    public ResponseEntity<Void> cambiarPassword(
+            @Valid @RequestBody CambiarPasswordRequest request) {
+        usuarioService.cambiarPasswordExterno(request);
+        return ResponseEntity.noContent().build();
     }
 
     // PATCH /api/usuarios/{id}/estado

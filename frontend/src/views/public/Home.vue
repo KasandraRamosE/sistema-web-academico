@@ -5,14 +5,27 @@
   -->
   <div class="min-h-screen bg-gray-50">
     <!-- Hero Section -->
-    <section class="bg-gradient-to-r from-purple-600 to-blue-500 text-white py-16">
-      <div class="container mx-auto px-4">
+    <section class="relative overflow-hidden text-white">
+      <div class="absolute inset-0">
+        <div
+          class="h-full w-full bg-cover bg-center"
+          :style="{ backgroundImage: `url(${bannerImage})` }"
+        ></div>
+        <div class="absolute inset-0 bg-gradient-to-r from-emerald-900/80 via-slate-900/75 to-amber-900/70"></div>
+      </div>
+      <div class="relative container mx-auto px-4 py-20">
         <div class="max-w-3xl">
-          <h1 class="text-4xl md:text-5xl font-bold mb-4">
-            Cursos Complementarios y Eventos Facultativos
+          <p class="text-sm uppercase tracking-[0.25em] text-emerald-100/80 mb-4">
+            Facultad de Humanidades y Ciencias de la Educacion
+          </p>
+          <h1
+            class="text-4xl md:text-6xl font-bold leading-tight mb-5"
+            style="font-family: 'Georgia', 'Times New Roman', serif;"
+          >
+            Cursos complementarios y eventos facultativos
           </h1>
-          <p class="text-lg md:text-xl text-purple-100">
-            Amplía tus conocimientos con nuestra oferta académica de cursos, talleres y eventos especializados.
+          <p class="text-lg md:text-xl text-emerald-50/90">
+            Amplia tus conocimientos con una oferta academica pensada para impulsar tu formacion y comunidad.
           </p>
         </div>
       </div>
@@ -80,10 +93,9 @@
           <div v-if="sortedActivities.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ActivityCard
               v-for="activity in sortedActivities"
-              :key="activity.id_actividad"
+              :key="`${activity.tipo}-${activity.id_actividad}`"
               :activity="activity"
               @view-detail="handleViewDetail"
-              @inscribirse="handleInscribirse"
             />
           </div>
 
@@ -129,45 +141,12 @@
       </template>
     </Modal>
 
-    <!-- Modal de detalle de actividad (placeholder) -->
-    <Modal 
-      v-model="showDetailModal" 
-      title="Detalle de Actividad"
-      size="lg"
-    >
-      <div v-if="selectedActivity" class="space-y-4">
-        <h2 class="text-2xl font-bold text-gray-800">
-          {{ selectedActivity.nombre }}
-        </h2>
-        <p class="text-gray-600">
-          {{ selectedActivity.descripcion }}
-        </p>
-        <!-- TODO: Agregar más detalles -->
-      </div>
-      
-      <template #footer>
-        <div class="flex space-x-2">
-          <Button variant="outline" @click="showDetailModal = false" class="flex-1">
-            Cerrar
-          </Button>
-          <Button 
-            variant="primary" 
-            @click="handleInscribirse(selectedActivity?.id_actividad)"
-            class="flex-1"
-            :disabled="selectedActivity?.estado === 'LLENO'"
-          >
-            Inscribirse
-          </Button>
-        </div>
-      </template>
-    </Modal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth.store'
 import ActivityCard from '@/components/activities/ActivityCard.vue'
 import ActivityFilters from '@/components/activities/ActivityFilters.vue'
 import Button from '@/components/common/Button.vue'
@@ -176,13 +155,13 @@ import Modal from '@/components/common/Modal.vue'
 import { filterActivities } from '@/utils/mockData'
 import { api } from '@/utils/api'
 import type { Actividad, FiltrosActividad } from '@/types'
+import bannerImage from '@/assets/images/banner.jpg'
 
 // ============================================
 // COMPOSABLES
 // ============================================
 
 const router = useRouter()
-const authStore = useAuthStore()
 
 // ============================================
 // ESTADO
@@ -214,11 +193,6 @@ const sortBy = ref<'fecha_inicio' | 'nombre' | 'precio' | 'cupos'>('fecha_inicio
 /** Control del modal mobile de filtros */
 const showMobileFilters = ref(false)
 
-/** Control del modal de detalle */
-const showDetailModal = ref(false)
-
-/** Actividad seleccionada */
-const selectedActivity = ref<Actividad | null>(null)
 
 // ============================================
 // COMPUTED
@@ -239,7 +213,9 @@ const sortedActivities = computed(() => {
   
   switch (sortBy.value) {
     case 'nombre':
-      return filtered.sort((a, b) => a.nombre.localeCompare(b.nombre))
+      return filtered.sort((a, b) =>
+        a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+      )
     
     case 'precio':
       return filtered.sort((a, b) => {
@@ -298,39 +274,14 @@ const activeFiltersCount = computed(() => {
 /**
  * Maneja el click en "Ver detalle"
  */
-const handleViewDetail = (activityId: number) => {
-  selectedActivity.value = activities.value.find(a => a.id_actividad === activityId) || null
-  showDetailModal.value = true
+const handleViewDetail = (activityId: number, tipo: 'CURSO' | 'EVENTO') => {
+  router.push({
+    name: 'activity-detail',
+    params: { id: activityId },
+    query: { tipo }
+  })
 }
 
-/**
- * Maneja el click en "Inscribirse"
- */
-const handleInscribirse = (activityId?: number) => {
-  if (!activityId) return
-  
-  // Verificar si el usuario está autenticado
-  if (!authStore.isAuthenticated) {
-    // Redirigir al login
-    router.push({ 
-      name: 'login', 
-      query: { redirect: `/actividad/${activityId}` } 
-    })
-    return
-  }
-  
-  // Si está autenticado, verificar que esté en rol PARTICIPANTE
-  if (authStore.currentRole !== 'PARTICIPANTE') {
-    // Cambiar a rol participante automáticamente
-    const success = authStore.changeRole('PARTICIPANTE')
-    if (success) {
-      router.push(`/participante/inscripciones/nueva/${activityId}`)
-    }
-  } else {
-    // Ya está como participante, ir a inscripción
-    router.push(`/participante/inscripciones/nueva/${activityId}`)
-  }
-}
 
 /**
  * Limpia todos los filtros
@@ -387,8 +338,27 @@ const loadActivities = async () => {
         ? (curso.paralelos as Array<Record<string, unknown>>)
         : []
 
-      const cupoMaximo = paralelos.reduce((sum, p) => sum + Number(p.cupoMaximo ?? 0), 0)
-      const inscritos = paralelos.reduce((sum, p) => sum + Number(p.inscritos ?? 0), 0)
+      const cuposDisponibles = paralelos.reduce((sum, p) => {
+        if (p.cuposDisponibles !== undefined && p.cuposDisponibles !== null) {
+          return sum + Math.max(0, Number(p.cuposDisponibles))
+        }
+        if (p.cupoMaximo !== undefined && p.cupoMaximo !== null) {
+          const disponibles = Number(p.cupoMaximo) - Number(p.inscritos ?? 0)
+          return sum + Math.max(0, disponibles)
+        }
+        return sum
+      }, 0)
+
+      const cupoMaximo = paralelos.reduce((sum, p) => {
+        if (p.cupoMaximo !== undefined && p.cupoMaximo !== null) {
+          return sum + Number(p.cupoMaximo)
+        }
+        const inscritos = Number(p.inscritos ?? 0)
+        const disponibles = p.cuposDisponibles !== undefined && p.cuposDisponibles !== null
+          ? Number(p.cuposDisponibles)
+          : 0
+        return sum + inscritos + disponibles
+      }, 0)
       const modalidades = Array.from(new Set(
         paralelos
           .map(p => String(p.modalidad ?? ''))
@@ -414,7 +384,7 @@ const loadActivities = async () => {
         fecha_inicio: String(curso.fechaInicio ?? ''),
         fecha_fin: String(curso.fechaInicio ?? ''),
         cupo_maximo: cupoMaximo,
-        cupos_disponibles: Math.max(0, cupoMaximo - inscritos),
+        cupos_disponibles: cuposDisponibles,
         costo_externo: Number(curso.costoExterno ?? 0),
         costo_umsa: Number(curso.costoUmsa ?? 0),
         es_gratuito: Number(curso.costoExterno ?? 0) === 0 && Number(curso.costoUmsa ?? 0) === 0,
@@ -427,7 +397,9 @@ const loadActivities = async () => {
 
     const eventos = (eventosResponse as Array<Record<string, unknown>>).map(evento => {
       const cupoMaximo = Number(evento.cupoMaximo ?? 0)
-      const inscritos = Number(evento.inscritos ?? 0)
+      const cuposDisponibles = evento.cuposDisponibles !== undefined && evento.cuposDisponibles !== null
+        ? Number(evento.cuposDisponibles)
+        : Math.max(0, cupoMaximo - Number(evento.inscritos ?? 0))
       const idCarrera = Number(evento.idCarrera ?? 0)
       const nombreCarrera = String(evento.nombreCarrera ?? '')
       const fechaHora = String(evento.fechaHora ?? '')
@@ -442,7 +414,7 @@ const loadActivities = async () => {
         fecha_inicio: fechaHora,
         fecha_fin: fechaHora,
         cupo_maximo: cupoMaximo,
-        cupos_disponibles: Math.max(0, cupoMaximo - inscritos),
+        cupos_disponibles: cuposDisponibles,
         costo_externo: Number(evento.costoExterno ?? 0),
         costo_umsa: Number(evento.costoUmsa ?? 0),
         es_gratuito: Number(evento.costoExterno ?? 0) === 0 && Number(evento.costoUmsa ?? 0) === 0,
@@ -452,7 +424,26 @@ const loadActivities = async () => {
       }
     })
 
-    activities.value = [...cursos, ...eventos]
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const isFechaValida = (value: string) => {
+      if (!value) return false
+      const date = new Date(value)
+      date.setHours(0, 0, 0, 0)
+      return date >= today
+    }
+
+    const filtradas = [...cursos, ...eventos].filter((actividad) => {
+      if (actividad.estado !== 'ABIERTO') return false
+      if (!isFechaValida(actividad.fecha_inicio)) return false
+      if (actividad.tipo === 'CURSO') {
+        return actividad.cupos_disponibles > 0
+      }
+      return actividad.cupos_disponibles > 0
+    })
+
+    activities.value = filtradas
   } catch (error) {
     console.error('Error al cargar actividades:', error)
     activities.value = []

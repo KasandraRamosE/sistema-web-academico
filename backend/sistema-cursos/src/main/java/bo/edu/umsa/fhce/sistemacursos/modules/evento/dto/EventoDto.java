@@ -12,8 +12,12 @@ public class EventoDto {
     private Long idCarrera;
     private String nombreCarrera;
     private String nombreOrganizador;
+    private Long idDisenador;
+    private String nombreDisenador;
     private String nombre;
     private String descripcion;
+    private String lugar;
+    private String imagen;
     private Integer cargaHoraria;
     private String modalidad;
     private LocalDateTime fechaHora;

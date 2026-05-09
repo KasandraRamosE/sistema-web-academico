@@ -15,5 +15,6 @@ public class LoginResponse {
     private String username;
     private String nombres;
     private String apellidos;
+    private String tipoParticipante; // UMSA o EXTERNO si existe perfil participante
     private List<String> roles;  // ["ROLE_COORDINADOR", "ROLE_DOCENTE"]
 }

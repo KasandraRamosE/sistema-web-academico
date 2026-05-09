@@ -24,7 +24,7 @@ public class CursoController {
 
     // GET /api/cursos — catálogo de cursos abiertos
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     @Operation(summary = "Listar cursos abiertos",
                description = "Filtra por carrera con ?idCarrera=1")
     public ResponseEntity<List<CursoDto>> listar(
@@ -41,9 +41,17 @@ public class CursoController {
         return ResponseEntity.ok(cursoService.listarTodos(idCarrera));
     }
 
+    // GET /api/cursos/disenador
+    @GetMapping("/disenador")
+    @PreAuthorize("hasAnyRole('DISENADOR', 'DISEÑADOR')")
+    @Operation(summary = "Listar cursos asignados al disenador autenticado")
+    public ResponseEntity<List<CursoDto>> listarDisenador() {
+        return ResponseEntity.ok(cursoService.listarAsignadosDisenador());
+    }
+
     // GET /api/cursos/{id}
     @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     @Operation(summary = "Ver detalle de un curso con sus paralelos")
     public ResponseEntity<CursoDto> obtener(@PathVariable Long id) {
         return ResponseEntity.ok(cursoService.obtener(id));
@@ -84,6 +92,16 @@ public class CursoController {
             @PathVariable Long id,
             @RequestParam String estado) {
         return ResponseEntity.ok(cursoService.cambiarEstado(id, estado));
+    }
+
+    // PATCH /api/cursos/{id}/disenador
+    @PatchMapping("/{id}/disenador")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Asignar o remover disenador del curso")
+    public ResponseEntity<CursoDto> asignarDisenador(
+            @PathVariable Long id,
+            @Valid @RequestBody AsignarDisenadorRequest request) {
+        return ResponseEntity.ok(cursoService.asignarDisenador(id, request));
     }
 
     // ── Endpoints de paralelos ────────────────────────────────────────────────

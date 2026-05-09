@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.entity.Inscripcion;
+import bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteFinancieroActividadDto;
+import bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteParticipacionCarreraDto;
 
 public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> {
 
@@ -66,4 +68,110 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
     long countByCurso_IdCursoAndEstado(Long idCurso, Inscripcion.EstadoInscripcion estado);
 
     long countByEvento_IdEventoAndEstado(Long idEvento, Inscripcion.EstadoInscripcion estado);
+
+    @Query("""
+        SELECT new bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteFinancieroActividadDto(
+            'CURSO',
+            c.idCurso,
+            c.nombre,
+            c.carrera.nombre,
+            SUM(CASE WHEN i.tipoPrecio = :umsa THEN i.saldo ELSE 0 END),
+            SUM(CASE WHEN i.tipoPrecio = :externo THEN i.saldo ELSE 0 END)
+        )
+        FROM Inscripcion i
+        JOIN i.curso c
+        WHERE i.estado = 'CONFIRMADA'
+          AND (:idCarrera IS NULL OR c.carrera.idCarrera = :idCarrera)
+          AND (:carreras IS NULL OR c.carrera.idCarrera IN :carreras)
+          AND (:desde IS NULL OR i.fechaInscripcion >= :desde)
+          AND (:hasta IS NULL OR i.fechaInscripcion <= :hasta)
+        GROUP BY c.idCurso, c.nombre, c.carrera.nombre
+        ORDER BY c.nombre ASC
+        """)
+    List<ReporteFinancieroActividadDto> reporteFinancieroCursos(
+        @Param("idCarrera") Long idCarrera,
+        @Param("carreras") List<Long> carreras,
+        @Param("desde") java.time.LocalDateTime desde,
+        @Param("hasta") java.time.LocalDateTime hasta,
+        @Param("umsa") Inscripcion.TipoPrecio umsa,
+        @Param("externo") Inscripcion.TipoPrecio externo
+    );
+
+    @Query("""
+        SELECT new bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteFinancieroActividadDto(
+            'EVENTO',
+            e.idEvento,
+            e.nombre,
+            e.carrera.nombre,
+            SUM(CASE WHEN i.tipoPrecio = :umsa THEN i.saldo ELSE 0 END),
+            SUM(CASE WHEN i.tipoPrecio = :externo THEN i.saldo ELSE 0 END)
+        )
+        FROM Inscripcion i
+        JOIN i.evento e
+        WHERE i.estado = 'CONFIRMADA'
+          AND (:idCarrera IS NULL OR e.carrera.idCarrera = :idCarrera)
+          AND (:carreras IS NULL OR e.carrera.idCarrera IN :carreras)
+          AND (:desde IS NULL OR i.fechaInscripcion >= :desde)
+          AND (:hasta IS NULL OR i.fechaInscripcion <= :hasta)
+        GROUP BY e.idEvento, e.nombre, e.carrera.nombre
+        ORDER BY e.nombre ASC
+        """)
+    List<ReporteFinancieroActividadDto> reporteFinancieroEventos(
+        @Param("idCarrera") Long idCarrera,
+        @Param("carreras") List<Long> carreras,
+        @Param("desde") java.time.LocalDateTime desde,
+        @Param("hasta") java.time.LocalDateTime hasta,
+        @Param("umsa") Inscripcion.TipoPrecio umsa,
+        @Param("externo") Inscripcion.TipoPrecio externo
+    );
+
+    @Query("""
+        SELECT new bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteParticipacionCarreraDto(
+            c.carrera.idCarrera,
+            c.carrera.nombre,
+            SUM(CASE WHEN i.tipoPrecio = :umsa THEN 1 ELSE 0 END),
+            SUM(CASE WHEN i.tipoPrecio = :externo THEN 1 ELSE 0 END)
+        )
+        FROM Inscripcion i
+        JOIN i.curso c
+        WHERE i.estado = 'CONFIRMADA'
+          AND (:idCarrera IS NULL OR c.carrera.idCarrera = :idCarrera)
+          AND (:carreras IS NULL OR c.carrera.idCarrera IN :carreras)
+          AND (:desde IS NULL OR i.fechaInscripcion >= :desde)
+          AND (:hasta IS NULL OR i.fechaInscripcion <= :hasta)
+        GROUP BY c.carrera.idCarrera, c.carrera.nombre
+        """)
+    List<ReporteParticipacionCarreraDto> reporteParticipacionPorCarreraCursos(
+        @Param("idCarrera") Long idCarrera,
+        @Param("carreras") List<Long> carreras,
+        @Param("desde") java.time.LocalDateTime desde,
+        @Param("hasta") java.time.LocalDateTime hasta,
+        @Param("umsa") Inscripcion.TipoPrecio umsa,
+        @Param("externo") Inscripcion.TipoPrecio externo
+    );
+
+    @Query("""
+        SELECT new bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteParticipacionCarreraDto(
+            e.carrera.idCarrera,
+            e.carrera.nombre,
+            SUM(CASE WHEN i.tipoPrecio = :umsa THEN 1 ELSE 0 END),
+            SUM(CASE WHEN i.tipoPrecio = :externo THEN 1 ELSE 0 END)
+        )
+        FROM Inscripcion i
+        JOIN i.evento e
+        WHERE i.estado = 'CONFIRMADA'
+          AND (:idCarrera IS NULL OR e.carrera.idCarrera = :idCarrera)
+          AND (:carreras IS NULL OR e.carrera.idCarrera IN :carreras)
+          AND (:desde IS NULL OR i.fechaInscripcion >= :desde)
+          AND (:hasta IS NULL OR i.fechaInscripcion <= :hasta)
+        GROUP BY e.carrera.idCarrera, e.carrera.nombre
+        """)
+    List<ReporteParticipacionCarreraDto> reporteParticipacionPorCarreraEventos(
+        @Param("idCarrera") Long idCarrera,
+        @Param("carreras") List<Long> carreras,
+        @Param("desde") java.time.LocalDateTime desde,
+        @Param("hasta") java.time.LocalDateTime hasta,
+        @Param("umsa") Inscripcion.TipoPrecio umsa,
+        @Param("externo") Inscripcion.TipoPrecio externo
+    );
 }

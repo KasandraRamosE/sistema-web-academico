@@ -44,7 +44,7 @@ app:
     # Tiempo de expiración del token: 24 horas en milisegundos
     expiration-ms: 86400000
   email:
-    from: "noreply@fhce.umsa.bo"
+    from: "ramos.e.kasandra@gmail.com"
     base-url: "http://localhost:5173"
   certificados:
     directorio: certificados  # relativo al directorio donde corre la app

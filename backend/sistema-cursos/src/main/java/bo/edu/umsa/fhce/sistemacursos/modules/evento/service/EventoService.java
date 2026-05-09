@@ -11,6 +11,8 @@ import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.Carrera;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.AsignarAuxiliarRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.AsignarDisenadorRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.AuxiliarResumenDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.EventoDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.EventoRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.AuxiliarEvento;
@@ -54,6 +56,14 @@ public class EventoService {
         return eventos.stream().map(this::toEventoDto).toList();
     }
 
+    // ── Listar eventos asignados al disenador ──────────────────────────────
+    @Transactional(readOnly = true)
+    public List<EventoDto> listarAsignadosDisenador() {
+        Usuario actual = getUsuarioActual();
+        List<Evento> eventos = eventoRepository.findByDisenador_IdUsuario(actual.getIdUsuario());
+        return eventos.stream().map(this::toEventoDto).toList();
+    }
+
     // ── Obtener evento por id ────────────────────────────────────────────────
     @Transactional(readOnly = true)
     public EventoDto obtener(Long idEvento) {
@@ -73,6 +83,8 @@ public class EventoService {
             .organizador(organizador)
             .nombre(request.getNombre())
             .descripcion(request.getDescripcion())
+            .lugar(request.getLugar())
+            .imagen(request.getImagen())
             .cargaHoraria(request.getCargaHoraria())
             .modalidad(Evento.Modalidad.valueOf(request.getModalidad()))
             .fechaHora(request.getFechaHora())
@@ -99,6 +111,8 @@ public class EventoService {
         evento.setCarrera(carrera);
         evento.setNombre(request.getNombre());
         evento.setDescripcion(request.getDescripcion());
+        evento.setLugar(request.getLugar());
+        evento.setImagen(request.getImagen());
         evento.setCargaHoraria(request.getCargaHoraria());
         evento.setModalidad(Evento.Modalidad.valueOf(request.getModalidad()));
         evento.setFechaHora(request.getFechaHora());
@@ -121,6 +135,33 @@ public class EventoService {
             throw new BusinessException(
                 "Estado inválido. Use: ABIERTO, LLENO o FINALIZADO", 400);
         }
+        eventoRepository.save(evento);
+        return toEventoDto(evento);
+    }
+
+    // ── Asignar disenador a evento ────────────────────────────────────────
+    @Transactional
+    public EventoDto asignarDisenador(Long idEvento, AsignarDisenadorRequest request) {
+        Evento evento = buscarEvento(idEvento);
+
+        if (request.getIdDisenador() == null) {
+            evento.setDisenador(null);
+            eventoRepository.save(evento);
+            return toEventoDto(evento);
+        }
+
+        Usuario disenador = usuarioRepository.findById(request.getIdDisenador())
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Usuario", request.getIdDisenador()));
+
+        boolean esDisenador = disenador.getRoles().stream()
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals("DISENADOR"));
+        if (!esDisenador) {
+            throw new BusinessException(
+                "El usuario no tiene el rol DISENADOR", 400);
+        }
+
+        evento.setDisenador(disenador);
         eventoRepository.save(evento);
         return toEventoDto(evento);
     }
@@ -177,12 +218,37 @@ public class EventoService {
 
     // ── Listar auxiliares de un evento ───────────────────────────────────────
     @Transactional(readOnly = true)
-    public List<String> listarAuxiliares(Long idEvento) {
+    public List<AuxiliarResumenDto> listarAuxiliares(Long idEvento) {
         buscarEvento(idEvento);
         return auxiliarEventoRepository.findByIdEvento(idEvento)
             .stream()
-            .map(ae -> ae.getAuxiliar().getNombres()
-                + " " + ae.getAuxiliar().getApellidos())
+            .map(ae -> {
+                Usuario auxiliar = ae.getAuxiliar();
+                AuxiliarResumenDto dto = new AuxiliarResumenDto();
+                dto.setIdUsuario(auxiliar.getIdUsuario());
+                dto.setUsername(auxiliar.getUsername());
+                dto.setNombres(auxiliar.getNombres());
+                dto.setApellidos(auxiliar.getApellidos());
+                return dto;
+            })
+            .toList();
+    }
+
+    // ── Listar eventos asignados al auxiliar actual ─────────────────────────
+    @Transactional(readOnly = true)
+    public List<EventoDto> listarAsignadosAuxiliar() {
+        Usuario usuario = getUsuarioActual();
+        boolean esAuxiliar = usuario.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("AUXILIAR"));
+        if (!esAuxiliar) {
+            throw new BusinessException(
+                "El usuario no tiene el rol AUXILIAR", 403);
+        }
+
+        return auxiliarEventoRepository.findByIdAuxiliar(usuario.getIdUsuario())
+            .stream()
+            .map(AuxiliarEvento::getEvento)
+            .map(this::toEventoDto)
             .toList();
     }
 
@@ -208,8 +274,15 @@ public class EventoService {
         dto.setNombreCarrera(e.getCarrera().getNombre());
         dto.setNombreOrganizador(
             e.getOrganizador().getNombres() + " " + e.getOrganizador().getApellidos());
+        if (e.getDisenador() != null) {
+            dto.setIdDisenador(e.getDisenador().getIdUsuario());
+            dto.setNombreDisenador(
+                e.getDisenador().getNombres() + " " + e.getDisenador().getApellidos());
+        }
         dto.setNombre(e.getNombre());
         dto.setDescripcion(e.getDescripcion());
+        dto.setLugar(e.getLugar());
+        dto.setImagen(e.getImagen());
         dto.setCargaHoraria(e.getCargaHoraria());
         dto.setModalidad(e.getModalidad().name());
         dto.setFechaHora(e.getFechaHora());
@@ -227,5 +300,10 @@ public class EventoService {
         }
 
         return dto;
+    }
+
+    private String normalizeRolName(String nombreRol) {
+        if (nombreRol == null) return "";
+        return nombreRol.replace("Ñ", "N").replace("ñ", "n").toUpperCase();
     }
 }

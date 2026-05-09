@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.Evento;
+import bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteAcademicoEventoDto;
 
 public interface EventoRepository extends JpaRepository<Evento, Long> {
 
@@ -21,6 +22,9 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
     List<Evento> findAbiertos(@Param("idCarrera") Long idCarrera);
 
     List<Evento> findByOrganizador_IdUsuario(Long idUsuario);
+
+    // Eventos asignados a un disenador
+    List<Evento> findByDisenador_IdUsuario(Long idUsuario);
      
     // Contar inscritos confirmados — temporal hasta tener Inscripcion
     @Query("""
@@ -31,5 +35,31 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
     int contarInscritos(@Param("idEvento") Long idEvento);
 
     long countByEstado(Evento.EstadoEvento estado);
+
+    @Query("""
+        SELECT new bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteAcademicoEventoDto(
+            e.idEvento,
+            e.nombre,
+            e.carrera.nombre,
+            e.fechaHora,
+            e.estado,
+            COUNT(i)
+        )
+        FROM Evento e
+        LEFT JOIN Inscripcion i
+            ON i.evento = e AND i.estado = 'CONFIRMADA'
+        WHERE (:idCarrera IS NULL OR e.carrera.idCarrera = :idCarrera)
+          AND (:carreras IS NULL OR e.carrera.idCarrera IN :carreras)
+          AND (:desde IS NULL OR e.fechaHora >= :desde)
+          AND (:hasta IS NULL OR e.fechaHora <= :hasta)
+        GROUP BY e.idEvento, e.nombre, e.carrera.nombre, e.fechaHora, e.estado
+        ORDER BY e.fechaHora DESC
+        """)
+    List<ReporteAcademicoEventoDto> reporteAcademicoEventos(
+        @Param("idCarrera") Long idCarrera,
+        @Param("carreras") List<Long> carreras,
+        @Param("desde") java.time.LocalDateTime desde,
+        @Param("hasta") java.time.LocalDateTime hasta
+    );
     
 }

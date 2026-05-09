@@ -11,8 +11,8 @@
         
         <!-- Logo y nombre del sistema -->
         <router-link to="/" class="flex items-center space-x-3 hover:opacity-80 transition">
-          <div class="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-500 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-xl">F</span>
+          <div class="w-11 h-11 rounded-lg overflow-hidden ring-2 ring-emerald-500/30 bg-white">
+            <img :src="logo" alt="Logo FHCE" class="w-full h-full object-cover" />
           </div>
           <div>
             <h1 class="text-lg font-bold text-gray-800 hidden sm:block">
@@ -34,18 +34,6 @@
             >
               Inicio
             </router-link>
-            <router-link 
-              to="/cursos" 
-              class="text-gray-700 hover:text-purple-600 transition-colors font-medium"
-            >
-              Cursos
-            </router-link>
-            <router-link 
-              to="/eventos" 
-              class="text-gray-700 hover:text-purple-600 transition-colors font-medium"
-            >
-              Eventos
-            </router-link>
           </template>
 
           <!-- Links para PARTICIPANTE (o cualquier usuario autenticado que quiera navegar como participante) -->
@@ -55,18 +43,6 @@
               class="text-gray-700 hover:text-purple-600 transition-colors font-medium"
             >
               Inicio
-            </router-link>
-            <router-link 
-              to="/participante/cursos" 
-              class="text-gray-700 hover:text-purple-600 transition-colors font-medium"
-            >
-              Cursos
-            </router-link>
-            <router-link 
-              to="/participante/eventos" 
-              class="text-gray-700 hover:text-purple-600 transition-colors font-medium"
-            >
-              Eventos
             </router-link>
             <router-link 
               to="/participante/inscripciones" 
@@ -222,20 +198,6 @@
           >
             Inicio
           </router-link>
-          <router-link 
-            to="/cursos" 
-            class="block text-gray-700 hover:text-purple-600 transition-colors font-medium py-2"
-            @click="closeMobileMenu"
-          >
-            Cursos
-          </router-link>
-          <router-link 
-            to="/eventos" 
-            class="block text-gray-700 hover:text-purple-600 transition-colors font-medium py-2"
-            @click="closeMobileMenu"
-          >
-            Eventos
-          </router-link>
         </template>
 
         <!-- Links para PARTICIPANTE -->
@@ -246,20 +208,6 @@
             @click="closeMobileMenu"
           >
             Inicio
-          </router-link>
-          <router-link 
-            to="/participante/cursos" 
-            class="block text-gray-700 hover:text-purple-600 transition-colors font-medium py-2"
-            @click="closeMobileMenu"
-          >
-            Cursos
-          </router-link>
-          <router-link 
-            to="/participante/eventos" 
-            class="block text-gray-700 hover:text-purple-600 transition-colors font-medium py-2"
-            @click="closeMobileMenu"
-          >
-            Eventos
           </router-link>
           <router-link 
             to="/participante/inscripciones" 
@@ -346,6 +294,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
+import logo from '@/assets/images/logo.jpg'
 import type { Rol } from '@/types'
 
 // ============================================

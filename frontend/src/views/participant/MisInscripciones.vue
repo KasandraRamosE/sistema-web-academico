@@ -120,23 +120,6 @@
               </div>
             </div>
 
-            <!-- Barra de progreso (solo para cursos activos) -->
-            <div v-if="inscripcion.tipo === 'CURSO' && inscripcion.estado === 'ACTIVO'" class="pt-3 border-t border-gray-200">
-              <div class="flex items-center justify-between text-sm mb-2">
-                <span class="text-gray-600">Progreso del curso</span>
-                <span class="font-semibold text-gray-800">
-                  {{ calcularProgreso(inscripcion.fecha_inicio, inscripcion.fecha_fin, inscripcion.estado) }}%
-                </span>
-              </div>
-              <div class="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  class="bg-gradient-to-r from-purple-600 to-blue-500 h-2 rounded-full transition-all"
-                  :style="{ 
-                    width: `${calcularProgreso(inscripcion.fecha_inicio, inscripcion.fecha_fin, inscripcion.estado)}%` 
-                  }"
-                ></div>
-              </div>
-            </div>
           </div>
 
           <!-- Acciones -->
@@ -153,7 +136,7 @@
               Certificado
             </Button>
             
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" @click="verDetalles(inscripcion)">
               Ver detalles
             </Button>
           </div>
@@ -185,6 +168,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
@@ -203,6 +187,8 @@ type FiltroTipo = 'TODAS' | 'ACTIVAS' | 'COMPLETADAS' | 'CURSOS' | 'EVENTOS'
 interface InscripcionItem {
   id: number
   tipo: 'CURSO' | 'EVENTO'
+  idCurso?: number | null
+  idEvento?: number | null
   nombre: string
   fecha_inicio: string
   fecha_fin: string
@@ -218,6 +204,7 @@ interface InscripcionItem {
 const filtroActivo = ref<FiltroTipo>('TODAS')
 const loading = ref(false)
 const inscripciones = ref<InscripcionItem[]>([])
+const router = useRouter()
 
 // ============================================
 // COMPUTED
@@ -258,33 +245,6 @@ const inscripcionesFiltradas = computed(() => {
 // MÉTODOS
 // ============================================
 
-/**
- * Calcula el progreso de un curso basado en las fechas
- */
-const calcularProgreso = (fechaInicio: string, fechaFin: string, estado: string): number => {
-  // Si está completado, progreso es 100%
-  if (estado === 'COMPLETADO') return 100
-  
-  const hoy = new Date()
-  const inicio = new Date(fechaInicio)
-  const fin = new Date(fechaFin)
-  
-  // Si aún no ha iniciado, progreso es 0%
-  if (hoy < inicio) return 0
-  
-  // Si ya terminó, progreso es 100%
-  if (hoy > fin) return 100
-  
-  // Calcular días transcurridos y días totales
-  const diasTranscurridos = Math.floor((hoy.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
-  const diasTotales = Math.floor((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
-  
-  // Calcular porcentaje
-  const progreso = Math.round((diasTranscurridos / diasTotales) * 100)
-  
-  // Asegurar que esté entre 0 y 100
-  return Math.max(0, Math.min(100, progreso))
-}
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString)
@@ -334,6 +294,17 @@ const descargarCertificado = (certificadoId?: number) => {
     })
 }
 
+const verDetalles = (inscripcion: InscripcionItem) => {
+  const id = inscripcion.tipo === 'CURSO' ? inscripcion.idCurso : inscripcion.idEvento
+  if (!id) return
+
+  router.push({
+    name: 'activity-detail',
+    params: { id: String(id) },
+    query: { tipo: inscripcion.tipo }
+  })
+}
+
 const cargarInscripciones = async () => {
   loading.value = true
   try {
@@ -373,6 +344,8 @@ const cargarInscripciones = async () => {
 
     inscripciones.value = detalles.map(({ item, detalle }) => {
       const tipo = String(item.tipoActividad ?? '') as 'CURSO' | 'EVENTO'
+      const idCurso = item.idCurso !== undefined ? Number(item.idCurso) : null
+      const idEvento = item.idEvento !== undefined ? Number(item.idEvento) : null
       const certificado = certificadosPorInscripcion.get(Number(item.idInscripcion ?? 0))
       const certificadoId = certificado ? Number(certificado.idCertificado ?? 0) : undefined
       const notaFinal = certificado?.notaFinal !== undefined && certificado?.notaFinal !== null
@@ -414,6 +387,8 @@ const cargarInscripciones = async () => {
       return {
         id: Number(item.idInscripcion),
         tipo,
+        idCurso,
+        idEvento,
         nombre: String(item.nombreActividad ?? ''),
         fecha_inicio: fechaInicio,
         fecha_fin: fechaFin,

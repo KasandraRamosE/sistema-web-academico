@@ -29,8 +29,8 @@
           class="flex items-center hover:opacity-80 transition"
           :class="isCollapsed ? 'justify-center' : 'space-x-3'"
         >
-          <div class="w-9 h-9 bg-gradient-to-br from-purple-600 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-            <span class="text-white font-bold text-lg">F</span>
+          <div class="w-9 h-9 rounded-lg overflow-hidden bg-white ring-1 ring-purple-200 flex items-center justify-center flex-shrink-0">
+            <img :src="logo" alt="Logo FHCE" class="w-full h-full object-cover" />
           </div>
           <div v-if="!isCollapsed">
             <h2 class="text-sm font-bold text-gray-800 leading-tight">FHCE</h2>
@@ -211,8 +211,8 @@
       <!-- Header drawer mobile -->
       <div class="p-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
         <router-link to="/" class="flex items-center space-x-3 hover:opacity-80 transition" @click="closeMobileDrawer">
-          <div class="w-9 h-9 bg-gradient-to-br from-purple-600 to-blue-500 rounded-lg flex items-center justify-center">
-            <span class="text-white font-bold text-lg">F</span>
+          <div class="w-9 h-9 rounded-lg overflow-hidden bg-white ring-1 ring-purple-200 flex items-center justify-center">
+            <img :src="logo" alt="Logo FHCE" class="w-full h-full object-cover" />
           </div>
           <div>
             <h2 class="text-sm font-bold text-gray-800">FHCE</h2>
@@ -356,6 +356,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import type { Rol } from '@/types'
+import logo from '@/assets/images/logo.jpg'
 
 // =====================================================
 // PROPS & EMITS
@@ -480,9 +481,11 @@ const navigationItems = computed((): NavItem[] => {
     case 'COORDINADOR':
       return [
         { name: 'dashboard',  label: 'Dashboard',           shortLabel: 'Inicio',   path: '/coordinador',            icon: IconDashboard },
-        { name: 'activities', label: 'Actividades',          shortLabel: 'Act.',     path: '/coordinador/actividades',icon: IconCalendar  },
+        { name: 'activities', label: 'Actividades',          shortLabel: 'Act.',     path: '/coordinador/actividades', icon: IconCalendar },
+        { name: 'events',     label: 'Eventos',              shortLabel: 'Eventos',  path: '/coordinador/eventos',     icon: IconCalendar },
         { name: 'enrolled',   label: 'Inscritos',            shortLabel: 'Inscrip.', path: '/coordinador/inscritos',  icon: IconClipboard },
         { name: 'inbox',      label: 'Bandeja',              shortLabel: 'Bandeja',  path: '/coordinador/bandeja',    icon: IconInbox     },
+        { name: 'designers',  label: 'Disenadores',          shortLabel: 'Disen.',   path: '/coordinador/disenadores', icon: IconPhoto     },
         { name: 'emit',       label: 'Emitir Certificados',  shortLabel: 'Emitir',   path: '/coordinador/emitir',     icon: IconAward     },
       ]
 

@@ -12,7 +12,7 @@
       </p>
     </div>
 
-    <div class="space-y-4">
+    <form class="space-y-4" @submit.prevent="handleVerify">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
         <input
@@ -35,17 +35,10 @@
       </div>
 
       <button
-        @click="handleVerify"
-        class="w-full bg-gradient-to-r from-primary-600 to-secondary-500 text-white py-2 rounded-lg hover:shadow-lg transition-all font-medium"
+        type="submit"
+        class="w-full bg-slate-900 text-white py-2.5 rounded-lg font-semibold shadow-lg shadow-slate-900/20 hover:-translate-y-0.5 hover:shadow-xl transition"
       >
         Verificar
-      </button>
-
-      <button
-        @click="handleResend"
-        class="w-full border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-all font-medium"
-      >
-        Reenviar codigo
       </button>
 
       <p v-if="message" class="text-sm text-green-600">
@@ -55,15 +48,22 @@
         {{ errorMessage }}
       </p>
 
-      <div class="text-center mt-4">
+      <div class="flex items-center justify-between text-sm">
+        <button
+          type="button"
+          @click="handleResend"
+          class="text-emerald-700 hover:text-emerald-800 font-medium"
+        >
+          Reenviar codigo
+        </button>
         <router-link
           to="/auth/login"
-          class="text-sm text-primary-600 hover:text-primary-700"
+          class="text-emerald-700 hover:text-emerald-800"
         >
           Ir al login
         </router-link>
       </div>
-    </div>
+    </form>
   </div>
 </template>
 

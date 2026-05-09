@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.UUID;
 import java.io.InputStream;
@@ -310,7 +311,9 @@ public class PlantillaService {
     private String guardarArchivo(MultipartFile archivo, Long idUsuario,
                                    Long idCurso, Long idEvento,
                                    int version) throws IOException {
-        Path dirPath = Paths.get(directorioPlantillas);
+        Path dirPath = Paths.get(directorioPlantillas)
+            .toAbsolutePath()
+            .normalize();
         Files.createDirectories(dirPath);
 
         // Nombre único: plantilla_{tipo}_{id}_v{version}_{uuid}.pdf
@@ -321,7 +324,9 @@ public class PlantillaService {
             UUID.randomUUID().toString().substring(0, 8));
 
         Path rutaArchivo = dirPath.resolve(nombre);
-        archivo.transferTo(rutaArchivo.toFile());
+        try (InputStream input = archivo.getInputStream()) {
+            Files.copy(input, rutaArchivo, StandardCopyOption.REPLACE_EXISTING);
+        }
         return rutaArchivo.toString();
     }
 

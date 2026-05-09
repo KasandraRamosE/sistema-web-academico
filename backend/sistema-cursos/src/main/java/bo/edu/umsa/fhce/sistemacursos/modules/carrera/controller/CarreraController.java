@@ -23,7 +23,7 @@ public class CarreraController {
     // GET /api/carreras
     // Coordinadores y participantes pueden ver las carreras activas
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     @Operation(summary = "Listar carreras activas")
     public ResponseEntity<List<CarreraDto>> listar() {
         return ResponseEntity.ok(carreraService.listarActivas());

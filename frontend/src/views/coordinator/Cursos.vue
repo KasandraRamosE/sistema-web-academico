@@ -566,6 +566,19 @@ const closeCursoModal = () => {
 }
 
 const saveCurso = async () => {
+  if (editingCurso.value && formCurso.value.fechaInicio) {
+    const startDate = new Date(formCurso.value.fechaInicio)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (startDate < today) {
+      alertStore.push({
+        type: 'warning',
+        message: 'No se puede editar un curso con fecha de inicio en el pasado.'
+      })
+      return
+    }
+  }
+
   saving.value = true
   try {
     if (editingCurso.value) {
@@ -584,7 +597,7 @@ const saveCurso = async () => {
       }
       alertStore.push({ type: 'success', message: 'Curso actualizado.' })
     } else {
-      await api.post('/cursos', {
+      const created = await api.post('/cursos', {
         idCarrera: formCurso.value.idCarrera,
         nombre: formCurso.value.nombre,
         descripcion: formCurso.value.descripcion,
@@ -593,13 +606,20 @@ const saveCurso = async () => {
         costoExterno: formCurso.value.costoExterno,
         costoUmsa: formCurso.value.costoUmsa,
         notaAprobacion: formCurso.value.notaAprobacion
-      })
-      alertStore.push({ type: 'success', message: 'Curso creado.' })
+      }) as CursoDto
+      alertStore.push({ type: 'success', message: 'Curso creado. Agrega al menos un paralelo.' })
+      closeCursoModal()
+      await loadCursos()
+      paraleloCurso.value = created
+      showParalelosModal.value = true
+      openCreateParalelo('A')
+      return
     }
     closeCursoModal()
     await loadCursos()
   } catch (error) {
-    alertStore.push({ type: 'error', message: (error as Error).message || 'No se pudo guardar el curso.' })
+    const message = (error as Error).message || 'No se pudo guardar el curso.'
+    alertStore.push({ type: 'error', message })
   } finally {
     saving.value = false
   }
@@ -641,10 +661,11 @@ const closeParalelos = () => {
   paraleloCurso.value = null
 }
 
-const openCreateParalelo = () => {
+const openCreateParalelo = (defaultCode: string | Event = '') => {
+  const codigoInicial = typeof defaultCode === 'string' ? defaultCode : ''
   editingParalelo.value = null
   formParalelo.value = {
-    codigo: '',
+    codigo: codigoInicial,
     idDocente: null,
     modalidad: 'PRESENCIAL',
     cupoMaximo: null,

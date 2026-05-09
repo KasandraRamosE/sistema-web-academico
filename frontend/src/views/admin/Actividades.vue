@@ -524,6 +524,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
@@ -566,6 +567,8 @@ interface Carrera {
 
 const loading = ref(false)
 const saving = ref(false)
+
+const router = useRouter()
 
 const actividades = ref<Actividad[]>([])
 const carreras = ref<Carrera[]>([])
@@ -792,7 +795,21 @@ const openCreateModal = () => {
 
 const openEditModal = (actividad: Actividad) => {
   modoEdicion.value = true
-  // TODO: Cargar datos de la actividad
+  formActividad.value = {
+    tipo: actividad.tipo,
+    nombre: actividad.nombre,
+    descripcion: actividad.descripcion,
+    cargaHoraria: actividad.cargaHoraria,
+    modalidad: actividad.modalidad || 'PRESENCIAL',
+    fechaInicio: toDateInput(actividad.fechaInicio),
+    fechaFin: toDateInput(actividad.fechaFin || actividad.fechaInicio),
+    cupoMaximo: actividad.cupoMaximo,
+    costoExterno: actividad.costoExterno,
+    costoUmsa: actividad.costoUmsa,
+    esGratuito: actividad.esGratuito,
+    notaMinimaAprobacion: actividad.notaMinimaAprobacion ?? 51,
+    idCarrera: actividad.idCarrera ? String(actividad.idCarrera) : ''
+  }
   showActividadModal.value = true
 }
 
@@ -801,7 +818,11 @@ const closeActividadModal = () => {
 }
 
 const verDetalle = (actividad: Actividad) => {
-  console.log('Ver detalle:', actividad)
+  router.push({
+    name: 'activity-detail',
+    params: { id: String(actividad.idActividad) },
+    query: { tipo: actividad.tipo }
+  })
 }
 
 const limpiarFiltros = () => {
@@ -822,6 +843,13 @@ const formatDate = (date: string) => {
     month: '2-digit',
     year: 'numeric'
   })
+}
+
+const toDateInput = (value: string) => {
+  if (!value) return ''
+  if (value.includes('T')) return value.split('T')[0]
+  if (value.includes(' ')) return value.split(' ')[0]
+  return value
 }
 
 const getEstadoBadge = (estado: string): 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'gray' => {

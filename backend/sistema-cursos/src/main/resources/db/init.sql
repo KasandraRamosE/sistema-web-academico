@@ -131,8 +131,11 @@ CREATE TABLE curso (
     id_curso         BIGINT          AUTO_INCREMENT PRIMARY KEY,
     id_carrera       BIGINT          NOT NULL,
     id_organizador   BIGINT          NOT NULL  COMMENT 'FK al usuario con rol COORDINADOR',
+    id_disenador     BIGINT          NULL      COMMENT 'FK al usuario con rol DISEÑADOR',
     nombre           VARCHAR(200)    NOT NULL,
     descripcion      TEXT            NULL,
+    lugar            VARCHAR(255)    NULL,
+    imagen           VARCHAR(255)    NULL,
     carga_horaria    INT             NOT NULL  COMMENT 'Total de horas académicas',
     fecha_inicio     DATE            NOT NULL,
     costo_externo    DECIMAL(10,2)   NOT NULL DEFAULT 0.00 COMMENT 'Precio para participantes externos',
@@ -143,9 +146,11 @@ CREATE TABLE curso (
 
     FOREIGN KEY (id_carrera)     REFERENCES carrera(id_carrera)   ON DELETE RESTRICT,
     FOREIGN KEY (id_organizador) REFERENCES usuario(id_usuario)   ON DELETE RESTRICT,
+    FOREIGN KEY (id_disenador)   REFERENCES usuario(id_usuario)   ON DELETE SET NULL,
 
     INDEX idx_carrera     (id_carrera),
     INDEX idx_organizador (id_organizador),
+    INDEX idx_disenador   (id_disenador),
     INDEX idx_estado      (estado),
     INDEX idx_fecha       (fecha_inicio)
 ) ENGINE=InnoDB COMMENT='Cursos complementarios. Certificación por aprobación de nota.';
@@ -172,8 +177,11 @@ CREATE TABLE evento (
     id_evento       BIGINT          AUTO_INCREMENT PRIMARY KEY,
     id_carrera      BIGINT          NOT NULL,
     id_organizador  BIGINT          NOT NULL  COMMENT 'FK al usuario con rol COORDINADOR',
+    id_disenador    BIGINT          NULL      COMMENT 'FK al usuario con rol DISEÑADOR',
     nombre          VARCHAR(200)    NOT NULL,
     descripcion     TEXT            NULL,
+    lugar           VARCHAR(255)    NULL,
+    imagen          VARCHAR(255)    NULL,
     carga_horaria   INT             NOT NULL  COMMENT 'Total de horas académicas',
     modalidad       ENUM('PRESENCIAL','VIRTUAL','MIXTO') NOT NULL,
     fecha_hora      DATETIME        NOT NULL  COMMENT 'Fecha y hora del evento (un solo día)',
@@ -186,9 +194,11 @@ CREATE TABLE evento (
 
     FOREIGN KEY (id_carrera)     REFERENCES carrera(id_carrera) ON DELETE RESTRICT,
     FOREIGN KEY (id_organizador) REFERENCES usuario(id_usuario) ON DELETE RESTRICT,
+    FOREIGN KEY (id_disenador)   REFERENCES usuario(id_usuario) ON DELETE SET NULL,
 
     INDEX idx_carrera     (id_carrera),
     INDEX idx_organizador (id_organizador),
+    INDEX idx_disenador   (id_disenador),
     INDEX idx_estado      (estado),
     INDEX idx_fecha_hora  (fecha_hora)
 ) ENGINE=InnoDB COMMENT='Eventos facultativos. Certificación por asistencia.';

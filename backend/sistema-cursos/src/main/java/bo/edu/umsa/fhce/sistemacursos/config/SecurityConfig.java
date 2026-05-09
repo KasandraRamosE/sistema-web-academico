@@ -68,6 +68,9 @@ public class SecurityConfig {
                 // Verificación de certificados: GET público
                 .requestMatchers(HttpMethod.GET, "/certificados/verificar/**").permitAll()
 
+                // Catálogo público
+                .requestMatchers(HttpMethod.GET, "/cursos/**", "/eventos/**", "/carreras/**").permitAll()
+
                 // Todo lo demás requiere autenticación
                 // La autorización por ROL se maneja con @PreAuthorize en los controllers
                 .anyRequest().authenticated()

@@ -1,6 +1,7 @@
 package bo.edu.umsa.fhce.sistemacursos.modules.curso.repository;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Curso;
+import bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteAcademicoCursoDto;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,5 +25,34 @@ public interface CursoRepository extends JpaRepository<Curso, Long> {
     // Cursos gestionados por un coordinador específico
     List<Curso> findByOrganizador_IdUsuario(Long idUsuario);
 
+    // Cursos asignados a un disenador
+    List<Curso> findByDisenador_IdUsuario(Long idUsuario);
+
     long countByEstado(Curso.EstadoCurso estado);
+
+    @Query("""
+        SELECT new bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteAcademicoCursoDto(
+            c.idCurso,
+            c.nombre,
+            c.carrera.nombre,
+            c.fechaInicio,
+            c.estado,
+            COUNT(i)
+        )
+        FROM Curso c
+        LEFT JOIN Inscripcion i
+            ON i.curso = c AND i.estado = 'CONFIRMADA'
+        WHERE (:idCarrera IS NULL OR c.carrera.idCarrera = :idCarrera)
+          AND (:carreras IS NULL OR c.carrera.idCarrera IN :carreras)
+          AND (:desde IS NULL OR c.fechaInicio >= :desde)
+          AND (:hasta IS NULL OR c.fechaInicio <= :hasta)
+        GROUP BY c.idCurso, c.nombre, c.carrera.nombre, c.fechaInicio, c.estado
+        ORDER BY c.fechaInicio DESC
+        """)
+    List<ReporteAcademicoCursoDto> reporteAcademicoCursos(
+        @Param("idCarrera") Long idCarrera,
+        @Param("carreras") List<Long> carreras,
+        @Param("desde") java.time.LocalDate desde,
+        @Param("hasta") java.time.LocalDate hasta
+    );
 }

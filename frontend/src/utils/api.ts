@@ -9,9 +9,8 @@ const buildUrl = (path: string) => {
   return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`
 }
 
-const getAuthHeader = () => {
-  const token = localStorage.getItem('token')
-  return token ? { Authorization: `Bearer ${token}` } : {}
+const getAuthToken = () => {
+  return localStorage.getItem('token')
 }
 
 const notifySessionExpired = () => {
@@ -52,10 +51,14 @@ const clearAuthAndRedirect = () => {
 }
 
 const request = async (path: string, options: RequestInit = {}) => {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...getAuthHeader(),
-    ...(options.headers || {})
+  const headers = new Headers(options.headers)
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+
+  const token = getAuthToken()
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
   }
 
   const response = await fetch(buildUrl(path), {

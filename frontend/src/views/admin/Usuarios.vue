@@ -150,7 +150,6 @@
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
               <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Usuario</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Carreras</th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">RU/Username</th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tipo</th>
@@ -175,51 +174,6 @@
                 </div>
               </td>
 
-              <!-- Carreras (solo coordinadores) -->
-              <td class="px-4 py-3">
-                <div v-if="usuario.roles.includes('COORDINADOR')">
-                  <div v-if="usuario.carreras && usuario.carreras.length > 0" class="flex flex-wrap gap-1">
-                    <Badge
-                      v-for="carrera in usuario.carreras"
-                      :key="carrera.idCarrera"
-                      variant="info"
-                      size="sm"
-                    >
-                      {{ carrera.nombre }}
-                    </Badge>
-                  </div>
-                  <span v-else class="text-xs text-gray-400">Sin carreras</span>
-                  
-                  <button
-                    @click="openCarrerasModal(usuario)"
-                    class="text-xs text-blue-600 hover:text-blue-800 underline mt-1 block"
-                  >
-                    Gestionar
-                  </button>
-                </div>
-                
-                <div v-else-if="usuario.roles.includes('DOCENTE')" class="text-xs text-gray-500">
-                  <span class="italic">Asignado a paralelos</span>
-                  <button
-                    @click="openActividadesModal(usuario, 'DOCENTE')"
-                    class="text-blue-600 hover:text-blue-800 underline ml-1"
-                  >
-                    Ver/Editar
-                  </button>
-                </div>
-                
-                <div v-else-if="usuario.roles.includes('AUXILIAR')" class="text-xs text-gray-500">
-                  <span class="italic">Asignado a eventos</span>
-                  <button
-                    @click="openActividadesModal(usuario, 'AUXILIAR')"
-                    class="text-blue-600 hover:text-blue-800 underline ml-1"
-                  >
-                    Ver/Editar
-                  </button>
-                </div>
-                
-                <span v-else class="text-xs text-gray-400">-</span>
-              </td>
               
               <!-- Username/RU -->
               <td class="px-4 py-3 text-sm text-gray-600">
@@ -281,91 +235,16 @@
 
               <!-- Acciones -->
               <td class="px-4 py-3">
-                <div class="flex items-center space-x-2">
-                  <!-- Editar usuario (solo externos pueden editar todo, internos solo nombres/apellidos) -->
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    @click="openEditModal(usuario)"
-                    title="Editar usuario"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </Button>
-
-                  <!-- Gestionar CARRERAS (solo coordinadores) -->
-                  <Button
-                    v-if="usuario.roles.includes('COORDINADOR')"
-                    variant="ghost"
-                    size="sm"
-                    @click="openCarrerasModal(usuario)"
-                    title="Gestionar carreras del coordinador"
-                    class="text-blue-600 hover:text-blue-800"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                  </Button>
-
-                  <!-- Gestionar PARALELOS (solo docentes) -->
-                  <Button
-                    v-if="usuario.roles.includes('DOCENTE')"
-                    variant="ghost"
-                    size="sm"
-                    @click="openActividadesModal(usuario, 'DOCENTE')"
-                    title="Asignar cursos/paralelos al docente"
-                    class="text-green-600 hover:text-green-800"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                  </Button>
-
-                  <!-- Gestionar EVENTOS (solo auxiliares) -->
-                  <Button
-                    v-if="usuario.roles.includes('AUXILIAR')"
-                    variant="ghost"
-                    size="sm"
-                    @click="openActividadesModal(usuario, 'AUXILIAR')"
-                    title="Asignar eventos al auxiliar"
-                    class="text-indigo-600 hover:text-indigo-800"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </Button>
-
-                  <!-- Cambiar contraseña (solo externos) -->
-                  <Button
-                    v-if="usuario.tipoUsuario === 'EXTERNO'"
-                    variant="ghost"
-                    size="sm"
-                    @click="openPasswordModal(usuario)"
-                    title="Cambiar contraseña"
-                    class="text-purple-600 hover:text-purple-800"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                    </svg>
-                  </Button>
-
-                  <!-- Activar/Desactivar -->
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    @click="toggleEstadoUsuario(usuario)"
-                    :title="usuario.estado === 'ACTIVO' ? 'Desactivar' : 'Activar'"
-                    :class="usuario.estado === 'ACTIVO' ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'"
-                  >
-                    <svg v-if="usuario.estado === 'ACTIVO'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                    </svg>
-                    <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </Button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  @click="openAccionesModal(usuario)"
+                  title="Acciones"
+                >
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zm0 5.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
+                  </svg>
+                </Button>
               </td>
             </tr>
           </tbody>
@@ -392,6 +271,63 @@
         <p class="text-gray-600">No se encontraron usuarios con los filtros aplicados</p>
       </div>
     </Card>
+
+    <Modal :modelValue="showAccionesModal" @close="closeAccionesModal" title="Acciones">
+      <div v-if="usuarioSeleccionado" class="space-y-4">
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <p class="text-sm text-gray-600">Usuario:</p>
+          <p class="font-semibold text-gray-800">
+            {{ usuarioSeleccionado.nombres }} {{ usuarioSeleccionado.apellidos }}
+          </p>
+          <p class="text-xs text-gray-500">{{ usuarioSeleccionado.username }}</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-2">
+          <Button variant="primary" @click="ejecutarAccionUsuario(openEditModal)">
+            Editar usuario
+          </Button>
+
+          <Button
+            v-if="usuarioSeleccionado.roles.includes('COORDINADOR')"
+            variant="secondary"
+            @click="ejecutarAccionUsuario(openCarrerasModal)"
+          >
+            Gestionar carreras
+          </Button>
+
+          <Button
+            v-if="usuarioSeleccionado.roles.includes('DOCENTE')"
+            variant="outline"
+            @click="ejecutarAccionUsuario((u) => openActividadesModal(u, 'DOCENTE'))"
+          >
+            Gestionar paralelos
+          </Button>
+
+          <Button
+            v-if="usuarioSeleccionado.roles.includes('AUXILIAR')"
+            variant="outline"
+            @click="ejecutarAccionUsuario((u) => openActividadesModal(u, 'AUXILIAR'))"
+          >
+            Gestionar eventos
+          </Button>
+
+          <Button
+            v-if="usuarioSeleccionado.tipoUsuario === 'EXTERNO'"
+            variant="ghost"
+            @click="ejecutarAccionUsuario(openPasswordModal)"
+          >
+            Cambiar contrasena
+          </Button>
+
+          <Button
+            :variant="usuarioSeleccionado.estado === 'ACTIVO' ? 'danger' : 'success'"
+            @click="ejecutarAccionUsuario(toggleEstadoUsuario)"
+          >
+            {{ usuarioSeleccionado.estado === 'ACTIVO' ? 'Desactivar usuario' : 'Activar usuario' }}
+          </Button>
+        </div>
+      </div>
+    </Modal>
 
     <!-- Modal Crear/Editar Usuario -->
     <Modal :modelValue="showUsuarioModal" @close="closeUsuarioModal" :title="modoEdicion ? 'Editar Usuario' : 'Crear Usuario Externo'">
@@ -1099,6 +1035,7 @@ const showRolesModal = ref(false)
 const showCarrerasModal = ref(false)        // Solo coordinadores
 const showActividadesModal = ref(false)     // ← NUEVO: Para docentes y auxiliares
 const showPasswordModal = ref(false)
+const showAccionesModal = ref(false)
 const modoEdicion = ref(false)
 const usuarioSeleccionado = ref<Usuario | null>(null)
 
@@ -1659,6 +1596,21 @@ const closeRolesModal = () => {
   usuarioSeleccionado.value = null
   rolesSeleccionados.value = []
   tituloDocente.value = ''
+}
+
+const openAccionesModal = (usuario: Usuario) => {
+  usuarioSeleccionado.value = usuario
+  showAccionesModal.value = true
+}
+
+const closeAccionesModal = () => {
+  showAccionesModal.value = false
+}
+
+const ejecutarAccionUsuario = (callback: (usuario: Usuario) => void) => {
+  if (!usuarioSeleccionado.value) return
+  callback(usuarioSeleccionado.value)
+  showAccionesModal.value = false
 }
 
 // ============================================

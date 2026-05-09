@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
+import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LoginRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LoginResponse;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.MensajeResponse;
@@ -67,12 +68,23 @@ public class AuthService {
         // 3. Construir la respuesta con los datos del usuario
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
+        Usuario usuario = usuarioRepository.findById(userDetails.getIdUsuario())
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Usuario", userDetails.getIdUsuario()));
+        if (usuario.getEstado() == Usuario.EstadoUsuario.INACTIVO) {
+            throw new BusinessException("La cuenta está inactiva", 403);
+        }
+
         List<String> roles = userDetails.getAuthorities().stream()
             .map(GrantedAuthority::getAuthority)
             .toList();
 
         // Nota: nombres y apellidos los cargamos por separado en el controller
         // o podemos extender CustomUserDetails — por ahora lo simplificamos
+        String tipoParticipante = participanteRepository.findById(userDetails.getIdUsuario())
+            .map(participante -> participante.getTipoParticipante().name())
+            .orElse(null);
+
         return new LoginResponse(
             jwt,
             "Bearer",
@@ -80,6 +92,7 @@ public class AuthService {
             userDetails.getUsername(),
             userDetails.getNombres(),
             userDetails.getApellidos(),
+            tipoParticipante,
             roles
         );
 

@@ -8,6 +8,7 @@ public class ParaleloDto {
     private String codigo;
     private Long idCurso;
     private String nombreDocente;   // nombre completo del docente (puede ser null)
+    private String tituloDocente;   // titulo academico del docente (puede ser null)
     private String modalidad;
     private Integer cupoMaximo;
     private Integer inscritos;      // calculado en el servicio

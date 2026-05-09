@@ -196,14 +196,20 @@ const asistenciasFiltradas = computed(() => {
   })
 })
 
+const normalizarEventos = (response: unknown): Evento[] => {
+  if (!Array.isArray(response)) return []
+
+  return response.map(evento => ({
+    id: Number(evento.idEvento ?? evento.id ?? evento.id_evento ?? 0),
+    nombre: String(evento.nombre ?? evento.titulo ?? ''),
+    fechaInicio: String(evento.fechaHora ?? evento.fechaInicio ?? evento.fecha_inicio ?? ''),
+    inscritos: Number(evento.inscritos ?? evento.totalInscritos ?? 0)
+  })).filter(evento => evento.id)
+}
+
 const cargarEventos = async () => {
-  const response = await api.get('/eventos/todos') as Array<Record<string, unknown>>
-  eventosDisponibles.value = response.map(evento => ({
-    id: Number(evento.idEvento),
-    nombre: String(evento.nombre ?? ''),
-    fechaInicio: String(evento.fechaHora ?? ''),
-    inscritos: Number(evento.inscritos ?? 0)
-  }))
+  const response = await api.get('/eventos/auxiliar')
+  eventosDisponibles.value = normalizarEventos(response)
 
   if (eventosDisponibles.value.length === 0) {
     eventoSeleccionado.value = null

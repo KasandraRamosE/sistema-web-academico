@@ -3,8 +3,8 @@
     <div class="absolute inset-0 rounded-3xl bg-gradient-to-br from-emerald-300/25 via-transparent to-amber-300/25 blur-2xl"></div>
     <div class="relative bg-white/95 border border-white/60 rounded-3xl shadow-2xl p-8 backdrop-blur">
       <div class="flex items-center gap-4 mb-6">
-        <div class="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg">
-          <span class="text-white font-bold text-2xl">FH</span>
+        <div class="w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-emerald-300/50 bg-white shadow-lg">
+          <img :src="logo" alt="Logo FHCE" class="w-full h-full object-cover" />
         </div>
         <div>
           <p class="text-xs uppercase tracking-[0.2em] text-emerald-600">FHCE Cursos</p>
@@ -20,6 +20,7 @@
             v-model="form.username"
             type="text"
             autocomplete="username"
+            :disabled="isSubmitting"
             class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
             placeholder="Usuario de acceso"
           />
@@ -31,6 +32,7 @@
             v-model="form.nombres"
             type="text"
             autocomplete="given-name"
+            :disabled="isSubmitting"
             class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
             placeholder="Tus nombres"
           />
@@ -42,6 +44,7 @@
             v-model="form.apellidos"
             type="text"
             autocomplete="family-name"
+            :disabled="isSubmitting"
             class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
             placeholder="Tus apellidos"
           />
@@ -53,6 +56,7 @@
             v-model="form.email"
             type="email"
             autocomplete="email"
+            :disabled="isSubmitting"
             class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
             placeholder="correo@ejemplo.com"
           />
@@ -60,31 +64,74 @@
 
         <div>
           <label class="block text-sm font-medium text-slate-700 mb-1">Contrasena</label>
-          <input
-            v-model="form.password"
-            type="password"
-            autocomplete="new-password"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
-            placeholder="Minimo 8 caracteres"
-          />
+          <div class="relative">
+            <input
+              v-model="form.password"
+              :type="showPassword ? 'text' : 'password'"
+              autocomplete="new-password"
+              :disabled="isSubmitting"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition pr-10"
+              placeholder="Minimo 8 caracteres"
+            />
+            <button
+              type="button"
+              @click="showPassword = !showPassword"
+              :disabled="isSubmitting"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              :aria-label="showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'"
+            >
+              <svg v-if="!showPassword" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.27-2.944-9.543-7a9.965 9.965 0 012.472-4.111m3.168-2.225A9.956 9.956 0 0112 5c4.477 0 8.268 2.943 9.543 7a9.97 9.97 0 01-4.198 5.29M15 12a3 3 0 00-3-3" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Tipo de participante</label>
-          <select
-            v-model="form.tipoParticipante"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
-          >
-            <option value="UMSA">UMSA</option>
-            <option value="EXTERNO">Externo</option>
-          </select>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Confirmar contrasena</label>
+          <div class="relative">
+            <input
+              v-model="form.confirmPassword"
+              :type="showConfirmPassword ? 'text' : 'password'"
+              autocomplete="new-password"
+              :disabled="isSubmitting"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition pr-10"
+              placeholder="Repite tu contrasena"
+            />
+            <button
+              type="button"
+              @click="showConfirmPassword = !showConfirmPassword"
+              :disabled="isSubmitting"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              :aria-label="showConfirmPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'"
+            >
+              <svg v-if="!showConfirmPassword" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.27-2.944-9.543-7a9.965 9.965 0 012.472-4.111m3.168-2.225A9.956 9.956 0 0112 5c4.477 0 8.268 2.943 9.543 7a9.97 9.97 0 01-4.198 5.29M15 12a3 3 0 00-3-3" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <button
           type="submit"
-          class="w-full bg-slate-900 text-white py-2.5 rounded-xl font-semibold shadow-lg shadow-slate-900/20 hover:-translate-y-0.5 hover:shadow-xl transition"
+          :disabled="isSubmitting"
+          class="w-full bg-slate-900 text-white py-2.5 rounded-xl font-semibold shadow-lg shadow-slate-900/20 transition flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          Registrarme
+          <svg v-if="isSubmitting" class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4" />
+            <path class="opacity-75" d="M4 12a8 8 0 018-8" stroke-width="4" />
+          </svg>
+          {{ isSubmitting ? 'Enviando codigo...' : 'Registrarme' }}
         </button>
 
         <p v-if="message" class="text-sm text-emerald-600" role="status">
@@ -107,10 +154,19 @@
   </div>
 </template>
 
+<style scoped>
+/* Evitar duplicado del icono de mostrar contrasena en Edge/IE */
+:deep(input::-ms-reveal),
+:deep(input::-ms-clear) {
+  display: none;
+}
+</style>
+
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
+import logo from '@/assets/images/logo.jpg'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -124,21 +180,33 @@ const form = reactive({
   apellidos: '',
   email: '',
   password: '',
-  tipoParticipante: 'EXTERNO' as 'UMSA' | 'EXTERNO'
+  confirmPassword: '',
+  tipoParticipante: 'EXTERNO' as 'EXTERNO'
 })
 
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
+const isSubmitting = ref(false)
+
 const handleRegister = async () => {
+  if (isSubmitting.value) return
   try {
     message.value = ''
     errorMessage.value = ''
 
+    if (form.password !== form.confirmPassword) {
+      errorMessage.value = 'Las contrasenas no coinciden'
+      return
+    }
+
+    isSubmitting.value = true
     const response = await auth.register({
       username: form.username,
       nombres: form.nombres,
       apellidos: form.apellidos,
       email: form.email,
       password: form.password,
-      tipoParticipante: form.tipoParticipante
+      tipoParticipante: 'EXTERNO'
     })
 
     message.value = response
@@ -148,6 +216,8 @@ const handleRegister = async () => {
     })
   } catch (error) {
     errorMessage.value = (error as Error).message
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>

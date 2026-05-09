@@ -74,10 +74,20 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'actividad/:id',
         name: 'activity-detail',
-        component: () => import('@/views/public/Home.vue'), // TODO: Crear ActivityDetailView
+        component: () => import('@/views/public/ActivityDetail.vue'),
         meta: {
           title: 'Detalle de Actividad',
           requiresAuth: false
+        }
+      },
+      {
+        path: 'pago/:idInscripcion',
+        name: 'payment-simulacion',
+        component: () => import('@/views/public/PaymentSimulacion.vue'),
+        meta: {
+          title: 'Pago Simulado',
+          requiresAuth: true,
+          roles: ['PARTICIPANTE']
         }
       },
       {
@@ -368,6 +378,15 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: 'Emitir Certificados',
           breadcrumb: 'Emitir'
+        }
+      },
+      {
+        path: 'disenadores',
+        name: 'coordinator-designers',
+        component: () => import('@/views/coordinator/AsignarDisenador.vue'),
+        meta: {
+          title: 'Asignar Disenador',
+          breadcrumb: 'Disenadores'
         }
       }
     ]

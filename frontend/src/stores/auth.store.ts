@@ -17,6 +17,7 @@ export interface Usuario {
   nombres: string
   apellidos: string
   roles: Rol[]
+  tipoParticipante?: 'UMSA' | 'EXTERNO' | null
 }
 
 interface LoginResponse {
@@ -26,6 +27,7 @@ interface LoginResponse {
   username: string
   nombres: string
   apellidos: string
+  tipoParticipante?: 'UMSA' | 'EXTERNO' | null
   roles: string[]
 }
 
@@ -44,6 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<Usuario | null>(null)
   const token = ref<string | null>(null)
   const currentRole = ref<Rol | null>(null)
+  const loginError = ref('')
 
   // ============================================
   // GETTERS
@@ -89,6 +92,7 @@ export const useAuthStore = defineStore('auth', () => {
    */
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
+      loginError.value = ''
       const response = await api.post('/auth/login', { username, password }) as LoginResponse
       const roles = normalizeRoles(response.roles)
 
@@ -98,10 +102,53 @@ export const useAuthStore = defineStore('auth', () => {
         username: response.username,
         nombres: response.nombres,
         apellidos: response.apellidos,
-        roles
+        roles,
+        tipoParticipante: response.tipoParticipante ?? null
       }
 
-      currentRole.value = roles[0] || null
+      try {
+        localStorage.setItem('token', token.value)
+        const perfil = await api.get('/usuarios/me') as Record<string, unknown>
+        const emailVerificado = perfil.emailVerificado ?? perfil.email_verificado
+        const verificado = emailVerificado === true || emailVerificado === 1 || emailVerificado === 'true'
+        if (!verificado) {
+          loginError.value = 'Debes verificar tu correo antes de iniciar sesion.'
+          logout()
+          return false
+        }
+
+        const rawRoles = Array.isArray(perfil.roles)
+          ? perfil.roles
+          : (Array.isArray(perfil.rolesAsignados) ? perfil.rolesAsignados : [])
+        if (rawRoles.length > 0) {
+          const roleNames = rawRoles.map((role) => {
+            if (role && typeof role === 'object' && 'nombre' in role) {
+              return String((role as { nombre?: unknown }).nombre ?? '')
+            }
+            return String(role)
+          })
+          const normalizedPerfilRoles = normalizeRoles(roleNames)
+          user.value = {
+            ...user.value,
+            roles: normalizedPerfilRoles
+          }
+          localStorage.setItem('user', JSON.stringify(user.value))
+        }
+      } catch (error) {
+        loginError.value = 'No se pudo validar el estado del correo. Intenta de nuevo.'
+        console.warn('No se pudo validar el email verificado:', error)
+        logout()
+        return false
+      }
+
+      const storedRole = localStorage.getItem('currentRole')
+      const normalizedStoredRole = storedRole ? normalizeRoles([storedRole])[0] : null
+      const effectiveRoles = user.value?.roles ?? roles
+      if (normalizedStoredRole && effectiveRoles.includes(normalizedStoredRole)) {
+        currentRole.value = normalizedStoredRole
+      } else {
+        currentRole.value = effectiveRoles[0] || null
+      }
 
       localStorage.setItem('user', JSON.stringify(user.value))
       localStorage.setItem('token', token.value)
@@ -111,6 +158,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       return true
     } catch (error) {
+      loginError.value = (error as Error).message || 'Error al iniciar sesion'
       console.error('❌ Error en login:', error)
       return false
     }
@@ -247,6 +295,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     token,
     currentRole,
+    loginError,
 
     // Getters
     isAuthenticated,

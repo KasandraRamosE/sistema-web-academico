@@ -25,6 +25,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +51,7 @@ public class UsuarioService {
     private final AuxiliarEventoRepository auxiliarEventoRepository;
     private final ParaleloRepository   paraleloRepository;
     private final ModelMapper          modelMapper;
+    private final PasswordEncoder passwordEncoder;
 
     // ── Listar todos los usuarios ────────────────────────────────────────────
     @Transactional(readOnly = true)
@@ -62,9 +64,10 @@ public class UsuarioService {
     // ── Listar usuarios por rol ──────────────────────────────────────────────
     @Transactional(readOnly = true)
     public List<UsuarioResumenDto> listarPorRol(String nombreRol) {
+        String rolNormalizado = normalizeRolName(nombreRol);
         return usuarioRepository.findAll().stream()
             .filter(u -> u.getRoles().stream()
-                .anyMatch(r -> r.getNombre().equals(nombreRol)))
+                .anyMatch(r -> normalizeRolName(r.getNombre()).equals(rolNormalizado)))
             .map(this::toResumenDto)
             .toList();
     }
@@ -74,6 +77,41 @@ public class UsuarioService {
     public UsuarioDetalleDto obtenerDetalle(Long idUsuario) {
         Usuario usuario = buscarUsuario(idUsuario);
         return toDetalleDto(usuario);
+    }
+
+    // ── Perfil del usuario autenticado ─────────────────────────────────────
+    @Transactional(readOnly = true)
+    public UsuarioDetalleDto obtenerActual() {
+        Usuario usuario = buscarUsuario(requireUsuarioActualId());
+        return toDetalleDto(usuario);
+    }
+
+    // ── Actualizar perfil (solo externo) ───────────────────────────────────
+    @Transactional
+    public UsuarioDetalleDto actualizarPerfilExterno(ActualizarPerfilRequest request) {
+        Usuario usuario = buscarUsuario(requireUsuarioActualId());
+        validarExterno(usuario);
+
+        usuario.setNombres(request.getNombres().trim());
+        usuario.setApellidos(request.getApellidos().trim());
+        usuarioRepository.save(usuario);
+
+        return toDetalleDto(usuario);
+    }
+
+    // ── Cambiar contrasena (solo externo) ─────────────────────────────────-
+    @Transactional
+    public void cambiarPasswordExterno(CambiarPasswordRequest request) {
+        Usuario usuario = buscarUsuario(requireUsuarioActualId());
+        validarExterno(usuario);
+
+        if (usuario.getPasswordHash() == null
+                || !passwordEncoder.matches(request.getPasswordActual(), usuario.getPasswordHash())) {
+            throw new BusinessException("Contrasena actual incorrecta", 400);
+        }
+
+        usuario.setPasswordHash(passwordEncoder.encode(request.getPasswordNueva()));
+        usuarioRepository.save(usuario);
     }
 
     // ── Cambiar estado ACTIVO / INACTIVO ────────────────────────────────────
@@ -101,31 +139,34 @@ public class UsuarioService {
     public UsuarioDetalleDto asignarRol(Long idUsuario, AsignarRolRequest request) {
         Usuario usuario = buscarUsuario(idUsuario);
 
+        String rolSolicitado = normalizeRolName(request.getNombreRol());
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         boolean esCoordinador = authentication != null
             && authentication.getAuthorities().contains(new SimpleGrantedAuthority("ROLE_COORDINADOR"));
 
-        if (esCoordinador && !request.getNombreRol().equals("DOCENTE")
-                && !request.getNombreRol().equals("AUXILIAR")) {
+        if (esCoordinador && !rolSolicitado.equals("DOCENTE")
+                && !rolSolicitado.equals("AUXILIAR")
+                && !rolSolicitado.equals("DISENADOR")) {
             throw new BusinessException(
-                "Solo puedes asignar roles DOCENTE o AUXILIAR", 403);
+            "Solo puedes asignar roles DOCENTE, AUXILIAR o DISENADOR", 403);
         }
 
         // Verificar que el rol existe
-        Rol rol = rolRepository.findByNombre(request.getNombreRol())
+        Rol rol = findRolByNombreCompat(request.getNombreRol())
             .orElseThrow(() -> new BusinessException(
                 "Rol no encontrado: " + request.getNombreRol(), 404));
 
         // Verificar que no tenga el rol ya
         boolean yaLoTiene = usuario.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals(request.getNombreRol()));
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals(rolSolicitado));
         if (yaLoTiene) {
             throw new BusinessException(
                 "El usuario ya tiene el rol " + request.getNombreRol(), 409);
         }
 
         // Lógica especial según el rol asignado
-        switch (request.getNombreRol()) {
+        switch (rolSolicitado) {
 
             case "DOCENTE" -> {
                 // Requiere título académico
@@ -351,13 +392,54 @@ public class UsuarioService {
         return userDetails.getIdUsuario();
     }
 
+    private Long requireUsuarioActualId() {
+        Long idUsuario = getUsuarioActualId();
+        if (idUsuario == null) {
+            throw new BusinessException("Usuario no autenticado", 401);
+        }
+        return idUsuario;
+    }
+
+    private void validarExterno(Usuario usuario) {
+        Participante participante = participanteRepository.findById(usuario.getIdUsuario())
+            .orElse(null);
+
+        boolean esExterno = participante != null
+            && participante.getTipoParticipante() == Participante.TipoParticipante.EXTERNO;
+
+        if (!esExterno) {
+            throw new BusinessException("Solo usuarios externos pueden modificar estos datos", 403);
+        }
+    }
+
     private void requireRole(Usuario usuario, String nombreRol) {
+        String rolNormalizado = normalizeRolName(nombreRol);
         boolean hasRole = usuario.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals(nombreRol));
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals(rolNormalizado));
         if (!hasRole) {
             throw new BusinessException(
                 "El usuario no tiene el rol " + nombreRol, 400);
         }
+    }
+
+    private String normalizeRolName(String nombreRol) {
+        if (nombreRol == null) return "";
+        return nombreRol.replace("Ñ", "N").replace("ñ", "n").toUpperCase();
+    }
+
+    private java.util.Optional<Rol> findRolByNombreCompat(String nombreRol) {
+        if (nombreRol == null) return java.util.Optional.empty();
+
+        java.util.Optional<Rol> direct = rolRepository.findByNombre(nombreRol);
+        if (direct.isPresent()) return direct;
+
+        String normalizado = normalizeRolName(nombreRol);
+        if ("DISENADOR".equals(normalizado)) {
+            return rolRepository.findByNombre("DISEÑADOR")
+                .or(() -> rolRepository.findByNombre("DISENADOR"));
+        }
+
+        return java.util.Optional.empty();
     }
 
     // Convierte Usuario → UsuarioResumenDto manualmente
@@ -375,6 +457,7 @@ public class UsuarioService {
         dto.setFechaRegistro(u.getFechaRegistro());
         dto.setRoles(u.getRoles().stream()
             .map(Rol::getNombre)
+            .map(this::normalizeRolName)
             .toList());
         return dto;
     }

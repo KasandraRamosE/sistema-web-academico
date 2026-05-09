@@ -14,6 +14,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.Carrera;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.dto.CursoDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.dto.CursoRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.curso.dto.AsignarDisenadorRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.dto.ParaleloDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.dto.ParaleloRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Curso;
@@ -23,6 +24,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.curso.repository.CursoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.repository.ParaleloRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.repository.InscripcionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
+import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.DocenteRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
 import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,7 @@ public class CursoService {
     private final ParaleloRepository paraleloRepository;
     private final CarreraRepository  carreraRepository;
     private final UsuarioRepository  usuarioRepository;
+    private final DocenteRepository  docenteRepository;
     private final InscripcionRepository inscripcionRepository;
 
     // ── Listar cursos abiertos (catálogo público autenticado) ────────────────
@@ -54,6 +57,14 @@ public class CursoService {
         List<Curso> cursos = (idCarrera != null)
             ? cursoRepository.findByCarrera_IdCarrera(idCarrera)
             : cursoRepository.findAll();
+        return cursos.stream().map(this::toCursoDto).toList();
+    }
+
+    // ── Listar cursos asignados al disenador ───────────────────────────────
+    @Transactional(readOnly = true)
+    public List<CursoDto> listarAsignadosDisenador() {
+        Usuario actual = getUsuarioActual();
+        List<Curso> cursos = cursoRepository.findByDisenador_IdUsuario(actual.getIdUsuario());
         return cursos.stream().map(this::toCursoDto).toList();
     }
 
@@ -81,6 +92,8 @@ public class CursoService {
             .organizador(organizador)
             .nombre(request.getNombre())
             .descripcion(request.getDescripcion())
+            .lugar(request.getLugar())
+            .imagen(request.getImagen())
             .cargaHoraria(request.getCargaHoraria())
             .fechaInicio(request.getFechaInicio())
             .costoExterno(request.getCostoExterno())
@@ -106,6 +119,8 @@ public class CursoService {
         curso.setCarrera(carrera);
         curso.setNombre(request.getNombre());
         curso.setDescripcion(request.getDescripcion());
+        curso.setLugar(request.getLugar());
+        curso.setImagen(request.getImagen());
         curso.setCargaHoraria(request.getCargaHoraria());
         curso.setFechaInicio(request.getFechaInicio());
         curso.setCostoExterno(request.getCostoExterno());
@@ -126,6 +141,34 @@ public class CursoService {
             throw new BusinessException(
                 "Estado inválido. Use: ABIERTO, LLENO o FINALIZADO", 400);
         }
+        cursoRepository.save(curso);
+        return toCursoDto(curso);
+    }
+
+    // ── Asignar disenador a curso ─────────────────────────────────────────
+    @Transactional
+    public CursoDto asignarDisenador(Long idCurso, AsignarDisenadorRequest request) {
+        Curso curso = buscarCurso(idCurso);
+        verificarAccesoCarrera(getUsuarioActual(), curso.getCarrera());
+
+        if (request.getIdDisenador() == null) {
+            curso.setDisenador(null);
+            cursoRepository.save(curso);
+            return toCursoDto(curso);
+        }
+
+        Usuario disenador = usuarioRepository.findById(request.getIdDisenador())
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Usuario", request.getIdDisenador()));
+
+        boolean esDisenador = disenador.getRoles().stream()
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals("DISENADOR"));
+        if (!esDisenador) {
+            throw new BusinessException(
+                "El usuario no tiene el rol DISENADOR", 400);
+        }
+
+        curso.setDisenador(disenador);
         cursoRepository.save(curso);
         return toCursoDto(curso);
     }
@@ -256,8 +299,15 @@ public class CursoService {
         dto.setNombreCarrera(c.getCarrera().getNombre());
         dto.setNombreOrganizador(
             c.getOrganizador().getNombres() + " " + c.getOrganizador().getApellidos());
+        if (c.getDisenador() != null) {
+            dto.setIdDisenador(c.getDisenador().getIdUsuario());
+            dto.setNombreDisenador(
+                c.getDisenador().getNombres() + " " + c.getDisenador().getApellidos());
+        }
         dto.setNombre(c.getNombre());
         dto.setDescripcion(c.getDescripcion());
+        dto.setLugar(c.getLugar());
+        dto.setImagen(c.getImagen());
         dto.setCargaHoraria(c.getCargaHoraria());
         dto.setFechaInicio(c.getFechaInicio());
         dto.setCostoExterno(c.getCostoExterno());
@@ -269,6 +319,11 @@ public class CursoService {
             .map(this::toParaleloDto)
             .toList());
         return dto;
+    }
+
+    private String normalizeRolName(String nombreRol) {
+        if (nombreRol == null) return "";
+        return nombreRol.replace("Ñ", "N").replace("ñ", "n").toUpperCase();
     }
 
     private ParaleloDto toParaleloDto(Paralelo p) {
@@ -283,6 +338,9 @@ public class CursoService {
         if (p.getDocente() != null) {
             dto.setNombreDocente(
                 p.getDocente().getNombres() + " " + p.getDocente().getApellidos());
+
+            docenteRepository.findById(p.getDocente().getIdUsuario())
+                .ifPresent(docente -> dto.setTituloDocente(docente.getTitulo()));
         }
 
         // Calcular inscritos y cupos disponibles

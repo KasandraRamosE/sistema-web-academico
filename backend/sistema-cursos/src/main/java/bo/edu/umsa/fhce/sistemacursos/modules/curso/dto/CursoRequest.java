@@ -19,6 +19,12 @@ public class CursoRequest {
 
     private String descripcion;
 
+    @Size(max = 255, message = "El lugar no puede superar 255 caracteres")
+    private String lugar;
+
+    @Size(max = 255, message = "La imagen no puede superar 255 caracteres")
+    private String imagen;
+
     @NotNull(message = "La carga horaria es obligatoria")
     @Positive(message = "La carga horaria debe ser mayor a 0")
     private Integer cargaHoraria;

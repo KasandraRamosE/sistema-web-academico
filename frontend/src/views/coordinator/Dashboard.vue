@@ -175,6 +175,7 @@
         </div>
       </div>
     </Modal>
+
   </div>
 </template>
 
@@ -197,6 +198,8 @@ interface CursoDto {
   idCarrera: number
   nombre: string
   estado: string
+  idDisenador?: number | null
+  nombreDisenador?: string | null
 }
 
 interface EventoDto {

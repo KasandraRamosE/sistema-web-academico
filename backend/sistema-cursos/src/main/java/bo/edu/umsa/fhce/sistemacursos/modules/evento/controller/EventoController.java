@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.AsignarAuxiliarRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.AsignarDisenadorRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.AuxiliarResumenDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.EventoDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.EventoRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.service.EventoService;
@@ -34,7 +36,7 @@ public class EventoController {
 
     // GET /api/eventos — catálogo de eventos abiertos
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     @Operation(summary = "Listar eventos abiertos",
                description = "Filtra por carrera con ?idCarrera=1")
     public ResponseEntity<List<EventoDto>> listar(
@@ -51,9 +53,25 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.listarTodos(idCarrera));
     }
 
+    // GET /api/eventos/disenador
+    @GetMapping("/disenador")
+    @PreAuthorize("hasAnyRole('DISENADOR', 'DISEÑADOR')")
+    @Operation(summary = "Listar eventos asignados al disenador autenticado")
+    public ResponseEntity<List<EventoDto>> listarDisenador() {
+        return ResponseEntity.ok(eventoService.listarAsignadosDisenador());
+    }
+
+    // GET /api/eventos/auxiliar
+    @GetMapping("/auxiliar")
+    @PreAuthorize("hasRole('AUXILIAR')")
+    @Operation(summary = "Listar eventos asignados al auxiliar actual")
+    public ResponseEntity<List<EventoDto>> listarAsignadosAuxiliar() {
+        return ResponseEntity.ok(eventoService.listarAsignadosAuxiliar());
+    }
+
     // GET /api/eventos/{id}
     @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("permitAll()")
     @Operation(summary = "Ver detalle de un evento")
     public ResponseEntity<EventoDto> obtener(@PathVariable Long id) {
         return ResponseEntity.ok(eventoService.obtener(id));
@@ -96,6 +114,16 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.cambiarEstado(id, estado));
     }
 
+    // PATCH /api/eventos/{id}/disenador
+    @PatchMapping("/{id}/disenador")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Asignar o remover disenador del evento")
+    public ResponseEntity<EventoDto> asignarDisenador(
+            @PathVariable Long id,
+            @Valid @RequestBody AsignarDisenadorRequest request) {
+        return ResponseEntity.ok(eventoService.asignarDisenador(id, request));
+    }
+
     // POST /api/eventos/{id}/auxiliares
     @PostMapping("/{id}/auxiliares")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
@@ -122,7 +150,7 @@ public class EventoController {
     @GetMapping("/{id}/auxiliares")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Listar auxiliares asignados a un evento")
-    public ResponseEntity<List<String>> listarAuxiliares(@PathVariable Long id) {
+    public ResponseEntity<List<AuxiliarResumenDto>> listarAuxiliares(@PathVariable Long id) {
         return ResponseEntity.ok(eventoService.listarAuxiliares(id));
     }
 }

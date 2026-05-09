@@ -9,16 +9,20 @@ spring:
     password: fhce_pass
     driver-class-name: com.mysql.cj.jdbc.Driver
   mail:
-    host: sandbox.smtp.mailtrap.io
-    port: 2525
-    username: b02c0e353f0479
-    password: f530b6065a3a3d
+    host: smtp.gmail.com
+    port: 587
+    username: ramos.e.kasandra@gmail.com          # ← tu cuenta Gmail
+    password: uieo ejtb udjp zyhc          # ← contraseña de aplicación (sin espacios)
     properties:
       mail:
         smtp:
           auth: true
           starttls:
             enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 # En dev: mostrar SQL y usar mocks
 logging:
   level:
@@ -32,7 +36,6 @@ app:
     umsa-auth: true     # UmsaAuthClient usará implementación mock
     libelula-pay: true  # LilaPayClient usará implementación mock
   email:
-    from: "noreply@fhce.umsa.bo"
     # URL base para links en emails (en prod cambiar al dominio real)
     base-url: "http://localhost:5173"
 

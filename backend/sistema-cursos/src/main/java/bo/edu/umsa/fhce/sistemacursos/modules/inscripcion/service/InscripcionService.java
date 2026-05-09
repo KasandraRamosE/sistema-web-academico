@@ -61,7 +61,10 @@ public class InscripcionService {
 
         // 2. Verificar que tenga rol PARTICIPANTE
         boolean esParticipante = participante.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("PARTICIPANTE"));
+            .anyMatch(r -> {
+                String nombre = r.getNombre();
+                return "PARTICIPANTE".equals(nombre) || "ROLE_PARTICIPANTE".equals(nombre);
+            });
         if (!esParticipante) {
             throw new BusinessException("Solo los participantes pueden inscribirse", 403);
         }

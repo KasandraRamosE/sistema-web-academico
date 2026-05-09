@@ -227,6 +227,28 @@
     >
       <div class="space-y-4">
         <div>
+          <label class="mb-1 block text-sm font-medium text-slate-700">Auxiliares asignados</label>
+          <div class="mt-2 max-h-40 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">
+            <p v-if="loadingAuxiliaresAsignados" class="text-center text-xs text-slate-500">
+              Cargando auxiliares asignados...
+            </p>
+            <p v-else-if="auxiliaresAsignados.length === 0" class="text-center text-xs text-slate-500">
+              No hay auxiliares asignados.
+            </p>
+            <div
+              v-else
+              v-for="auxiliar in auxiliaresAsignados"
+              :key="auxiliar.idUsuario"
+              class="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm"
+            >
+              <span class="font-medium text-slate-900">
+                {{ auxiliar.nombres }} {{ auxiliar.apellidos }}
+              </span>
+              <span class="text-xs text-slate-500">{{ auxiliar.username }}</span>
+            </div>
+          </div>
+        </div>
+        <div>
           <label class="mb-1 block text-sm font-medium text-slate-700">Buscar auxiliar</label>
           <input
             v-model="auxiliarSearch"
@@ -341,6 +363,7 @@ const carreras = ref<CarreraDto[]>([])
 const selectedCarreraId = ref<number | null>(null)
 const eventos = ref<EventoDto[]>([])
 const auxiliares = ref<AuxiliarDto[]>([])
+const auxiliaresAsignados = ref<AuxiliarDto[]>([])
 const participantes = ref<ParticipanteDto[]>([])
 const loading = ref(false)
 const saving = ref(false)
@@ -369,6 +392,7 @@ const selectedEvento = ref<EventoDto | null>(null)
 const auxiliarSearch = ref('')
 const selectedAuxiliar = ref<ParticipanteDto | null>(null)
 const savingAuxiliar = ref(false)
+const loadingAuxiliaresAsignados = ref(false)
 const showDeleteModal = ref(false)
 const deleting = ref(false)
 const eventoToDelete = ref<EventoDto | null>(null)
@@ -420,6 +444,63 @@ const loadEventos = async () => {
 const loadAuxiliares = async () => {
   const response = await api.get('/usuarios/auxiliares') as AuxiliarDto[]
   auxiliares.value = response
+}
+
+const normalizeAuxiliares = (response: unknown): AuxiliarDto[] => {
+  let items: Array<Record<string, unknown> | string> = []
+
+  if (Array.isArray(response)) {
+    items = response as Array<Record<string, unknown> | string>
+  } else if (response && typeof response === 'object') {
+    const container = response as Record<string, unknown>
+    const list = container.auxiliares ?? container.data ?? container.items ?? container.result
+    if (Array.isArray(list)) {
+      items = list as Array<Record<string, unknown> | string>
+    }
+  }
+
+  return items.map((item, index) => {
+    if (typeof item === 'string') {
+      return {
+        idUsuario: -(index + 1),
+        username: '',
+        nombres: item,
+        apellidos: '',
+        roles: ['AUXILIAR']
+      }
+    }
+
+    const usuario = item.usuario && typeof item.usuario === 'object'
+      ? item.usuario as Record<string, unknown>
+      : null
+    const idUsuario = Number(
+      item.idUsuario ?? item.idUsuarioAuxiliar ?? item.idAuxiliar ?? item.id_usuario ?? item.id ?? usuario?.idUsuario ?? usuario?.id_usuario ?? 0
+    )
+    if (!idUsuario) return null
+
+    return {
+      idUsuario,
+      username: String(item.username ?? item.usernameAuxiliar ?? usuario?.username ?? ''),
+      nombres: String(item.nombres ?? item.nombre ?? usuario?.nombres ?? ''),
+      apellidos: String(item.apellidos ?? item.apellido ?? usuario?.apellidos ?? ''),
+      roles: Array.isArray(item.roles) ? item.roles.map(role => String(role)) : ['AUXILIAR']
+    }
+  }).filter((item): item is AuxiliarDto => Boolean(item))
+}
+
+const loadAuxiliaresAsignados = async () => {
+  if (!selectedEvento.value) return
+
+  loadingAuxiliaresAsignados.value = true
+  try {
+    const response = await api.get(`/eventos/${selectedEvento.value.idEvento}/auxiliares`)
+    auxiliaresAsignados.value = normalizeAuxiliares(response)
+  } catch (error) {
+    console.error('Error al cargar auxiliares asignados:', error)
+    auxiliaresAsignados.value = []
+  } finally {
+    loadingAuxiliaresAsignados.value = false
+  }
 }
 
 const loadParticipantes = async () => {
@@ -515,6 +596,7 @@ const openAuxiliares = (evento: EventoDto) => {
   selectedEvento.value = evento
   auxiliarSearch.value = ''
   selectedAuxiliar.value = null
+  loadAuxiliaresAsignados()
   showAuxiliaresModal.value = true
 }
 
@@ -533,6 +615,7 @@ const closeAuxiliaresModal = () => {
   selectedEvento.value = null
   selectedAuxiliar.value = null
   auxiliarSearch.value = ''
+  auxiliaresAsignados.value = []
 }
 
 const selectAuxiliar = (persona: ParticipanteDto) => {

@@ -67,17 +67,22 @@
 import { computed, onMounted, ref } from 'vue'
 import Card from '@/components/common/Card.vue'
 import { api } from '@/utils/api'
+import { useAuthStore } from '@/stores/auth.store'
 
 interface ActividadItem {
   id: number
   nombre: string
   fecha: string
   carrera: string
+  idDisenador?: number | null
 }
 
 const tabActiva = ref<'CURSO' | 'EVENTO'>('CURSO')
 const busqueda = ref('')
 const loading = ref(false)
+
+const authStore = useAuthStore()
+const currentUserId = computed(() => authStore.user?.idUsuario ?? null)
 
 const cursos = ref<ActividadItem[]>([])
 const eventos = ref<ActividadItem[]>([])
@@ -85,30 +90,35 @@ const eventos = ref<ActividadItem[]>([])
 const actividadesFiltradas = computed(() => {
   const term = busqueda.value.trim().toLowerCase()
   const base = tabActiva.value === 'CURSO' ? cursos.value : eventos.value
-  if (!term) return base
-  return base.filter(item => item.nombre.toLowerCase().includes(term))
+  const assigned = currentUserId.value
+    ? base.filter(item => item.idDisenador === currentUserId.value)
+    : []
+  if (!term) return assigned
+  return assigned.filter(item => item.nombre.toLowerCase().includes(term))
 })
 
 const cargarActividades = async () => {
   loading.value = true
   try {
     const [cursosResponse, eventosResponse] = await Promise.all([
-      api.get('/cursos/todos'),
-      api.get('/eventos/todos')
+      api.get('/cursos/disenador'),
+      api.get('/eventos/disenador')
     ])
 
     cursos.value = (cursosResponse as Array<Record<string, unknown>>).map(curso => ({
       id: Number(curso.idCurso),
       nombre: String(curso.nombre ?? ''),
       fecha: String(curso.fechaInicio ?? ''),
-      carrera: String(curso.nombreCarrera ?? '')
+      carrera: String(curso.nombreCarrera ?? ''),
+      idDisenador: curso.idDisenador ? Number(curso.idDisenador) : null
     }))
 
     eventos.value = (eventosResponse as Array<Record<string, unknown>>).map(evento => ({
       id: Number(evento.idEvento),
       nombre: String(evento.nombre ?? ''),
       fecha: String(evento.fechaHora ?? ''),
-      carrera: String(evento.nombreCarrera ?? '')
+      carrera: String(evento.nombreCarrera ?? ''),
+      idDisenador: evento.idDisenador ? Number(evento.idDisenador) : null
     }))
   } finally {
     loading.value = false

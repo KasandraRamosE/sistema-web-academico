@@ -84,7 +84,7 @@ const eventosFiltrados = computed(() => {
 const loadEventos = async () => {
   loading.value = true
   try {
-    const response = await api.get('/eventos/todos') as EventoDto[]
+    const response = await api.get('/eventos/auxiliar') as EventoDto[]
     eventos.value = response
   } finally {
     loading.value = false
