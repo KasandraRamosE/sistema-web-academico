@@ -6,6 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.text.Normalizer;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
@@ -36,8 +37,18 @@ public class CustomUserDetails implements UserDetails {
         // Convertimos los Rol del usuario en GrantedAuthority de Spring
         // Spring Security espera el prefijo "ROLE_" para roles
         this.authorities = usuario.getRoles().stream()
-            .map(rol -> new SimpleGrantedAuthority("ROLE_" + rol.getNombre()))
+            .map(rol -> new SimpleGrantedAuthority("ROLE_" + normalizeRoleName(rol.getNombre())))
             .collect(Collectors.toSet());
+    }
+
+    private String normalizeRoleName(String name) {
+        if (name == null) {
+            return "";
+        }
+        String trimmed = name.trim();
+        String normalized = Normalizer.normalize(trimmed, Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "");
+        return normalized.toUpperCase();
     }
 
     // Spring Security usa estos métodos para validar la cuenta

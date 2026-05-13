@@ -36,6 +36,13 @@ public interface EvaluacionRepository
         @Param("codigo") String codigo
     );
 
+    @Query("""
+        SELECT COUNT(e) FROM EvaluacionEstudiante e
+        WHERE e.inscripcion.curso.idCurso = :idCurso
+        AND e.estado = 'APROBADO'
+        """)
+    long contarAprobadosPorCurso(@Param("idCurso") Long idCurso);
+
     // Verificar si todos los inscritos del paralelo tienen nota registrada
     @Query("""
         SELECT COUNT(i) FROM Inscripcion i

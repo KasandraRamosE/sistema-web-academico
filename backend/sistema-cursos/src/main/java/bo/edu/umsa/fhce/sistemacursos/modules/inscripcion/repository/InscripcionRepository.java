@@ -70,6 +70,50 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
     long countByEvento_IdEventoAndEstado(Long idEvento, Inscripcion.EstadoInscripcion estado);
 
     @Query("""
+        SELECT COUNT(i) FROM Inscripcion i
+        WHERE i.curso.idCurso = :idCurso
+          AND i.estado = 'CONFIRMADA'
+          AND i.tipoPrecio = :tipo
+        """)
+    long contarConfirmadasCursoPorTipo(
+        @Param("idCurso") Long idCurso,
+        @Param("tipo") Inscripcion.TipoPrecio tipo
+    );
+
+    @Query("""
+        SELECT COUNT(i) FROM Inscripcion i
+        WHERE i.evento.idEvento = :idEvento
+          AND i.estado = 'CONFIRMADA'
+          AND i.tipoPrecio = :tipo
+        """)
+    long contarConfirmadasEventoPorTipo(
+        @Param("idEvento") Long idEvento,
+        @Param("tipo") Inscripcion.TipoPrecio tipo
+    );
+
+    @Query("""
+        SELECT COALESCE(SUM(i.saldo), 0) FROM Inscripcion i
+        WHERE i.curso.idCurso = :idCurso
+          AND i.estado = 'CONFIRMADA'
+          AND i.tipoPrecio = :tipo
+        """)
+    java.math.BigDecimal sumarSaldoCursoPorTipo(
+        @Param("idCurso") Long idCurso,
+        @Param("tipo") Inscripcion.TipoPrecio tipo
+    );
+
+    @Query("""
+        SELECT COALESCE(SUM(i.saldo), 0) FROM Inscripcion i
+        WHERE i.evento.idEvento = :idEvento
+          AND i.estado = 'CONFIRMADA'
+          AND i.tipoPrecio = :tipo
+        """)
+    java.math.BigDecimal sumarSaldoEventoPorTipo(
+        @Param("idEvento") Long idEvento,
+        @Param("tipo") Inscripcion.TipoPrecio tipo
+    );
+
+    @Query("""
         SELECT new bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteFinancieroActividadDto(
             'CURSO',
             c.idCurso,

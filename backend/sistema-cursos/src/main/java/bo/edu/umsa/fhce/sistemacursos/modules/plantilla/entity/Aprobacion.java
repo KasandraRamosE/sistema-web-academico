@@ -31,7 +31,7 @@ public class Aprobacion {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 10)
-    private EstadoAprobacion estado = EstadoAprobacion.PENDIENTE;
+    private EstadoAprobacion estado;
 
     // Feedback del coordinador al diseñador
     @Column(name = "observaciones", columnDefinition = "TEXT")
@@ -43,10 +43,9 @@ public class Aprobacion {
     @PrePersist
     protected void onCreate() {
         this.fechaRevision = LocalDateTime.now();
-        if (this.estado == null) this.estado = EstadoAprobacion.PENDIENTE;
     }
 
     public enum EstadoAprobacion {
-        PENDIENTE, APROBADA, RECHAZADA
+        APROBADA, RECHAZADA
     }
 }

@@ -28,6 +28,11 @@ spring:
   jackson:
     default-property-inclusion: non_null
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
 # Configuración del servidor
 server:
   port: 8080
@@ -43,6 +48,8 @@ app:
     secret: "fhce-umsa-sistema-cursos-jwt-secret-key-2025-segura"
     # Tiempo de expiración del token: 24 horas en milisegundos
     expiration-ms: 86400000
+    # Tiempo de expiración del refresh token: 7 días en milisegundos
+    refresh-expiration-ms: 604800000
   email:
     from: "ramos.e.kasandra@gmail.com"
     base-url: "http://localhost:5173"
@@ -52,10 +59,17 @@ app:
   plantillas:
     max-size-mb: 5
 
+  archivos:
+    directorio: uploads
+    max-size-mb: 5
+
   verificacion:
     expiracion-horas: 24      # cuánto dura el código
     longitud-codigo: 6        # dígitos del código (siempre 6 en tu BD)
     max-intentos-reenvio: 3   # límite de reenvíos (para implementar después)
+
+  umsa:
+    email-domain: "umsa.bo"
 
 # Swagger UI — accesible en http://localhost:8080/api/swagger-ui.html
 springdoc:

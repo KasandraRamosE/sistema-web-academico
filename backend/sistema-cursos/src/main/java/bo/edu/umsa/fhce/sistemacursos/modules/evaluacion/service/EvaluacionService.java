@@ -316,6 +316,7 @@ public class EvaluacionService {
             SolicitudEventoRequest request) {
         Evento evento = eventoRepository.findById(idEvento)
             .orElseThrow(() -> new ResourceNotFoundException("Evento", idEvento));
+        Usuario coordinador = getUsuarioActual();
 
         boolean existePendiente = solicitudRepository
             .existsByEvento_IdEventoAndEstado(
@@ -337,6 +338,7 @@ public class EvaluacionService {
 
         SolicitudEmision solicitud = SolicitudEmision.builder()
             .evento(evento)
+            .docente(coordinador)
             .cantidadAprobados(asistentes)
             .estado(SolicitudEmision.EstadoSolicitud.PENDIENTE)
             .notas(request != null ? request.getNotas() : null)

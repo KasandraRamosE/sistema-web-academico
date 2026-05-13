@@ -8,6 +8,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.UUID;
 import java.io.InputStream;
+import java.text.Normalizer;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,6 +22,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Curso;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.repository.CursoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.Evento;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.EventoRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.AprobacionDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.AprobacionRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.PlantillaDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.entity.Aprobacion;
@@ -180,6 +182,19 @@ public class PlantillaService {
             : plantillaRepository.findByEvento_IdEventoOrderByVersionDesc(idEvento);
 
         return plantillas.stream().map(this::toPlantillaDto).toList();
+    }
+
+    // ── Historial de revisiones de una plantilla ────────────────────────────
+    @Transactional(readOnly = true)
+    public List<AprobacionDto> historialAprobaciones(Long idPlantilla) {
+        PlantillaCertificado plantilla = buscarPlantilla(idPlantilla);
+        validarPermisoVerAprobaciones(plantilla);
+
+        return aprobacionRepository
+            .findByPlantilla_IdPlantillaOrderByFechaRevisionDesc(idPlantilla)
+            .stream()
+            .map(this::toAprobacionDto)
+            .toList();
     }
 
     // ── Helpers privados ─────────────────────────────────────────────────────
@@ -371,26 +386,34 @@ public class PlantillaService {
         return dto;
     }
 
+    private AprobacionDto toAprobacionDto(Aprobacion aprobacion) {
+        AprobacionDto dto = new AprobacionDto();
+        dto.setIdAprobacion(aprobacion.getIdAprobacion());
+        dto.setEstado(aprobacion.getEstado().name());
+        dto.setObservaciones(aprobacion.getObservaciones());
+        dto.setFechaRevision(aprobacion.getFechaRevision());
+        dto.setCoordinador(aprobacion.getCoordinador().getNombres()
+            + " " + aprobacion.getCoordinador().getApellidos());
+        return dto;
+    }
+
     private record Actividad(Curso curso, Evento evento, Long idCurso, Long idEvento) {
     }
 
     private void validarPermisoDescarga(PlantillaCertificado plantilla) {
         Usuario actual = getUsuarioActual();
 
-        boolean esAdmin = actual.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+        boolean esAdmin = tieneRol(actual, "ADMINISTRADOR");
         if (esAdmin) {
             return;
         }
 
-        boolean esCoordinador = actual.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
+        boolean esCoordinador = tieneRol(actual, "COORDINADOR");
         if (esCoordinador) {
             return;
         }
 
-        boolean esDisenador = actual.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("DISEÑADOR"));
+        boolean esDisenador = tieneRol(actual, "DISENADOR", "DISEÑADOR");
         if (esDisenador
                 && plantilla.getSubidaPor() != null
                 && actual.getIdUsuario().equals(plantilla.getSubidaPor().getIdUsuario())) {
@@ -401,16 +424,38 @@ public class PlantillaService {
             "No tienes permisos para descargar esta plantilla", 403);
     }
 
-    private void validarCoordinadorDeActividad(Usuario coordinador,
-                                               PlantillaCertificado plantilla) {
-        boolean esAdmin = coordinador.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+    private void validarPermisoVerAprobaciones(PlantillaCertificado plantilla) {
+        Usuario actual = getUsuarioActual();
+
+        boolean esAdmin = tieneRol(actual, "ADMINISTRADOR");
         if (esAdmin) {
             return;
         }
 
-        boolean esCoordinador = coordinador.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
+        boolean esCoordinador = tieneRol(actual, "COORDINADOR");
+        if (esCoordinador) {
+            return;
+        }
+
+        boolean esDisenador = tieneRol(actual, "DISENADOR", "DISEÑADOR");
+        if (esDisenador
+                && plantilla.getSubidaPor() != null
+                && actual.getIdUsuario().equals(plantilla.getSubidaPor().getIdUsuario())) {
+            return;
+        }
+
+        throw new BusinessException(
+            "No tienes permisos para ver las revisiones de esta plantilla", 403);
+    }
+
+    private void validarCoordinadorDeActividad(Usuario coordinador,
+                                               PlantillaCertificado plantilla) {
+        boolean esAdmin = tieneRol(coordinador, "ADMINISTRADOR");
+        if (esAdmin) {
+            return;
+        }
+
+        boolean esCoordinador = tieneRol(coordinador, "COORDINADOR");
         if (!esCoordinador) {
             throw new BusinessException(
                 "No tienes permisos para revisar plantillas", 403);
@@ -435,5 +480,28 @@ public class PlantillaService {
             throw new BusinessException(
                 "No eres coordinador de la carrera de esta actividad", 403);
         }
+    }
+
+    private boolean tieneRol(Usuario usuario, String... roles) {
+        return usuario.getRoles().stream()
+            .map(rol -> normalizarRol(rol.getNombre()))
+            .anyMatch(normalizado -> {
+                for (String rol : roles) {
+                    if (normalizado.equals(normalizarRol(rol))) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+    }
+
+    private String normalizarRol(String rol) {
+        if (rol == null) {
+            return "";
+        }
+        String trimmed = rol.trim();
+        String normalized = Normalizer.normalize(trimmed, Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "");
+        return normalized.toUpperCase();
     }
 }

@@ -17,6 +17,7 @@ public class ReporteAcademicoCursoDto {
     private String nombre;
     private String carrera;
     private LocalDate fechaInicio;
+    private Long cupoMaximo;
     private Curso.EstadoCurso estado;
     private Long inscritosConfirmados;
 }

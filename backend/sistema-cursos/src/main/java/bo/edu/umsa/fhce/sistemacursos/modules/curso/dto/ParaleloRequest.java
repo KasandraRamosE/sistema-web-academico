@@ -27,5 +27,8 @@ public class ParaleloRequest {
     private String horarioDescripcion;
 
     @Size(max = 255)
+    private String lugar;
+
+    @Size(max = 255)
     private String link;
 }

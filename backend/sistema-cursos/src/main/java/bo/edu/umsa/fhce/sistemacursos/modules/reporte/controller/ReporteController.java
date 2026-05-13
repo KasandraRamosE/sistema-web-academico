@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteAcademicoDto;
+import bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteActividadDetalleDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteFinancieroDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteParticipacionDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.reporte.service.ReporteService;
@@ -52,6 +53,19 @@ public class ReporteController {
         return ResponseEntity.ok(reporteService.reporteFinanciero(idCarrera, desde, hasta));
     }
 
+    // GET /api/reportes/financieros/coordinador
+    @GetMapping("/financieros/coordinador")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Reporte financiero para coordinadores (limitado por carrera)")
+    public ResponseEntity<ReporteFinancieroDto> financierosCoordinador(
+            @RequestParam(required = false) Long idCarrera,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        return ResponseEntity.ok(reporteService.reporteFinancieroCoordinador(idCarrera, desde, hasta));
+    }
+
     // GET /api/reportes/participacion
     @GetMapping("/participacion")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
@@ -63,5 +77,15 @@ public class ReporteController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
         return ResponseEntity.ok(reporteService.reporteParticipacion(idCarrera, desde, hasta));
+    }
+
+    // GET /api/reportes/actividad
+    @GetMapping("/actividad")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Detalle de reporte por actividad (curso o evento)")
+    public ResponseEntity<ReporteActividadDetalleDto> detalleActividad(
+            @RequestParam String tipo,
+            @RequestParam Long idActividad) {
+        return ResponseEntity.ok(reporteService.reporteDetalleActividad(tipo, idActividad));
     }
 }

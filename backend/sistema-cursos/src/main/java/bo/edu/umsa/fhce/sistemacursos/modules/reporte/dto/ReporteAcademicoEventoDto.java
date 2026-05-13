@@ -17,6 +17,7 @@ public class ReporteAcademicoEventoDto {
     private String nombre;
     private String carrera;
     private LocalDateTime fechaHora;
+    private Long cupoMaximo;
     private Evento.EstadoEvento estado;
     private Long inscritosConfirmados;
 }

@@ -42,6 +42,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
             e.nombre,
             e.carrera.nombre,
             e.fechaHora,
+            COALESCE(CAST(e.cupoMaximo AS long), 0),
             e.estado,
             COUNT(i)
         )
@@ -52,7 +53,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
           AND (:carreras IS NULL OR e.carrera.idCarrera IN :carreras)
           AND (:desde IS NULL OR e.fechaHora >= :desde)
           AND (:hasta IS NULL OR e.fechaHora <= :hasta)
-        GROUP BY e.idEvento, e.nombre, e.carrera.nombre, e.fechaHora, e.estado
+        GROUP BY e.idEvento, e.nombre, e.carrera.nombre, e.fechaHora, e.cupoMaximo, e.estado
         ORDER BY e.fechaHora DESC
         """)
     List<ReporteAcademicoEventoDto> reporteAcademicoEventos(

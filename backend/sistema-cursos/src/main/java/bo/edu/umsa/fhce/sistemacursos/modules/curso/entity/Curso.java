@@ -42,9 +42,6 @@ public class Curso {
     @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
 
-    @Column(name = "lugar", length = 255)
-    private String lugar;
-
     @Column(name = "imagen", length = 255)
     private String imagen;
 

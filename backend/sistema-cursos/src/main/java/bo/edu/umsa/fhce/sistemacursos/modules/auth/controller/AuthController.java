@@ -2,7 +2,10 @@ package bo.edu.umsa.fhce.sistemacursos.modules.auth.controller;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LoginRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LoginResponse;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LogoutRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.MensajeResponse;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RefreshTokenRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RefreshTokenResponse;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.VerificarEmailRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RegistroRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.service.AuthService;
@@ -33,6 +36,18 @@ public class AuthController {
     @Operation(summary = "Login", description = "Devuelve JWT para usuarios UMSA y externos")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Refrescar token", description = "Devuelve un nuevo JWT usando refresh token")
+    public ResponseEntity<RefreshTokenResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(authService.refreshToken(request));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout", description = "Revoca el refresh token actual")
+    public ResponseEntity<MensajeResponse> logout(@Valid @RequestBody LogoutRequest request) {
+        return ResponseEntity.ok(authService.logout(request));
     }
 
     @PostMapping("/registro")

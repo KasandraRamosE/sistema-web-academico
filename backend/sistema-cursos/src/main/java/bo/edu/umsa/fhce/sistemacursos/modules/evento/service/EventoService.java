@@ -9,7 +9,9 @@ import org.springframework.transaction.annotation.Transactional;
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.Carrera;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.CoordinadorCarrera;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CarreraRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.AsignarAuxiliarRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.AsignarDisenadorRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.AuxiliarResumenDto;
@@ -35,6 +37,7 @@ public class EventoService {
     private final EventoRepository        eventoRepository;
     private final AuxiliarEventoRepository auxiliarEventoRepository;
     private final CarreraRepository       carreraRepository;
+    private final CoordinadorCarreraRepository coordinadorCarreraRepository;
     private final UsuarioRepository       usuarioRepository;
     private final InscripcionRepository inscripcionRepository;
 
@@ -50,9 +53,25 @@ public class EventoService {
     // ── Listar todos (admin y coordinador) ───────────────────────────────────
     @Transactional(readOnly = true)
     public List<EventoDto> listarTodos(Long idCarrera) {
+        Usuario actual = getUsuarioActual();
+        if (esAdmin(actual)) {
+            List<Evento> eventos = (idCarrera != null)
+                ? eventoRepository.findByCarrera_IdCarrera(idCarrera)
+                : eventoRepository.findAll();
+            return eventos.stream().map(this::toEventoDto).toList();
+        }
+
+        requireCoordinador(actual);
+        List<Long> carrerasAsignadas = getCarrerasAsignadas(actual.getIdUsuario());
+        if (idCarrera != null && !carrerasAsignadas.contains(idCarrera)) {
+            throw new BusinessException("No tienes permisos para ver eventos de esta carrera", 403);
+        }
+
         List<Evento> eventos = (idCarrera != null)
             ? eventoRepository.findByCarrera_IdCarrera(idCarrera)
-            : eventoRepository.findAll();
+            : eventoRepository.findAll().stream()
+                .filter(evento -> carrerasAsignadas.contains(evento.getCarrera().getIdCarrera()))
+                .toList();
         return eventos.stream().map(this::toEventoDto).toList();
     }
 
@@ -77,6 +96,7 @@ public class EventoService {
             .orElseThrow(() -> new ResourceNotFoundException("Carrera", request.getIdCarrera()));
 
         Usuario organizador = getUsuarioActual();
+        verificarAccesoCarrera(organizador, carrera);
 
         Evento evento = Evento.builder()
             .carrera(carrera)
@@ -104,6 +124,7 @@ public class EventoService {
     @Transactional
     public EventoDto actualizar(Long idEvento, EventoRequest request) {
         Evento evento = buscarEvento(idEvento);
+        verificarAccesoCarrera(getUsuarioActual(), evento.getCarrera());
 
         Carrera carrera = carreraRepository.findById(request.getIdCarrera())
             .orElseThrow(() -> new ResourceNotFoundException("Carrera", request.getIdCarrera()));
@@ -129,6 +150,7 @@ public class EventoService {
     @Transactional
     public EventoDto cambiarEstado(Long idEvento, String estado) {
         Evento evento = buscarEvento(idEvento);
+        verificarAccesoCarrera(getUsuarioActual(), evento.getCarrera());
         try {
             evento.setEstado(Evento.EstadoEvento.valueOf(estado));
         } catch (IllegalArgumentException e) {
@@ -143,6 +165,7 @@ public class EventoService {
     @Transactional
     public EventoDto asignarDisenador(Long idEvento, AsignarDisenadorRequest request) {
         Evento evento = buscarEvento(idEvento);
+        verificarAccesoCarrera(getUsuarioActual(), evento.getCarrera());
 
         if (request.getIdDisenador() == null) {
             evento.setDisenador(null);
@@ -170,6 +193,7 @@ public class EventoService {
     @Transactional
     public void eliminar(Long idEvento) {
         Evento evento = buscarEvento(idEvento);
+        verificarAccesoCarrera(getUsuarioActual(), evento.getCarrera());
         eventoRepository.delete(evento);
         log.info("Evento eliminado: {}", idEvento);
     }
@@ -178,6 +202,7 @@ public class EventoService {
     @Transactional
     public void asignarAuxiliar(Long idEvento, AsignarAuxiliarRequest request) {
         Evento evento = buscarEvento(idEvento);
+        verificarAccesoCarrera(getUsuarioActual(), evento.getCarrera());
 
         Usuario auxiliar = usuarioRepository.findById(request.getIdAuxiliar())
             .orElseThrow(() -> new ResourceNotFoundException(
@@ -208,6 +233,8 @@ public class EventoService {
     // ── Remover auxiliar de evento ───────────────────────────────────────────
     @Transactional
     public void removerAuxiliar(Long idEvento, Long idAuxiliar) {
+        Evento evento = buscarEvento(idEvento);
+        verificarAccesoCarrera(getUsuarioActual(), evento.getCarrera());
         AuxiliarEventoId pk = new AuxiliarEventoId(idAuxiliar, idEvento);
         if (!auxiliarEventoRepository.existsById(pk)) {
             throw new BusinessException(
@@ -219,7 +246,8 @@ public class EventoService {
     // ── Listar auxiliares de un evento ───────────────────────────────────────
     @Transactional(readOnly = true)
     public List<AuxiliarResumenDto> listarAuxiliares(Long idEvento) {
-        buscarEvento(idEvento);
+        Evento evento = buscarEvento(idEvento);
+        verificarAccesoCarrera(getUsuarioActual(), evento.getCarrera());
         return auxiliarEventoRepository.findByIdEvento(idEvento)
             .stream()
             .map(ae -> {
@@ -265,6 +293,39 @@ public class EventoService {
         return usuarioRepository.findById(userDetails.getIdUsuario())
             .orElseThrow(() -> new ResourceNotFoundException(
                 "Usuario", userDetails.getIdUsuario()));
+    }
+
+    private void verificarAccesoCarrera(Usuario usuario, Carrera carrera) {
+        if (esAdmin(usuario)) return;
+
+        requireCoordinador(usuario);
+        boolean tieneCarrera = coordinadorCarreraRepository
+            .existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                usuario.getIdUsuario(), carrera.getIdCarrera()
+            );
+        if (!tieneCarrera) {
+            throw new BusinessException("No tienes permisos para gestionar esta carrera", 403);
+        }
+    }
+
+    private boolean esAdmin(Usuario usuario) {
+        return usuario.getRoles().stream().anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+    }
+
+    private void requireCoordinador(Usuario usuario) {
+        boolean esCoordinador = usuario.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
+        if (!esCoordinador) {
+            throw new BusinessException("No tienes permisos para gestionar eventos", 403);
+        }
+    }
+
+    private List<Long> getCarrerasAsignadas(Long idUsuario) {
+        return coordinadorCarreraRepository.findByIdCoordinador(idUsuario)
+            .stream()
+            .map(CoordinadorCarrera::getCarrera)
+            .map(Carrera::getIdCarrera)
+            .toList();
     }
 
     private EventoDto toEventoDto(Evento e) {

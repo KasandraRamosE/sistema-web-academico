@@ -34,6 +34,9 @@ public class Paralelo {
     @Column(name = "horario_descripcion", length = 255)
     private String horarioDescripcion;
 
+    @Column(name = "lugar", length = 255)
+    private String lugar;
+
     @Column(name = "link", length = 255)
     private String link;
 

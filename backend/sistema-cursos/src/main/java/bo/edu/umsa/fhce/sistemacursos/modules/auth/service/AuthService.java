@@ -2,6 +2,7 @@ package bo.edu.umsa.fhce.sistemacursos.modules.auth.service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -17,11 +18,19 @@ import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LoginRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LoginResponse;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LogoutRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.MensajeResponse;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RefreshTokenRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RefreshTokenResponse;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RegistroRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.VerificarEmailRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.entity.CodigoVerificacion;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.entity.RefreshToken;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.integration.UmsaAuthClient;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.integration.UmsaAuthResult;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.integration.UmsaAuthStatus;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.repository.CodigoVerificacionRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.repository.RefreshTokenRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Participante;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Rol;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
@@ -29,6 +38,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.ParticipanteRep
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.RolRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
 import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
+import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetailsService;
 import bo.edu.umsa.fhce.sistemacursos.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,56 +55,34 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final RolRepository rolRepository;
     private final CodigoVerificacionRepository codigoRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
+    private final CustomUserDetailsService userDetailsService;
+    private final UmsaAuthClient umsaAuthClient;
 
     @Value("${app.verificacion.expiracion-horas:24}")
     private int expiracionHoras;
 
+    @Value("${app.jwt.refresh-expiration-ms:604800000}")
+    private long refreshExpirationMs;
+
+    @Value("${app.umsa.email-domain:umsa.bo}")
+    private String umsaEmailDomain;
+
     public LoginResponse login(LoginRequest request) {
-        // 1. Delegar la autenticación a Spring Security
-        //    Spring internamente llama a CustomUserDetailsService.loadUserByUsername
-        //    y luego verifica la contraseña con BCrypt
-        Authentication authentication = authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(
-                request.getUsername(),
-                request.getPassword()
-            )
-        );
+        String username = request.getUsername().trim();
+        Usuario usuario = usuarioRepository.findByUsernameWithRoles(username).orElse(null);
 
-        // 2. Generar el JWT con los datos del usuario autenticado
-        String jwt = tokenProvider.generateToken(authentication);
-
-        // 3. Construir la respuesta con los datos del usuario
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-
-        Usuario usuario = usuarioRepository.findById(userDetails.getIdUsuario())
-            .orElseThrow(() -> new ResourceNotFoundException(
-                "Usuario", userDetails.getIdUsuario()));
-        if (usuario.getEstado() == Usuario.EstadoUsuario.INACTIVO) {
-            throw new BusinessException("La cuenta está inactiva", 403);
+        if (usuario != null && usuario.getPasswordHash() != null) {
+            return loginExterno(request);
         }
 
-        List<String> roles = userDetails.getAuthorities().stream()
-            .map(GrantedAuthority::getAuthority)
-            .toList();
+        if (!esRu(username) && usuario == null) {
+            throw new BusinessException("Usuario no encontrado", 401);
+        }
 
-        // Nota: nombres y apellidos los cargamos por separado en el controller
-        // o podemos extender CustomUserDetails — por ahora lo simplificamos
-        String tipoParticipante = participanteRepository.findById(userDetails.getIdUsuario())
-            .map(participante -> participante.getTipoParticipante().name())
-            .orElse(null);
-
-        return new LoginResponse(
-            jwt,
-            "Bearer",
-            userDetails.getIdUsuario(),
-            userDetails.getUsername(),
-            userDetails.getNombres(),
-            userDetails.getApellidos(),
-            tipoParticipante,
-            roles
-        );
+        return loginUmsa(request, usuario);
 
         
     }
@@ -237,11 +225,216 @@ public class AuthService {
         return new MensajeResponse("Se envió un nuevo código a " + usuario.getEmail());
     }
 
+    private LoginResponse loginExterno(LoginRequest request) {
+        Authentication authentication = authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(
+                request.getUsername(),
+                request.getPassword()
+            )
+        );
+
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+
+        Usuario usuario = usuarioRepository.findById(userDetails.getIdUsuario())
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Usuario", userDetails.getIdUsuario()));
+        if (usuario.getEstado() == Usuario.EstadoUsuario.INACTIVO) {
+            throw new BusinessException("La cuenta está inactiva", 403);
+        }
+
+        return buildLoginResponse(userDetails, usuario);
+    }
+
+    private LoginResponse loginUmsa(LoginRequest request, Usuario usuario) {
+        UmsaAuthResult result = umsaAuthClient.authenticate(
+            request.getUsername().trim(),
+            request.getPassword()
+        );
+
+        if (result.getStatus() == UmsaAuthStatus.UNAVAILABLE) {
+            throw new BusinessException("Servicio de autenticación UMSA no disponible", 503);
+        }
+
+        if (result.getStatus() != UmsaAuthStatus.SUCCESS) {
+            if (usuario != null && usuario.getPasswordHash() == null
+                && (result.getStatus() == UmsaAuthStatus.NOT_FOUND || result.getStatus() == UmsaAuthStatus.INACTIVE)) {
+                usuario.setEstado(Usuario.EstadoUsuario.INACTIVO);
+                usuarioRepository.save(usuario);
+            }
+            throw new BusinessException("Credenciales UMSA inválidas", 401);
+        }
+
+        Usuario actualizado = sincronizarUsuarioUmsa(usuario, result);
+        CustomUserDetails userDetails = new CustomUserDetails(actualizado);
+        return buildLoginResponse(userDetails, actualizado);
+    }
+
+    private Usuario sincronizarUsuarioUmsa(Usuario usuario, UmsaAuthResult result) {
+        String ru = result.getRu();
+        String email = construirEmailUmsa(ru);
+
+        if (usuario == null) {
+            if (usuarioRepository.existsByEmail(email)) {
+                throw new BusinessException("El email " + email + " ya está registrado", 409);
+            }
+            Rol rolParticipante = rolRepository.findByNombre("PARTICIPANTE")
+                .orElseThrow(() -> new RuntimeException("Rol PARTICIPANTE no encontrado en BD"));
+
+            Usuario nuevoUsuario = Usuario.builder()
+                .username(ru)
+                .nombres(result.getNombres())
+                .apellidos(result.getApellidos())
+                .email(email)
+                .emailVerificado(true)
+                .passwordHash(null)
+                .estado(Usuario.EstadoUsuario.ACTIVO)
+                .build();
+
+            nuevoUsuario.getRoles().add(rolParticipante);
+            nuevoUsuario = usuarioRepository.save(nuevoUsuario);
+
+            Participante participante = new Participante();
+            participante.setUsuario(nuevoUsuario);
+            participante.setTipoParticipante(Participante.TipoParticipante.UMSA);
+            participanteRepository.save(participante);
+
+            return nuevoUsuario;
+        }
+
+        if (!email.equals(usuario.getEmail()) && usuarioRepository.existsByEmail(email)) {
+            throw new BusinessException("El email " + email + " ya está registrado", 409);
+        }
+
+        usuario.setNombres(result.getNombres());
+        usuario.setApellidos(result.getApellidos());
+        usuario.setEmail(email);
+        usuario.setEmailVerificado(true);
+        usuario.setEstado(Usuario.EstadoUsuario.ACTIVO);
+
+        if (usuario.getRoles().stream().noneMatch(r -> "PARTICIPANTE".equals(r.getNombre()))) {
+            Rol rolParticipante = rolRepository.findByNombre("PARTICIPANTE")
+                .orElseThrow(() -> new RuntimeException("Rol PARTICIPANTE no encontrado en BD"));
+            usuario.getRoles().add(rolParticipante);
+        }
+
+        usuario = usuarioRepository.save(usuario);
+
+        if (participanteRepository.findById(usuario.getIdUsuario()).isEmpty()) {
+            Participante participante = new Participante();
+            participante.setUsuario(usuario);
+            participante.setTipoParticipante(Participante.TipoParticipante.UMSA);
+            participanteRepository.save(participante);
+        }
+
+        return usuario;
+    }
+
+    private LoginResponse buildLoginResponse(CustomUserDetails userDetails, Usuario usuario) {
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+            userDetails,
+            null,
+            userDetails.getAuthorities()
+        );
+
+        String jwt = tokenProvider.generateToken(authentication);
+
+        List<String> roles = userDetails.getAuthorities().stream()
+            .map(GrantedAuthority::getAuthority)
+            .toList();
+
+        String tipoParticipante = participanteRepository.findById(userDetails.getIdUsuario())
+            .map(participante -> participante.getTipoParticipante().name())
+            .orElse(null);
+
+        RefreshToken refreshToken = crearRefreshToken(usuario);
+
+        return new LoginResponse(
+            jwt,
+            "Bearer",
+            refreshToken.getToken(),
+            userDetails.getIdUsuario(),
+            userDetails.getUsername(),
+            userDetails.getNombres(),
+            userDetails.getApellidos(),
+            tipoParticipante,
+            roles
+        );
+    }
+
+    // ── Refresh token ───────────────────────────────────────────────────────
+    @Transactional
+    public RefreshTokenResponse refreshToken(RefreshTokenRequest request) {
+        RefreshToken refreshToken = refreshTokenRepository
+            .findByTokenAndRevocadoFalse(request.getRefreshToken())
+            .orElseThrow(() -> new BusinessException("Refresh token inválido", 401));
+
+        if (refreshToken.estaExpirado()) {
+            refreshToken.setRevocado(true);
+            refreshTokenRepository.save(refreshToken);
+            throw new BusinessException("Refresh token expirado", 401);
+        }
+
+        Usuario usuario = refreshToken.getUsuario();
+        if (usuario.getEstado() == Usuario.EstadoUsuario.INACTIVO) {
+            throw new BusinessException("La cuenta está inactiva", 403);
+        }
+
+        CustomUserDetails userDetails = (CustomUserDetails)
+            userDetailsService.loadUserByUsername(usuario.getUsername());
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+            userDetails,
+            null,
+            userDetails.getAuthorities()
+        );
+
+        String jwt = tokenProvider.generateToken(authentication);
+
+        refreshToken.setRevocado(true);
+        refreshTokenRepository.save(refreshToken);
+
+        RefreshToken nuevoRefresh = crearRefreshToken(usuario);
+
+        return new RefreshTokenResponse(jwt, "Bearer", nuevoRefresh.getToken());
+    }
+
+    // ── Logout ─────────────────────────────────────────────────────────────
+    @Transactional
+    public MensajeResponse logout(LogoutRequest request) {
+        refreshTokenRepository.revocarPorToken(request.getRefreshToken());
+        return new MensajeResponse("Sesión cerrada correctamente");
+    }
+
     // ── Utilidad: genera código numérico de 6 dígitos ───────────────────────
     private String generarCodigo6Digitos() {
         // SecureRandom es criptográficamente seguro (mejor que Math.random())
         SecureRandom random = new SecureRandom();
         int numero = 100000 + random.nextInt(900000); // rango: 100000–999999
         return String.valueOf(numero);
+    }
+
+    private RefreshToken crearRefreshToken(Usuario usuario) {
+        String token = generarTokenSeguro();
+        RefreshToken refreshToken = RefreshToken.builder()
+            .usuario(usuario)
+            .token(token)
+            .revocado(false)
+            .fechaCreacion(LocalDateTime.now())
+            .fechaExpiracion(LocalDateTime.now().plusNanos(refreshExpirationMs * 1_000_000))
+            .build();
+        return refreshTokenRepository.save(refreshToken);
+    }
+
+    private String generarTokenSeguro() {
+        byte[] randomBytes = new byte[64];
+        new SecureRandom().nextBytes(randomBytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+    }
+
+    private boolean esRu(String username) {
+        return username != null && username.matches("\\d+");
+    }
+
+    private String construirEmailUmsa(String ru) {
+        return ru + "@" + umsaEmailDomain;
     }
 }

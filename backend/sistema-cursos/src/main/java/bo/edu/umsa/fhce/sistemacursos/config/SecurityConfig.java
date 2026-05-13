@@ -3,6 +3,8 @@
 package bo.edu.umsa.fhce.sistemacursos.config;
 
 import bo.edu.umsa.fhce.sistemacursos.security.JwtAuthFilter;
+import bo.edu.umsa.fhce.sistemacursos.security.RestAccessDeniedHandler;
+import bo.edu.umsa.fhce.sistemacursos.security.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,12 +34,15 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+    private final RestAccessDeniedHandler restAccessDeniedHandler;
 
     // ── Endpoints PÚBLICOS — no requieren JWT ────────────────────────────────
     private static final String[] PUBLIC_ENDPOINTS = {
         "/auth/**",              // login, registro, verificación de email
         "/verificar/**",         // verificación pública de certificados por QR
         "/certificados/verificar/**",
+        "/uploads/**",
         "/swagger-ui/**",        // documentación API en desarrollo
         "/swagger-ui.html",
         "/api-docs/**",
@@ -59,6 +64,11 @@ public class SecurityConfig {
             // STATELESS = Spring nunca crea ni usa HttpSession
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+            // Respuestas consistentes: 401 sin autenticacion y 403 sin permisos
+            .exceptionHandling(exception -> exception
+                .authenticationEntryPoint(restAuthenticationEntryPoint)
+                .accessDeniedHandler(restAccessDeniedHandler))
 
             // Reglas de autorización por endpoint
             .authorizeHttpRequests(auth -> auth

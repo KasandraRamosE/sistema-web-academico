@@ -99,6 +99,21 @@ CREATE TABLE codigo_verificacion (
 ) ENGINE=InnoDB COMMENT='Códigos de 6 dígitos para verificar email de usuarios externos';
 
 
+CREATE TABLE refresh_token (
+    id_refresh       BIGINT       AUTO_INCREMENT PRIMARY KEY,
+    id_usuario       BIGINT       NOT NULL,
+    token            VARCHAR(255) NOT NULL UNIQUE,
+    revocado         BOOLEAN      NOT NULL DEFAULT FALSE,
+    fecha_creacion   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_expiracion DATETIME     NOT NULL,
+
+    FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+
+    INDEX idx_usuario (id_usuario),
+    INDEX idx_revocado (revocado)
+) ENGINE=InnoDB COMMENT='Refresh tokens para renovar JWT';
+
+
 -- ============================================================
 -- MÓDULO 2: ESTRUCTURA ACADÉMICA
 -- ============================================================
@@ -134,7 +149,6 @@ CREATE TABLE curso (
     id_disenador     BIGINT          NULL      COMMENT 'FK al usuario con rol DISEÑADOR',
     nombre           VARCHAR(200)    NOT NULL,
     descripcion      TEXT            NULL,
-    lugar            VARCHAR(255)    NULL,
     imagen           VARCHAR(255)    NULL,
     carga_horaria    INT             NOT NULL  COMMENT 'Total de horas académicas',
     fecha_inicio     DATE            NOT NULL,
@@ -163,6 +177,7 @@ CREATE TABLE paralelo (
     modalidad            ENUM('PRESENCIAL','VIRTUAL','MIXTO') NOT NULL,
     cupo_maximo          INT           NULL,
     horario_descripcion  VARCHAR(255)  NULL,
+    lugar                VARCHAR(255)  NULL,
     link                 VARCHAR(255)  NULL      COMMENT 'Enlace a clase virtual (si aplica)',
 
     PRIMARY KEY (id_curso, codigo),

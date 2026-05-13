@@ -36,6 +36,7 @@ public interface CursoRepository extends JpaRepository<Curso, Long> {
             c.nombre,
             c.carrera.nombre,
             c.fechaInicio,
+            (SELECT COALESCE(SUM(COALESCE(p.cupoMaximo, 0)), 0) FROM Paralelo p WHERE p.curso = c),
             c.estado,
             COUNT(i)
         )

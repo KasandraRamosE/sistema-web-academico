@@ -11,6 +11,7 @@ import java.util.List;
 public class LoginResponse {
     private String token;        // JWT para usar en los siguientes requests
     private String tipo;         // siempre "Bearer"
+    private String refreshToken; // Token para renovar el JWT
     private Long idUsuario;
     private String username;
     private String nombres;

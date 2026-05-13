@@ -57,12 +57,8 @@ public class CertificadoPdfService {
     private static final int   NUM_PAGINA     = 1;
 
     // Posición Y de cada elemento (desde el borde inferior)
-    private static final float Y_NOMBRE       = 290f; // nombre participante — centro
-    private static final float Y_ACTIVIDAD    = 245f; // nombre del curso o evento
-    private static final float Y_CARGA        = 210f; // carga horaria
-    private static final float Y_NOTA         = 180f; // nota final (solo cursos)
+    private static final float Y_NOMBRE       = 330f; // nombre participante — centro
     private static final float Y_FECHA        = 150f; // fecha de emisión
-    private static final float Y_VERSION      = 132f; // versión (solo reemisiones)
 
     // QR — esquina inferior derecha
     private static final float QR_SIZE        = 80f;
@@ -141,43 +137,9 @@ public class CertificadoPdfService {
 
         document.add(new Paragraph(nombreParticipante)
             .setFont(fontBold)
-            .setFontSize(20)
+            .setFontSize(28)
             .setTextAlignment(TextAlignment.CENTER)
             .setFixedPosition(NUM_PAGINA, 0, Y_NOMBRE, ANCHO_PAGINA));
-
-        // ── Nombre de la actividad ────────────────────────────────────────
-        String nombreActividad = inscripcion.getCurso() != null
-            ? inscripcion.getCurso().getNombre()
-            : inscripcion.getEvento().getNombre();
-
-        document.add(new Paragraph(nombreActividad)
-            .setFont(fontBold)
-            .setFontSize(14)
-            .setTextAlignment(TextAlignment.CENTER)
-            .setFixedPosition(NUM_PAGINA, 0, Y_ACTIVIDAD, ANCHO_PAGINA));
-
-        // ── Carga horaria ─────────────────────────────────────────────────
-        Integer cargaHoraria = inscripcion.getCurso() != null
-            ? inscripcion.getCurso().getCargaHoraria()
-            : inscripcion.getEvento().getCargaHoraria();
-
-        document.add(new Paragraph(cargaHoraria + " horas académicas")
-            .setFont(fontNormal)
-            .setFontSize(12)
-            .setTextAlignment(TextAlignment.CENTER)
-            .setFixedPosition(NUM_PAGINA, 0, Y_CARGA, ANCHO_PAGINA));
-
-        // ── Nota final — solo para cursos ─────────────────────────────────
-        if (inscripcion.getCurso() != null) {
-            evaluacionRepository
-                .findByInscripcion_IdInscripcion(inscripcion.getIdInscripcion())
-                .ifPresent(eval -> document.add(
-                    new Paragraph("Nota final: " + eval.getNotaFinal() + " / 100")
-                        .setFont(fontBold)
-                        .setFontSize(12)
-                        .setTextAlignment(TextAlignment.CENTER)
-                        .setFixedPosition(NUM_PAGINA, 0, Y_NOTA, ANCHO_PAGINA)));
-        }
 
         // ── Fecha de emisión ──────────────────────────────────────────────
         String fecha = certificado.getFechaEmision()
@@ -189,17 +151,6 @@ public class CertificadoPdfService {
             .setFontSize(11)
             .setTextAlignment(TextAlignment.CENTER)
             .setFixedPosition(NUM_PAGINA, 0, Y_FECHA, ANCHO_PAGINA));
-
-        // ── Versión — solo si es reemisión ────────────────────────────────
-        if (certificado.getVersion() > 1) {
-            document.add(new Paragraph(
-                    "(Reemisión — Versión " + certificado.getVersion() + ")")
-                .setFont(fontNormal)
-                .setFontSize(9)
-                .setFontColor(ColorConstants.GRAY)
-                .setTextAlignment(TextAlignment.CENTER)
-                .setFixedPosition(NUM_PAGINA, 0, Y_VERSION, ANCHO_PAGINA));
-        }
 
         // ── Código QR — esquina inferior derecha ──────────────────────────
         String urlVerificacion = baseUrl + "/verificar/"

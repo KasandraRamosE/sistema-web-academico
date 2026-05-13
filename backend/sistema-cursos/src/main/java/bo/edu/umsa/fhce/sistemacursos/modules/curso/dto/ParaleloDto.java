@@ -14,5 +14,6 @@ public class ParaleloDto {
     private Integer inscritos;      // calculado en el servicio
     private Integer cuposDisponibles; // cupoMaximo - inscritos (null si sin límite)
     private String horarioDescripcion;
+    private String lugar;
     private String link;
 }
