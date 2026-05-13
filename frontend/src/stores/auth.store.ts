@@ -23,12 +23,19 @@ export interface Usuario {
 interface LoginResponse {
   token: string
   tipo: string
+  refreshToken: string
   idUsuario: number
   username: string
   nombres: string
   apellidos: string
   tipoParticipante?: 'UMSA' | 'EXTERNO' | null
   roles: string[]
+}
+
+interface RefreshResponse {
+  token: string
+  tipo: string
+  refreshToken: string
 }
 
 interface MensajeResponse {
@@ -45,6 +52,7 @@ export const useAuthStore = defineStore('auth', () => {
   
   const user = ref<Usuario | null>(null)
   const token = ref<string | null>(null)
+  const refreshToken = ref<string | null>(null)
   const currentRole = ref<Rol | null>(null)
   const loginError = ref('')
 
@@ -97,6 +105,7 @@ export const useAuthStore = defineStore('auth', () => {
       const roles = normalizeRoles(response.roles)
 
       token.value = response.token
+      refreshToken.value = response.refreshToken
       user.value = {
         idUsuario: response.idUsuario,
         username: response.username,
@@ -152,6 +161,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       localStorage.setItem('user', JSON.stringify(user.value))
       localStorage.setItem('token', token.value)
+      localStorage.setItem('refreshToken', refreshToken.value)
       if (currentRole.value) {
         localStorage.setItem('currentRole', currentRole.value)
       }
@@ -193,13 +203,22 @@ export const useAuthStore = defineStore('auth', () => {
    * Cerrar sesión
    */
   const logout = () => {
+    const tokenToRevoke = refreshToken.value
+    if (tokenToRevoke) {
+      api.post('/auth/logout', { refreshToken: tokenToRevoke }).catch(() => {
+        console.warn('No se pudo revocar el refresh token en el backend')
+      })
+    }
+
     user.value = null
     token.value = null
+    refreshToken.value = null
     currentRole.value = null
 
     // Limpiar localStorage
     localStorage.removeItem('user')
     localStorage.removeItem('token')
+    localStorage.removeItem('refreshToken')
     localStorage.removeItem('currentRole')
 
     console.log('✅ Sesión cerrada')
@@ -250,6 +269,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const savedUser = localStorage.getItem('user')
       const savedToken = localStorage.getItem('token')
+      const savedRefreshToken = localStorage.getItem('refreshToken')
       const savedRole = localStorage.getItem('currentRole')
 
       if (savedUser && savedToken) {
@@ -260,6 +280,7 @@ export const useAuthStore = defineStore('auth', () => {
           roles: normalizedRoles
         }
         token.value = savedToken
+        refreshToken.value = savedRefreshToken
         
         // Validar que el rol sea válido
         const validRoles: Rol[] = ['ADMINISTRADOR', 'COORDINADOR', 'DOCENTE', 'PARTICIPANTE', 'AUXILIAR', 'DISENADOR']
@@ -279,6 +300,25 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  const refreshAccessToken = async (): Promise<boolean> => {
+    if (!refreshToken.value) return false
+
+    try {
+      const response = await api.post('/auth/refresh', {
+        refreshToken: refreshToken.value
+      }) as RefreshResponse
+
+      token.value = response.token
+      refreshToken.value = response.refreshToken
+      localStorage.setItem('token', token.value)
+      localStorage.setItem('refreshToken', refreshToken.value)
+      return true
+    } catch (error) {
+      console.warn('No se pudo refrescar el token:', error)
+      return false
+    }
+  }
+
   const normalizeRoles = (roles: string[]): Rol[] => {
     return roles.map((role) => {
       const cleaned = role.replace('ROLE_', '').replace('DISEÑADOR', 'DISENADOR')
@@ -294,6 +334,7 @@ export const useAuthStore = defineStore('auth', () => {
     // Estado
     user,
     token,
+    refreshToken,
     currentRole,
     loginError,
 
@@ -309,6 +350,7 @@ export const useAuthStore = defineStore('auth', () => {
     verifyEmail,
     resendCode,
     logout,
+    refreshAccessToken,
     changeRole,
     updateUser,  // ← AGREGADO
     initializeAuth

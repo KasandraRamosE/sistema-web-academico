@@ -120,13 +120,16 @@ const isSubmitting = ref(false)
  */
 const handleLogin = async () => {
   if (isSubmitting.value) return
-  if (!username.value || !password.value) {
+  errorMessage.value = ''
+  const trimmedUsername = username.value.trim()
+  const trimmedPassword = password.value.trim()
+  if (!trimmedUsername || !trimmedPassword) {
     errorMessage.value = 'Por favor ingrese usuario y contraseña'
     return
   }
 
   isSubmitting.value = true
-  const success = await auth.login(username.value, password.value)
+  const success = await auth.login(trimmedUsername, trimmedPassword)
   
   if (success) {
     errorMessage.value = ''

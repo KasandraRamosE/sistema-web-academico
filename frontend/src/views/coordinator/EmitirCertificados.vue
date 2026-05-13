@@ -4,26 +4,14 @@
       <div>
         <h1 class="text-3xl font-bold text-slate-900">Emitir certificados</h1>
         <p class="text-sm text-slate-500">
-          Emision por lote para solicitudes pendientes con plantilla aprobada.
+          Revisa qué actividades ya fueron emitidas y cuáles están listas para emitir.
         </p>
       </div>
       <Button variant="outline" size="sm" @click="loadAll">Actualizar</Button>
     </div>
 
     <Card>
-      <div class="grid gap-4 md:grid-cols-3">
-        <div>
-          <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Carrera</label>
-          <select
-            v-model.number="selectedCarreraId"
-            class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
-          >
-            <option value="">Todas</option>
-            <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="carrera.idCarrera">
-              {{ carrera.nombre }}
-            </option>
-          </select>
-        </div>
+      <div class="grid gap-4 md:grid-cols-4">
         <div class="md:col-span-2">
           <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Buscar</label>
           <input
@@ -33,25 +21,48 @@
             class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
           />
         </div>
+        <div>
+          <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo</label>
+          <select
+            v-model="tipoFiltro"
+            class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
+          >
+            <option value="">Todos</option>
+            <option value="CURSO">Curso</option>
+            <option value="EVENTO">Evento</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Estado</label>
+          <select
+            v-model="estadoFiltro"
+            class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
+          >
+            <option value="">Todos</option>
+            <option value="LISTO">Listo para emitir</option>
+            <option value="NO_EMITIDO">No emitido</option>
+            <option value="EMITIDO">Emitido</option>
+          </select>
+        </div>
       </div>
     </Card>
 
     <Card>
       <div class="flex items-center justify-between">
         <div>
-          <h3 class="text-lg font-semibold text-slate-900">Solicitudes pendientes</h3>
-          <p class="text-sm text-slate-500">Solo se emite si la plantilla esta aprobada.</p>
+          <h3 class="text-lg font-semibold text-slate-900">Actividades de certificados</h3>
+          <p class="text-sm text-slate-500">Un solo listado con el estado real de emisión para cursos y eventos.</p>
         </div>
-        <Badge v-if="filteredSolicitudes.length > 0" variant="warning" size="sm">
-          {{ filteredSolicitudes.length }} pendientes
+        <Badge variant="primary" size="sm">
+          {{ filteredActivities.length }} resultados
         </Badge>
       </div>
 
       <div v-if="loading" class="py-8 text-center text-sm text-slate-500">
-        Cargando solicitudes...
+        Cargando actividades...
       </div>
-      <div v-else-if="filteredSolicitudes.length === 0" class="py-8 text-center text-sm text-slate-500">
-        No hay solicitudes pendientes.
+      <div v-else-if="filteredActivities.length === 0" class="py-8 text-center text-sm text-slate-500">
+        No hay actividades que coincidan con los filtros.
       </div>
       <div v-else class="mt-4 overflow-x-auto">
         <table class="w-full">
@@ -59,39 +70,53 @@
             <tr>
               <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Actividad</th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Tipo</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Docente</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Aprobados</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Solicitud</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Acciones</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Estado</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Detalle</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Acción</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200">
-            <tr v-for="solicitud in filteredSolicitudes" :key="solicitud.idSolicitud" class="hover:bg-slate-50">
+            <tr v-for="item in filteredActivities" :key="item.key" class="hover:bg-slate-50">
               <td class="px-4 py-3">
-                <div>
-                  <p class="text-sm font-medium text-slate-800">{{ solicitud.nombreActividad }}</p>
-                  <p v-if="solicitud.codigoParalelo" class="text-xs text-slate-500">
-                    Paralelo {{ solicitud.codigoParalelo }}
-                  </p>
-                  <p class="text-xs text-slate-500">{{ solicitud.carreraNombre || 'Sin carrera' }}</p>
-                </div>
+                <p class="text-sm font-semibold text-slate-800">{{ item.nombre }}</p>
+                <p class="text-xs text-slate-500">{{ item.carreraNombre || 'Sin carrera' }}</p>
               </td>
               <td class="px-4 py-3">
-                <Badge :variant="solicitud.tipoActividad === 'CURSO' ? 'primary' : 'secondary'" size="sm">
-                  {{ solicitud.tipoActividad }}
+                <Badge :variant="item.tipo === 'CURSO' ? 'primary' : 'secondary'" size="sm">
+                  {{ item.tipo }}
                 </Badge>
               </td>
-              <td class="px-4 py-3 text-sm text-slate-600">{{ solicitud.nombreDocente || '-' }}</td>
-              <td class="px-4 py-3 text-sm text-slate-600">{{ solicitud.cantidadAprobados }}</td>
-              <td class="px-4 py-3 text-xs text-slate-500">{{ formatDatetime(solicitud.fechaSolicitud) }}</td>
+              <td class="px-4 py-3">
+                <Badge :variant="estadoBadge(item.estado)" size="sm">
+                  {{ estadoLabel(item.estado) }}
+                </Badge>
+              </td>
+              <td class="px-4 py-3 text-sm text-slate-600">
+                <div v-if="item.tipo === 'CURSO'">
+                  <p>Docente: {{ item.nombreDocente || '-' }}</p>
+                  <p>Aprobados: {{ item.cantidadAprobados ?? '-' }}</p>
+                  <p>Solicitud: {{ item.fechaSolicitud ? formatDatetime(item.fechaSolicitud) : '-' }}</p>
+                </div>
+                <div v-else>
+                  <p>Fecha evento: {{ formatDatetime(item.fechaEvento) }}</p>
+                  <p>Plantilla: {{ item.templateVigente ? 'Aprobada' : 'Sin aprobar' }}</p>
+                  <p>Emitidos: {{ item.certificadosEmitidos ?? 0 }}</p>
+                </div>
+              </td>
               <td class="px-4 py-3 text-right">
                 <Button
+                  v-if="item.canEmit"
                   size="sm"
-                  :loading="processingId === solicitud.idSolicitud"
-                  :disabled="!solicitud.canEmit"
-                  @click="emitirSolicitud(solicitud)"
+                  :loading="processingKey === item.key"
+                  @click="item.tipo === 'CURSO' ? emitirCurso(item) : emitirEvento(item)"
                 >
-                  Emitir lote
+                  Emitir
+                </Button>
+                <Button v-else-if="item.estado === 'EMITIDO'" variant="outline" size="sm" disabled>
+                  Ya emitido
+                </Button>
+                <Button v-else variant="outline" size="sm" disabled>
+                  No disponible
                 </Button>
               </td>
             </tr>
@@ -147,20 +172,42 @@ interface SolicitudView extends SolicitudDto {
   carreraId?: number
   carreraNombre?: string
   canEmit: boolean
+  templateVigente?: boolean
+}
+
+interface ActivityRow {
+  key: string
+  tipo: 'CURSO' | 'EVENTO'
+  nombre: string
+  carreraNombre: string
+  estado: 'LISTO' | 'NO_EMITIDO' | 'EMITIDO'
+  canEmit: boolean
+  idCurso?: number
+  idEvento?: number
+  nombreDocente?: string | null
+  cantidadAprobados?: number | null
+  fechaSolicitud?: string | null
+  fechaEvento?: string | null
+  templateVigente?: boolean
+  certificadosEmitidos?: number
 }
 
 const alertStore = useAlertStore()
 
 const loading = ref(false)
-const processingId = ref<number | null>(null)
+const processingKey = ref<string | null>(null)
 
 const carreras = ref<CarreraDto[]>([])
 const cursos = ref<CursoDto[]>([])
 const eventos = ref<EventoDto[]>([])
 const solicitudes = ref<SolicitudDto[]>([])
+const plantillasVigentesCursos = ref<Record<number, boolean>>({})
+const plantillasVigentesEventos = ref<Record<number, boolean>>({})
+const certificados = ref<Array<Record<string, unknown>>>([])
 
-const selectedCarreraId = ref<number | ''>('')
 const searchTerm = ref('')
+const tipoFiltro = ref('')
+const estadoFiltro = ref('')
 
 const solicitudesView = computed((): SolicitudView[] => {
   const cursosByName = new Map(cursos.value.map(c => [c.nombre, c]))
@@ -183,20 +230,101 @@ const solicitudesView = computed((): SolicitudView[] => {
       idEvento: evento?.idEvento,
       carreraId,
       carreraNombre,
-      canEmit: Boolean(isCurso ? curso?.idCurso : evento?.idEvento)
+      canEmit: Boolean(isCurso ? curso?.idCurso : evento?.idEvento),
+      templateVigente: isCurso
+        ? Boolean(curso?.idCurso && plantillasVigentesCursos.value[curso.idCurso])
+        : Boolean(evento?.idEvento && plantillasVigentesEventos.value[evento.idEvento])
     }
   })
 })
 
-const filteredSolicitudes = computed(() => {
+const certificadosEmitidosMap = computed(() => {
+  const map = new Map<string, number>()
+  certificados.value.forEach((certificado) => {
+    if (String(certificado.estadoEmision) !== 'GENERADO') return
+    const key = `${String(certificado.tipoActividad || '')}-${String(certificado.nombreActividad || '')}`
+    map.set(key, (map.get(key) || 0) + 1)
+  })
+  return map
+})
+
+const solicitudCursoMap = computed(() => {
+  const map = new Map<string, SolicitudView>()
+  solicitudesView.value
+    .filter(item => item.tipoActividad === 'CURSO')
+    .forEach((item) => {
+      map.set(item.nombreActividad, item)
+    })
+  return map
+})
+
+const activities = computed((): ActivityRow[] => {
+  const cursosRows = cursos.value.map((curso) => {
+    const solicitud = solicitudCursoMap.value.get(curso.nombre)
+    const key = `CURSO-${curso.nombre}`
+    const emittedCount = certificadosEmitidosMap.value.get(key) || 0
+    const templateVigente = Boolean(plantillasVigentesCursos.value[curso.idCurso])
+    const estado: ActivityRow['estado'] = emittedCount > 0
+      ? 'EMITIDO'
+      : solicitud && templateVigente
+        ? 'LISTO'
+        : 'NO_EMITIDO'
+
+    return {
+      key,
+      tipo: 'CURSO',
+      nombre: curso.nombre,
+      carreraNombre: curso.nombreCarrera || 'Sin carrera',
+      estado,
+      canEmit: estado === 'LISTO',
+      idCurso: curso.idCurso,
+      nombreDocente: solicitud?.nombreDocente ?? null,
+      cantidadAprobados: solicitud?.cantidadAprobados ?? null,
+      fechaSolicitud: solicitud?.fechaSolicitud ?? null,
+      templateVigente,
+      certificadosEmitidos: emittedCount
+    }
+  })
+
+  const eventosRows = eventos.value.map(evento => {
+    const key = `EVENTO-${evento.nombre}`
+    const emittedCount = certificadosEmitidosMap.value.get(key) || 0
+    const templateVigente = Boolean(plantillasVigentesEventos.value[evento.idEvento])
+    const fechaPasada = new Date(evento.fechaHora) <= new Date()
+    const estado: ActivityRow['estado'] = emittedCount > 0
+      ? 'EMITIDO'
+      : templateVigente && fechaPasada
+        ? 'LISTO'
+        : 'NO_EMITIDO'
+
+    return {
+      key,
+      tipo: 'EVENTO',
+      nombre: evento.nombre,
+      carreraNombre: evento.nombreCarrera || 'Sin carrera',
+      estado,
+      canEmit: estado === 'LISTO',
+      idEvento: evento.idEvento,
+      fechaEvento: evento.fechaHora,
+      templateVigente,
+      certificadosEmitidos: emittedCount
+    }
+  })
+
+  return [...cursosRows, ...eventosRows]
+})
+
+const filteredActivities = computed(() => {
   const term = searchTerm.value.trim().toLowerCase()
 
-  return solicitudesView.value.filter(item => {
-    const carreraOk = !selectedCarreraId.value || item.carreraId === selectedCarreraId.value
+  return activities.value.filter(item => {
     const searchOk = !term
-      || item.nombreActividad.toLowerCase().includes(term)
+      || item.nombre.toLowerCase().includes(term)
       || (item.nombreDocente ?? '').toLowerCase().includes(term)
-    return carreraOk && searchOk
+      || item.carreraNombre.toLowerCase().includes(term)
+    const tipoOk = !tipoFiltro.value || item.tipo === tipoFiltro.value
+    const estadoOk = !estadoFiltro.value || item.estado === estadoFiltro.value
+    return searchOk && tipoOk && estadoOk
   })
 })
 
@@ -220,10 +348,39 @@ const loadSolicitudes = async () => {
   solicitudes.value = response
 }
 
+const loadCertificados = async () => {
+  const response = await api.get('/certificados/admin') as Array<Record<string, unknown>>
+  certificados.value = response
+}
+
+const loadPlantillasVigentes = async () => {
+  const cursoPairs = await Promise.all(cursos.value.map(async curso => {
+    try {
+      const historial = await api.get(`/plantillas/historial?idCurso=${curso.idCurso}`) as Array<Record<string, unknown>>
+      return [curso.idCurso, historial.some(item => String(item.estado) === 'VIGENTE')] as const
+    } catch {
+      return [curso.idCurso, false] as const
+    }
+  }))
+
+  const eventoPairs = await Promise.all(eventos.value.map(async evento => {
+    try {
+      const historial = await api.get(`/plantillas/historial?idEvento=${evento.idEvento}`) as Array<Record<string, unknown>>
+      return [evento.idEvento, historial.some(item => String(item.estado) === 'VIGENTE')] as const
+    } catch {
+      return [evento.idEvento, false] as const
+    }
+  }))
+
+  plantillasVigentesCursos.value = Object.fromEntries(cursoPairs)
+  plantillasVigentesEventos.value = Object.fromEntries(eventoPairs)
+}
+
 const loadAll = async () => {
   loading.value = true
   try {
-    await Promise.all([loadCarreras(), loadCursos(), loadEventos(), loadSolicitudes()])
+    await Promise.all([loadCarreras(), loadCursos(), loadEventos(), loadSolicitudes(), loadCertificados()])
+    await loadPlantillasVigentes()
   } finally {
     loading.value = false
   }
@@ -251,22 +408,20 @@ const ensurePlantillaVigente = async (payload: { idCurso?: number; idEvento?: nu
   throw new Error('No se encontro la actividad para emitir.')
 }
 
-const emitirSolicitud = async (solicitud: SolicitudView) => {
+const emitirCurso = async (solicitud: SolicitudView) => {
   if (!solicitud.canEmit) {
     alertStore.push({ type: 'error', message: 'No se encontro la actividad para emitir.' })
     return
   }
 
-  processingId.value = solicitud.idSolicitud
+  processingKey.value = `CURSO-${solicitud.nombreActividad}`
   try {
     await ensurePlantillaVigente({ idCurso: solicitud.idCurso, idEvento: solicitud.idEvento })
 
-    if (solicitud.tipoActividad === 'CURSO') {
-      await api.post('/certificados/lote', {
-        idCurso: solicitud.idCurso,
-        codigoParalelo: solicitud.codigoParalelo
-      })
-    }
+    await api.post('/certificados/lote', {
+      idCurso: solicitud.idCurso,
+      codigoParalelo: solicitud.codigoParalelo
+    })
 
     await api.patch(`/evaluaciones/solicitudes/${solicitud.idSolicitud}?estado=COMPLETADO`)
 
@@ -275,14 +430,65 @@ const emitirSolicitud = async (solicitud: SolicitudView) => {
       message: 'Emision completada. Los certificados se generaron en lote.'
     })
 
-    solicitudes.value = solicitudes.value.filter(item => item.idSolicitud !== solicitud.idSolicitud)
+    await loadAll()
   } catch (error) {
     alertStore.push({
       type: 'error',
       message: (error as Error).message || 'No se pudo emitir el lote.'
     })
   } finally {
-    processingId.value = null
+    processingKey.value = null
+  }
+}
+
+const emitirEvento = async (evento: { idEvento: number; nombre: string; carreraNombre: string }) => {
+  processingKey.value = `EVENTO-${evento.nombre}`
+  try {
+    const solicitud = await api.post(`/evaluaciones/solicitudes/evento/${evento.idEvento}`, {
+      notas: 'Generada desde el panel de emisión'
+    }) as { idSolicitud: number }
+
+    await api.patch(`/evaluaciones/solicitudes/${solicitud.idSolicitud}?estado=COMPLETADO`)
+
+    alertStore.push({
+      type: 'success',
+      message: `Certificados de ${evento.nombre} emitidos correctamente.`
+    })
+
+    await loadAll()
+  } catch (error) {
+    alertStore.push({
+      type: 'error',
+      message: (error as Error).message || 'No se pudo emitir el evento.'
+    })
+  } finally {
+    processingKey.value = null
+  }
+}
+
+const estadoLabel = (estado: ActivityRow['estado']) => {
+  switch (estado) {
+    case 'LISTO':
+      return 'Listo para emitir'
+    case 'EMITIDO':
+      return 'Emitido'
+    case 'NO_EMITIDO':
+      return 'No emitido'
+    default:
+      return estado
+  }
+}
+
+const estadoBadge = (estado: ActivityRow['estado']) => {
+  switch (estado) {
+    case 'LISTO':
+      return 'warning'
+    case 'EMITIDO':
+      return 'success'
+    case 'NO_EMITIDO':
+      return 'gray'
+    default:
+      return 'gray'
   }
 }
 

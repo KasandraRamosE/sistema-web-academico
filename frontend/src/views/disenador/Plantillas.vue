@@ -75,14 +75,19 @@
                 </Badge>
               </td>
               <td class="px-4 py-3">
-                <Badge :variant="estadoPlantillaBadge(actividad.estadoPlantilla)" size="sm">
-                  {{ estadoPlantillaLabel(actividad.estadoPlantilla) }}
+                <Badge :variant="estadoRevisionBadge(estadoRevision(actividad))" size="sm">
+                  {{ estadoRevisionLabel(estadoRevision(actividad)) }}
                 </Badge>
               </td>
               <td class="px-4 py-3 text-right">
-                <Button variant="outline" size="sm" @click="openActividadModal(actividad)">
-                  Detalle
-                </Button>
+                <div class="flex flex-wrap justify-end gap-2">
+                  <Button variant="outline" size="sm" @click="openInfoModal(actividad)">
+                    Info
+                  </Button>
+                  <Button variant="outline" size="sm" @click="openActividadModal(actividad)">
+                    Detalle
+                  </Button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -91,77 +96,7 @@
     </Card>
 
 
-    <Card>
-      <div class="space-y-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="text-lg font-semibold text-slate-900">Mis plantillas</h3>
-            <p class="text-sm text-slate-500">Revisa el estado de tus envios.</p>
-          </div>
-          <Button variant="outline" size="sm" @click="cargarPlantillas">Actualizar</Button>
-        </div>
-
-        <div v-if="plantillasRevisadas.length > 0" class="grid gap-3 md:grid-cols-2">
-          <div
-            v-for="item in plantillasRevisadas"
-            :key="item.idPlantilla"
-            class="rounded-xl border border-slate-200 bg-white p-4"
-          >
-            <div class="flex items-center justify-between">
-              <p class="text-sm font-semibold text-slate-800">{{ item.nombreActividad }}</p>
-              <Badge :variant="item.estado === 'APROBADA' ? 'success' : 'danger'" size="sm">
-                {{ item.estado }}
-              </Badge>
-            </div>
-            <p class="text-xs text-slate-500 mt-1">{{ item.tipoActividad }} · v{{ item.version }}</p>
-            <p class="text-xs text-slate-600 mt-2">
-              {{ item.ultimaObservacion || 'Sin observaciones.' }}
-            </p>
-          </div>
-        </div>
-
-        <div v-if="cargandoPlantillas" class="py-8 text-center text-sm text-slate-500">
-          Cargando plantillas...
-        </div>
-        <div v-else-if="plantillas.length === 0" class="py-8 text-center text-sm text-slate-500">
-          No tienes plantillas registradas.
-        </div>
-        <div v-else class="overflow-x-auto">
-          <table class="w-full">
-            <thead class="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Actividad</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Tipo</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Version</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Estado</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Observacion</th>
-                <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Acciones</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-200">
-              <tr v-for="plantilla in plantillas" :key="plantilla.idPlantilla" class="hover:bg-slate-50">
-                <td class="px-4 py-3 text-sm text-slate-700">{{ plantilla.nombreActividad }}</td>
-                <td class="px-4 py-3">
-                  <Badge :variant="plantilla.tipoActividad === 'CURSO' ? 'primary' : 'secondary'" size="sm">
-                    {{ plantilla.tipoActividad }}
-                  </Badge>
-                </td>
-                <td class="px-4 py-3 text-sm text-slate-600">v{{ plantilla.version }}</td>
-                <td class="px-4 py-3 text-sm text-slate-600">{{ plantilla.estado }}</td>
-                <td class="px-4 py-3 text-xs text-slate-500">
-                  {{ plantilla.ultimaObservacion || '-' }}
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <Button variant="outline" size="sm" @click="verPlantilla(plantilla)">
-                    Ver PDF
-                  </Button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </Card>
+    <!-- 'Mis plantillas' moved to a dedicated view -->
 
     <Modal
       :modelValue="showActividadModal"
@@ -204,14 +139,36 @@
 
         <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
           <p class="text-xs uppercase tracking-wide text-emerald-700">Siguiente accion</p>
-          <p class="text-sm text-emerald-800">{{ estadoPlantillaHint(selectedActividad.estadoPlantilla) }}</p>
+          <p class="text-sm text-emerald-800">{{ estadoRevisionHint(estadoRevision(selectedActividad)) }}</p>
         </div>
 
-        <div v-if="selectedActividad.estadoPlantilla === 'RECHAZADA'" class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3">
+        <div v-if="estadoRevision(selectedActividad) === 'RECHAZADA'" class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3">
           <p class="text-xs uppercase tracking-wide text-rose-700">Correcciones pendientes</p>
           <p class="text-sm text-rose-800">
             {{ selectedActividad.ultimaObservacion || 'Se requieren ajustes en la plantilla.' }}
           </p>
+        </div>
+
+        <div class="rounded-lg border border-slate-200 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Aprobaciones</p>
+          <div v-if="cargandoAprobaciones" class="text-sm text-slate-500 mt-2">Cargando aprobaciones...</div>
+          <div v-else-if="aprobaciones.length === 0" class="text-sm text-slate-500 mt-2">
+            Aun no hay revisiones.
+          </div>
+          <div v-else class="mt-3 space-y-2">
+            <div v-for="(aprobacion, index) in aprobaciones" :key="index" class="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+              <div class="flex items-center justify-between text-xs text-slate-500">
+                <span>{{ aprobacion.coordinador || 'Coordinador' }}</span>
+                <span>{{ formatDateTime(aprobacion.fechaRevision) }}</span>
+              </div>
+              <div class="mt-1 flex items-center gap-2">
+                <Badge :variant="aprobacion.estado === 'APROBADA' ? 'success' : 'danger'" size="sm">
+                  {{ aprobacion.estado }}
+                </Badge>
+                <span class="text-xs text-slate-600">{{ aprobacion.observaciones || 'Sin observaciones.' }}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="space-y-3 rounded-lg border border-slate-200 px-4 py-4">
@@ -249,6 +206,61 @@
         </div>
       </div>
     </Modal>
+
+    <Modal
+      :modelValue="showInfoModal"
+      title="Informacion de actividad"
+      size="lg"
+      @close="closeInfoModal"
+    >
+      <div v-if="selectedInfoActividad" class="space-y-4">
+        <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Actividad</p>
+          <p class="text-sm font-semibold text-slate-900">{{ selectedInfoActividad.nombre }}</p>
+          <p class="text-xs text-slate-500">{{ selectedInfoActividad.tipo }} · {{ selectedInfoActividad.carrera }}</p>
+        </div>
+
+        <div class="rounded-lg border border-slate-200 px-4 py-3">
+          <p class="text-xs uppercase tracking-wide text-slate-500">Detalle de la actividad</p>
+          <div v-if="cargandoDetalle" class="text-sm text-slate-500 mt-2">Cargando detalle...</div>
+          <div v-else-if="actividadDetalle" class="mt-3 grid gap-3 md:grid-cols-2 text-sm text-slate-700">
+            <div class="md:col-span-2">
+              <p class="text-xs uppercase tracking-wide text-slate-500">Descripcion</p>
+              <p class="text-sm text-slate-700">{{ actividadDetalle.descripcion || '-' }}</p>
+            </div>
+            <div>
+              <p class="text-xs uppercase tracking-wide text-slate-500">Modalidad</p>
+              <p>{{ actividadDetalle.modalidad || '-' }}</p>
+            </div>
+            <div>
+              <p class="text-xs uppercase tracking-wide text-slate-500">Carga horaria</p>
+              <p>{{ actividadDetalle.cargaHoraria }} horas</p>
+            </div>
+            <div>
+              <p class="text-xs uppercase tracking-wide text-slate-500">Inicio</p>
+              <p>{{ formatDateTime(actividadDetalle.fechaInicio) }}</p>
+            </div>
+            <div>
+              <p class="text-xs uppercase tracking-wide text-slate-500">Fin</p>
+              <p>{{ formatDateTime(actividadDetalle.fechaFin) }}</p>
+            </div>
+            <div>
+              <p class="text-xs uppercase tracking-wide text-slate-500">Cupos</p>
+              <p>{{ actividadDetalle.cuposDisponibles }} / {{ actividadDetalle.cupoMaximo }}</p>
+            </div>
+            <div>
+              <p class="text-xs uppercase tracking-wide text-slate-500">Costo</p>
+              <p>Ext: Bs {{ actividadDetalle.costoExterno }} · UMSA: Bs {{ actividadDetalle.costoUmsa }}</p>
+            </div>
+            <div v-if="selectedInfoActividad.tipo === 'CURSO'">
+              <p class="text-xs uppercase tracking-wide text-slate-500">Nota minima</p>
+              <p>{{ actividadDetalle.notaAprobacion ?? 51 }}</p>
+            </div>
+          </div>
+          <div v-else class="text-sm text-slate-500 mt-2">No se pudo cargar el detalle.</div>
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -275,6 +287,7 @@ interface ActividadAsignada {
   key: string
   tipo: 'CURSO' | 'EVENTO'
   id: number
+  idPlantilla?: number | null
   nombre: string
   estadoActividad: string
   carrera: string
@@ -297,6 +310,26 @@ interface PlantillaDto {
   fechaSubida?: string
 }
 
+interface AprobacionDto {
+  estado: 'APROBADA' | 'RECHAZADA'
+  observaciones: string | null
+  fechaRevision: string
+  coordinador: string | null
+}
+
+interface ActividadDetalle {
+  descripcion: string
+  modalidad: string
+  fechaInicio: string
+  fechaFin: string
+  cargaHoraria: number
+  cupoMaximo: number
+  cuposDisponibles: number
+  costoExterno: number
+  costoUmsa: number
+  notaAprobacion?: number | null
+}
+
 const alertStore = useAlertStore()
 const authStore = useAuthStore()
 const currentUserId = computed(() => authStore.user?.idUsuario ?? null)
@@ -315,12 +348,33 @@ const actividadSearch = ref('')
 const estadoPlantillaFiltro = ref('')
 const showActividadModal = ref(false)
 const selectedActividad = ref<ActividadAsignada | null>(null)
+const showInfoModal = ref(false)
+const selectedInfoActividad = ref<ActividadAsignada | null>(null)
+const actividadDetalle = ref<ActividadDetalle | null>(null)
+const aprobaciones = ref<AprobacionDto[]>([])
+const cargandoAprobaciones = ref(false)
+const cargandoDetalle = ref(false)
 
 const STATUS_STORAGE_KEY = 'plantillas_status_cache'
 
 const canUpload = computed(() => {
   if (!selectedActividad.value) return false
-  return ['SIN_PLANTILLA', 'RECHAZADA'].includes(selectedActividad.value.estadoPlantilla)
+
+  // Si no existe plantilla aun, puede subir la primera
+  if (!selectedActividad.value.idPlantilla) return true
+
+  // Intentamos obtener la ultima aprobacion desde el resumen global
+  const resumen = selectedActividad.value.idPlantilla
+    ? aprobacionesMap.value[selectedActividad.value.idPlantilla]
+    : null
+
+  // Si estamos viendo el modal y ya cargamos aprobaciones específicas, usarlas
+  const ultimaAprobacion = aprobaciones.value.length > 0
+    ? aprobaciones.value[aprobaciones.value.length - 1]
+    : resumen
+
+  // Solo permitir re-subir si la ultima aprobacion fue RECHAZADA
+  return ultimaAprobacion ? ultimaAprobacion.estado === 'RECHAZADA' : false
 })
 
 const uploadError = ref('')
@@ -343,6 +397,8 @@ const plantillaMap = computed(() => {
   return map
 })
 
+const aprobacionesMap = ref<Record<number, AprobacionDto | null>>({})
+
 const actividadesAsignadas = computed((): ActividadAsignada[] => {
   const cursosItems = cursos.value.map(curso => buildActividadAsignada('CURSO', curso))
   const eventosItems = eventos.value.map(evento => buildActividadAsignada('EVENTO', evento))
@@ -363,6 +419,16 @@ const archivoNombre = computed(() => archivo.value?.name || '')
 const plantillasRevisadas = computed(() => {
   return plantillas.value.filter((item) => item.estado !== 'PENDIENTE')
 })
+
+const estadoRevision = (actividad: ActividadAsignada) => {
+  if (!actividad.idPlantilla) return 'SIN_PLANTILLA'
+
+  if (actividad.estadoPlantilla === 'APROBADA') return 'APROBADA'
+
+  const aprobacion = actividad.idPlantilla ? aprobacionesMap.value[actividad.idPlantilla] : null
+  if (!aprobacion) return 'PENDIENTE'
+  return aprobacion.estado
+}
 
 const cargarActividades = async () => {
   loadingActividades.value = true
@@ -407,9 +473,27 @@ const cargarPlantillas = async () => {
     const response = await api.get('/plantillas/mis-plantillas') as PlantillaDto[]
     plantillas.value = response
     notificarCambiosEstado(response)
+    await cargarAprobacionesResumen(response)
   } finally {
     cargandoPlantillas.value = false
   }
+}
+
+const cargarAprobacionesResumen = async (items: PlantillaDto[]) => {
+  const entries = await Promise.all(items.map(async (item) => {
+    try {
+      const data = await api.get(`/plantillas/${item.idPlantilla}/aprobaciones`) as AprobacionDto[]
+      const last = data.length > 0 ? data[data.length - 1] : null
+      return [item.idPlantilla, last] as const
+    } catch {
+      return [item.idPlantilla, null] as const
+    }
+  }))
+
+  aprobacionesMap.value = entries.reduce<Record<number, AprobacionDto | null>>((acc, [id, aprobacion]) => {
+    acc[id] = aprobacion
+    return acc
+  }, {})
 }
 
 const handleFileChange = (event: Event) => {
@@ -547,6 +631,36 @@ const estadoPlantillaLabel = (estado: ActividadAsignada['estadoPlantilla']) => {
   }
 }
 
+const estadoRevisionLabel = (estado: string) => {
+  switch (estado) {
+    case 'SIN_PLANTILLA':
+      return 'Sin plantilla'
+    case 'PENDIENTE':
+      return 'Pendiente'
+    case 'APROBADA':
+      return 'Aprobada'
+    case 'RECHAZADA':
+      return 'Rechazada'
+    default:
+      return estado
+  }
+}
+
+const estadoRevisionBadge = (estado: string) => {
+  switch (estado) {
+    case 'SIN_PLANTILLA':
+      return 'warning'
+    case 'PENDIENTE':
+      return 'secondary'
+    case 'APROBADA':
+      return 'success'
+    case 'RECHAZADA':
+      return 'danger'
+    default:
+      return 'gray'
+  }
+}
+
 const estadoPlantillaBadge = (estado: ActividadAsignada['estadoPlantilla']) => {
   switch (estado) {
     case 'SIN_PLANTILLA':
@@ -563,6 +677,21 @@ const estadoPlantillaBadge = (estado: ActividadAsignada['estadoPlantilla']) => {
 }
 
 const estadoPlantillaHint = (estado: ActividadAsignada['estadoPlantilla']) => {
+  switch (estado) {
+    case 'SIN_PLANTILLA':
+      return 'Debes subir la primera plantilla.'
+    case 'PENDIENTE':
+      return 'La plantilla esta en revision.'
+    case 'APROBADA':
+      return 'La plantilla esta aprobada. No requiere accion.'
+    case 'RECHAZADA':
+      return 'Revisa las observaciones y sube una nueva version.'
+    default:
+      return ''
+  }
+}
+
+const estadoRevisionHint = (estado: string) => {
   switch (estado) {
     case 'SIN_PLANTILLA':
       return 'Debes subir la primera plantilla.'
@@ -596,6 +725,7 @@ const buildActividadAsignada = (tipo: 'CURSO' | 'EVENTO', item: ActividadItem): 
     key,
     tipo,
     id: item.id,
+    idPlantilla: plantilla?.idPlantilla ?? null,
     nombre: item.nombre,
     estadoActividad: item.estado || '-',
     carrera: item.carrera || '-',
@@ -607,16 +737,86 @@ const buildActividadAsignada = (tipo: 'CURSO' | 'EVENTO', item: ActividadItem): 
   }
 }
 
+const cargarDetalleActividad = async (actividad: ActividadAsignada) => {
+  cargandoDetalle.value = true
+  try {
+    if (actividad.tipo === 'CURSO') {
+      const curso = await api.get(`/cursos/${actividad.id}`) as Record<string, unknown>
+      actividadDetalle.value = {
+        descripcion: String(curso.descripcion ?? ''),
+        modalidad: String(curso.modalidad ?? '-'),
+        fechaInicio: String(curso.fechaInicio ?? ''),
+        fechaFin: String(curso.fechaFin ?? curso.fechaInicio ?? ''),
+        cargaHoraria: Number(curso.cargaHoraria ?? 0),
+        cupoMaximo: Number(curso.cupoMaximo ?? 0),
+        cuposDisponibles: Number(curso.cuposDisponibles ?? 0),
+        costoExterno: Number(curso.costoExterno ?? 0),
+        costoUmsa: Number(curso.costoUmsa ?? 0),
+        notaAprobacion: curso.notaAprobacion !== undefined ? Number(curso.notaAprobacion) : null
+      }
+    } else {
+      const evento = await api.get(`/eventos/${actividad.id}`) as Record<string, unknown>
+      actividadDetalle.value = {
+        descripcion: String(evento.descripcion ?? ''),
+        modalidad: String(evento.modalidad ?? '-'),
+        fechaInicio: String(evento.fechaHora ?? ''),
+        fechaFin: String(evento.fechaHora ?? ''),
+        cargaHoraria: Number(evento.cargaHoraria ?? 0),
+        cupoMaximo: Number(evento.cupoMaximo ?? 0),
+        cuposDisponibles: Number(evento.cuposDisponibles ?? 0),
+        costoExterno: Number(evento.costoExterno ?? 0),
+        costoUmsa: Number(evento.costoUmsa ?? 0)
+      }
+    }
+  } catch {
+    actividadDetalle.value = null
+  } finally {
+    cargandoDetalle.value = false
+  }
+}
+
+const cargarAprobaciones = async (actividad: ActividadAsignada) => {
+  if (!actividad.idPlantilla) {
+    aprobaciones.value = []
+    return
+  }
+
+  cargandoAprobaciones.value = true
+  try {
+    const data = await api.get(`/plantillas/${actividad.idPlantilla}/aprobaciones`) as AprobacionDto[]
+    aprobaciones.value = data
+  } catch {
+    aprobaciones.value = []
+  } finally {
+    cargandoAprobaciones.value = false
+  }
+}
+
 const openActividadModal = (actividad: ActividadAsignada) => {
   selectedActividad.value = actividad
   archivo.value = null
   uploadError.value = ''
   showActividadModal.value = true
+  aprobaciones.value = []
+  void cargarAprobaciones(actividad)
+}
+
+const openInfoModal = (actividad: ActividadAsignada) => {
+  selectedInfoActividad.value = actividad
+  actividadDetalle.value = null
+  showInfoModal.value = true
+  void cargarDetalleActividad(actividad)
 }
 
 const closeActividadModal = () => {
   selectedActividad.value = null
   showActividadModal.value = false
+}
+
+const closeInfoModal = () => {
+  selectedInfoActividad.value = null
+  actividadDetalle.value = null
+  showInfoModal.value = false
 }
 
 onMounted(async () => {

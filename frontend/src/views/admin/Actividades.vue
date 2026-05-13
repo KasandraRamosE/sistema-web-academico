@@ -254,7 +254,7 @@
                     variant="ghost"
                     size="sm"
                     class="text-red-600 hover:text-red-800"
-                    @click="eliminarActividad(actividad)"
+                    @click="openDeleteModal(actividad)"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -378,8 +378,8 @@
             />
           </div>
 
-          <!-- Modalidad -->
-          <div>
+          <!-- Modalidad (solo evento) -->
+          <div v-if="formActividad.tipo === 'EVENTO'">
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Modalidad <span class="text-red-600">*</span>
             </label>
@@ -395,43 +395,16 @@
             </select>
           </div>
 
-          <!-- Cupo máximo -->
-          <div>
+          <!-- Cupo máximo (solo evento) -->
+          <div v-if="formActividad.tipo === 'EVENTO'">
             <label class="block text-sm font-medium text-gray-700 mb-1">
-              Cupo Máximo <span class="text-red-600">*</span>
+              Cupo Máximo
             </label>
             <input
               v-model.number="formActividad.cupoMaximo"
               type="number"
-              required
               min="1"
               placeholder="Número de participantes"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        </div>
-
-        <!-- Fechas -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Fecha de Inicio <span class="text-red-600">*</span>
-            </label>
-            <input
-              v-model="formActividad.fechaInicio"
-              type="date"
-              required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Fecha de Fin <span class="text-red-600">*</span>
-            </label>
-            <input
-              v-model="formActividad.fechaFin"
-              type="date"
-              required
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -446,6 +419,83 @@
             placeholder="Describe los objetivos, contenidos y requisitos de la actividad..."
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           ></textarea>
+        </div>
+
+        <!-- Lugar e imagen -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div v-if="formActividad.tipo === 'EVENTO'">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Lugar</label>
+            <input
+              v-model="formActividad.lugar"
+              type="text"
+              placeholder="Ej: Auditorio principal"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Imagen <span class="text-red-600">*</span>
+            </label>
+            <input
+              ref="imageInputRef"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="handleImageChange"
+            />
+            <button
+              type="button"
+              class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              @click="triggerImagePicker"
+            >
+              Seleccionar imagen
+            </button>
+            <p class="mt-2 text-xs text-gray-500">
+              Formatos: JPG, PNG o WebP. Maximo 5MB.
+            </p>
+            <div v-if="imagenPreview" class="mt-3">
+              <img
+                :src="imagenPreview"
+                alt="Vista previa"
+                class="h-32 w-full rounded-lg object-cover"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Fechas / Fecha y hora -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div v-if="formActividad.tipo === 'CURSO'">
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Fecha de Inicio <span class="text-red-600">*</span>
+            </label>
+            <input
+              v-model="formActividad.fechaInicio"
+              type="date"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div v-else>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Fecha y Hora <span class="text-red-600">*</span>
+            </label>
+            <input
+              v-model="formActividad.fechaHora"
+              type="datetime-local"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div v-if="formActividad.tipo === 'EVENTO'">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Link</label>
+            <input
+              v-model="formActividad.link"
+              type="text"
+              placeholder="https://..."
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
         </div>
 
         <!-- Precios -->
@@ -468,6 +518,7 @@
                 v-model.number="formActividad.costoExterno"
                 type="number"
                 :required="!formActividad.esGratuito"
+                :disabled="formActividad.esGratuito"
                 min="0"
                 step="0.01"
                 placeholder="0.00"
@@ -482,6 +533,7 @@
                 v-model.number="formActividad.costoUmsa"
                 type="number"
                 :required="!formActividad.esGratuito"
+                :disabled="formActividad.esGratuito"
                 min="0"
                 step="0.01"
                 placeholder="0.00"
@@ -519,6 +571,25 @@
         </div>
       </form>
     </Modal>
+
+    <Modal
+      :modelValue="showDeleteModal"
+      title="Eliminar actividad"
+      size="md"
+      @close="closeDeleteModal"
+    >
+      <div class="space-y-4">
+        <p class="text-sm text-gray-600">
+          Esta accion eliminara la actividad seleccionada. Esta seguro de continuar?
+        </p>
+        <div class="flex justify-end space-x-3">
+          <Button type="button" variant="outline" @click="closeDeleteModal">Cancelar</Button>
+          <Button type="button" variant="danger" :disabled="deleting" @click="confirmDelete">
+            {{ deleting ? 'Eliminando...' : 'Eliminar' }}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -532,6 +603,7 @@ import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import { api } from '@/utils/api'
+import { useAlertStore } from '@/stores/alert.store'
 // ============================================
 // TIPOS
 // ============================================
@@ -541,6 +613,8 @@ interface Actividad {
   tipo: 'CURSO' | 'EVENTO'
   nombre: string
   descripcion: string
+  lugar?: string
+  imagen?: string
   cargaHoraria: number
   modalidad: 'PRESENCIAL' | 'VIRTUAL' | 'MIXTO'
   fechaInicio: string
@@ -550,6 +624,7 @@ interface Actividad {
   costoUmsa: number
   esGratuito: boolean
   notaMinimaAprobacion: number | null
+  link?: string
   estado: 'ABIERTO' | 'LLENO' | 'FINALIZADO'
   idCarrera: number | null
   carrera: string
@@ -569,6 +644,7 @@ const loading = ref(false)
 const saving = ref(false)
 
 const router = useRouter()
+const alertStore = useAlertStore()
 
 const actividades = ref<Actividad[]>([])
 const carreras = ref<Carrera[]>([])
@@ -592,21 +668,33 @@ const filtros = ref({
 
 const showActividadModal = ref(false)
 const modoEdicion = ref(false)
+const actividadEditando = ref<Actividad | null>(null)
+
+const showDeleteModal = ref(false)
+const actividadAEliminar = ref<Actividad | null>(null)
+const deleting = ref(false)
+
+const imageInputRef = ref<HTMLInputElement | null>(null)
+const imagenFile = ref<File | null>(null)
+const imagenPreview = ref('')
 
 const formActividad = ref({
   tipo: 'CURSO',
   nombre: '',
   descripcion: '',
+  lugar: '',
+  imagen: '',
   cargaHoraria: 0,
   modalidad: '',
   fechaInicio: '',
-  fechaFin: '',
+  fechaHora: '',
   cupoMaximo: 0,
   costoExterno: 0,
   costoUmsa: 0,
   esGratuito: false,
   notaMinimaAprobacion: 51,
-  idCarrera: ''
+  idCarrera: '',
+  link: ''
 })
 
 // ============================================
@@ -687,6 +775,7 @@ const cargarDatos = async () => {
         tipo: 'CURSO' as const,
         nombre: String(curso.nombre ?? ''),
         descripcion: String(curso.descripcion ?? ''),
+        imagen: String(curso.imagen ?? ''),
         cargaHoraria: Number(curso.cargaHoraria ?? 0),
         modalidad: 'PRESENCIAL' as const,
         fechaInicio: String(curso.fechaInicio ?? ''),
@@ -713,6 +802,8 @@ const cargarDatos = async () => {
         tipo: 'EVENTO' as const,
         nombre: String(evento.nombre ?? ''),
         descripcion: String(evento.descripcion ?? ''),
+        lugar: String(evento.lugar ?? ''),
+        imagen: String(evento.imagen ?? ''),
         cargaHoraria: Number(evento.cargaHoraria ?? 0),
         modalidad: String(evento.modalidad ?? 'PRESENCIAL') as Actividad['modalidad'],
         fechaInicio: fechaHora,
@@ -722,6 +813,7 @@ const cargarDatos = async () => {
         costoUmsa,
         esGratuito: costoExterno === 0 && costoUmsa === 0,
         notaMinimaAprobacion: null,
+        link: String(evento.link ?? ''),
         estado: String(evento.estado ?? 'ABIERTO') as Actividad['estado'],
         idCarrera: evento.idCarrera !== undefined ? Number(evento.idCarrera) : null,
         carrera: String(evento.nombreCarrera ?? ''),
@@ -752,69 +844,160 @@ const calcularEstadisticas = () => {
 const submitActividad = async () => {
   saving.value = true
   try {
-    console.log('Guardando actividad:', formActividad.value)
+    if (!formActividad.value.imagen && !imagenFile.value) {
+      alertStore.push({ type: 'warning', message: 'Debes subir una imagen para la actividad.' })
+      saving.value = false
+      return
+    }
+
+    const imagenUrl = await uploadImagen()
+    formActividad.value.imagen = imagenUrl
+
+    const costoExterno = formActividad.value.esGratuito ? 0 : Number(formActividad.value.costoExterno)
+    const costoUmsa = formActividad.value.esGratuito ? 0 : Number(formActividad.value.costoUmsa)
+
+    if (formActividad.value.tipo === 'CURSO') {
+      const payload = {
+        idCarrera: Number(formActividad.value.idCarrera),
+        nombre: formActividad.value.nombre.trim(),
+        descripcion: formActividad.value.descripcion?.trim() || null,
+        imagen: imagenUrl,
+        cargaHoraria: Number(formActividad.value.cargaHoraria),
+        fechaInicio: formActividad.value.fechaInicio,
+        costoExterno,
+        costoUmsa,
+        notaAprobacion: Number(formActividad.value.notaMinimaAprobacion)
+      }
+
+      if (modoEdicion.value && actividadEditando.value) {
+        await api.put(`/cursos/${actividadEditando.value.idActividad}`, payload)
+      } else {
+        await api.post('/cursos', payload)
+      }
+    } else {
+      const payload = {
+        idCarrera: Number(formActividad.value.idCarrera),
+        nombre: formActividad.value.nombre.trim(),
+        descripcion: formActividad.value.descripcion?.trim() || null,
+        lugar: formActividad.value.lugar?.trim() || null,
+        imagen: imagenUrl,
+        cargaHoraria: Number(formActividad.value.cargaHoraria),
+        modalidad: formActividad.value.modalidad,
+        fechaHora: formActividad.value.fechaHora,
+        cupoMaximo: formActividad.value.cupoMaximo ? Number(formActividad.value.cupoMaximo) : null,
+        costoExterno,
+        costoUmsa,
+        link: formActividad.value.link?.trim() || null
+      }
+
+      if (modoEdicion.value && actividadEditando.value) {
+        await api.put(`/eventos/${actividadEditando.value.idActividad}`, payload)
+      } else {
+        await api.post('/eventos', payload)
+      }
+    }
+
     closeActividadModal()
     await cargarDatos()
   } catch (error) {
     console.error('Error al guardar actividad:', error)
+    alertStore.push({ type: 'error', message: (error as Error).message || 'No se pudo guardar la actividad.' })
   } finally {
     saving.value = false
   }
 }
 
-const eliminarActividad = async (actividad: Actividad) => {
-  if (confirm(`¿Estás seguro de eliminar "${actividad.nombre}"?`)) {
-    try {
-      console.log('Eliminando:', actividad.idActividad)
-      await cargarDatos()
-    } catch (error) {
-      console.error('Error al eliminar:', error)
+const openDeleteModal = (actividad: Actividad) => {
+  actividadAEliminar.value = actividad
+  showDeleteModal.value = true
+}
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  actividadAEliminar.value = null
+}
+
+const confirmDelete = async () => {
+  if (!actividadAEliminar.value) return
+  deleting.value = true
+  try {
+    if (actividadAEliminar.value.tipo === 'CURSO') {
+      await api.delete(`/cursos/${actividadAEliminar.value.idActividad}`)
+    } else {
+      await api.delete(`/eventos/${actividadAEliminar.value.idActividad}`)
     }
+    alertStore.push({ type: 'success', message: 'Actividad eliminada.' })
+    closeDeleteModal()
+    await cargarDatos()
+  } catch (error) {
+    console.error('Error al eliminar:', error)
+    alertStore.push({ type: 'error', message: (error as Error).message || 'No se pudo eliminar la actividad.' })
+  } finally {
+    deleting.value = false
   }
 }
 
 const openCreateModal = () => {
   modoEdicion.value = false
+  actividadEditando.value = null
   formActividad.value = {
     tipo: 'CURSO',
     nombre: '',
     descripcion: '',
+    lugar: '',
+    imagen: '',
     cargaHoraria: 0,
     modalidad: '',
     fechaInicio: '',
-    fechaFin: '',
+    fechaHora: '',
     cupoMaximo: 0,
     costoExterno: 0,
     costoUmsa: 0,
     esGratuito: false,
     notaMinimaAprobacion: 51,
-    idCarrera: ''
+    idCarrera: '',
+    link: ''
   }
+  clearImagePreview()
+  imagenFile.value = null
   showActividadModal.value = true
 }
 
 const openEditModal = (actividad: Actividad) => {
   modoEdicion.value = true
+  actividadEditando.value = actividad
   formActividad.value = {
     tipo: actividad.tipo,
     nombre: actividad.nombre,
     descripcion: actividad.descripcion,
+    lugar: actividad.tipo === 'EVENTO' ? (actividad.lugar ?? '') : '',
+    imagen: actividad.imagen ?? '',
     cargaHoraria: actividad.cargaHoraria,
     modalidad: actividad.modalidad || 'PRESENCIAL',
-    fechaInicio: toDateInput(actividad.fechaInicio),
-    fechaFin: toDateInput(actividad.fechaFin || actividad.fechaInicio),
+    fechaInicio: actividad.tipo === 'CURSO' ? toDateInput(actividad.fechaInicio) : '',
+    fechaHora: actividad.tipo === 'EVENTO' ? toDateTimeInput(actividad.fechaInicio) : '',
     cupoMaximo: actividad.cupoMaximo,
     costoExterno: actividad.costoExterno,
     costoUmsa: actividad.costoUmsa,
     esGratuito: actividad.esGratuito,
     notaMinimaAprobacion: actividad.notaMinimaAprobacion ?? 51,
-    idCarrera: actividad.idCarrera ? String(actividad.idCarrera) : ''
+    idCarrera: actividad.idCarrera ? String(actividad.idCarrera) : '',
+    link: actividad.link ?? ''
+  }
+  imagenFile.value = null
+  if (actividad.imagen) {
+    imagenPreview.value = actividad.imagen
+  } else {
+    clearImagePreview()
   }
   showActividadModal.value = true
 }
 
 const closeActividadModal = () => {
   showActividadModal.value = false
+  actividadEditando.value = null
+  clearImagePreview()
+  imagenFile.value = null
 }
 
 const verDetalle = (actividad: Actividad) => {
@@ -852,6 +1035,13 @@ const toDateInput = (value: string) => {
   return value
 }
 
+const toDateTimeInput = (value: string) => {
+  if (!value) return ''
+  if (value.includes('T')) return value.slice(0, 16)
+  if (value.includes(' ')) return value.replace(' ', 'T').slice(0, 16)
+  return value
+}
+
 const getEstadoBadge = (estado: string): 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'gray' => {
   const variants: Record<string, 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'gray'> = {
     'ABIERTO': 'success',
@@ -881,6 +1071,56 @@ const getCupoColor = (inscritos: number, maximo: number) => {
 const getCupoPorcentaje = (inscritos: number, maximo: number) => {
   if (!maximo || maximo <= 0) return 0
   return Math.min(100, (inscritos / maximo) * 100)
+}
+
+const clearImagePreview = () => {
+  if (imagenPreview.value.startsWith('blob:')) {
+    URL.revokeObjectURL(imagenPreview.value)
+  }
+  imagenPreview.value = ''
+}
+
+const handleImageChange = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files && input.files.length > 0 ? input.files[0] : null
+  if (!file) {
+    imagenFile.value = null
+    clearImagePreview()
+    return
+  }
+
+  imagenFile.value = file
+  clearImagePreview()
+  imagenPreview.value = URL.createObjectURL(file)
+}
+
+const triggerImagePicker = () => {
+  imageInputRef.value?.click()
+}
+
+const uploadImagen = async () => {
+  if (!imagenFile.value) return formActividad.value.imagen || ''
+
+  const formData = new FormData()
+  formData.append('archivo', imagenFile.value)
+
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+  const token = localStorage.getItem('token')
+
+  const response = await fetch(`${baseUrl}/archivos/imagenes`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null)
+    const message = data?.message || response.statusText || 'No se pudo subir la imagen.'
+    throw new Error(message)
+  }
+
+  const data = await response.json().catch(() => null)
+  return String(data?.url ?? '')
 }
 
 onMounted(() => {

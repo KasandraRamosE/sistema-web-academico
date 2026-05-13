@@ -435,6 +435,7 @@ const IconAward = { template: `<svg fill="none" stroke="currentColor" viewBox="0
 const IconInbox = { template: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>` }
 const IconPhoto = { template: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>` }
 const IconCheckCircle = { template: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>` }
+const IconChart = { template: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3v18m4-13v13m4-9v9M5 13v8" /></svg>` }
 
 // =====================================================
 // COMPUTED
@@ -481,12 +482,13 @@ const navigationItems = computed((): NavItem[] => {
     case 'COORDINADOR':
       return [
         { name: 'dashboard',  label: 'Dashboard',           shortLabel: 'Inicio',   path: '/coordinador',            icon: IconDashboard },
-        { name: 'activities', label: 'Actividades',          shortLabel: 'Act.',     path: '/coordinador/actividades', icon: IconCalendar },
+        { name: 'activities', label: 'Cursos',               shortLabel: 'Cursos',     path: '/coordinador/actividades', icon: IconCalendar },
         { name: 'events',     label: 'Eventos',              shortLabel: 'Eventos',  path: '/coordinador/eventos',     icon: IconCalendar },
         { name: 'enrolled',   label: 'Inscritos',            shortLabel: 'Inscrip.', path: '/coordinador/inscritos',  icon: IconClipboard },
         { name: 'inbox',      label: 'Bandeja',              shortLabel: 'Bandeja',  path: '/coordinador/bandeja',    icon: IconInbox     },
-        { name: 'designers',  label: 'Disenadores',          shortLabel: 'Disen.',   path: '/coordinador/disenadores', icon: IconPhoto     },
+        { name: 'designers',  label: 'Diseñadores',          shortLabel: 'Disen.',   path: '/coordinador/disenadores', icon: IconPhoto     },
         { name: 'emit',       label: 'Emitir Certificados',  shortLabel: 'Emitir',   path: '/coordinador/emitir',     icon: IconAward     },
+        { name: 'reports',    label: 'Reportes',             shortLabel: 'Reportes', path: '/coordinador/reportes',   icon: IconChart },
       ]
 
     case 'DOCENTE':
@@ -504,7 +506,8 @@ const navigationItems = computed((): NavItem[] => {
 
     case 'DISENADOR':
       return [
-        { name: 'templates',  label: 'Plantillas',  shortLabel: 'Plantillas', path: '/disenador/plantillas', icon: IconPhoto     },
+        { name: 'templates',      label: 'Plantillas',       shortLabel: 'Plantillas',      path: '/disenador/plantillas',      icon: IconPhoto },
+        { name: 'my-templates',    label: 'Mis Plantillas',   shortLabel: 'MisPlant.',       path: '/disenador/mis-plantillas',  icon: IconInbox },
       ]
 
     default:

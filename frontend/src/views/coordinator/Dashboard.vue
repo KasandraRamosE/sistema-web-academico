@@ -74,7 +74,16 @@
             class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
           >
             <div class="flex items-start justify-between gap-3">
-              <div>
+              <div class="flex items-start gap-3">
+                <div class="h-14 w-20 overflow-hidden rounded-lg bg-slate-100">
+                  <img
+                    v-if="getSolicitudImagen(solicitud)"
+                    :src="getSolicitudImagen(solicitud)"
+                    alt="Imagen actividad"
+                    class="h-full w-full object-cover"
+                  />
+                </div>
+                <div>
                 <p class="text-xs uppercase tracking-wide text-slate-500">
                   {{ solicitud.codigoParalelo ? 'Curso' : 'Evento' }}
                 </p>
@@ -84,7 +93,11 @@
                 <p v-if="solicitud.codigoParalelo" class="text-xs text-slate-500">
                   Paralelo {{ solicitud.codigoParalelo }}
                 </p>
+                <p v-if="getSolicitudLugar(solicitud)" class="text-xs text-slate-500">
+                  Lugar: {{ getSolicitudLugar(solicitud) }}
+                </p>
                 <p class="text-xs text-slate-500">Docente: {{ solicitud.nombreDocente }}</p>
+                </div>
               </div>
               <Badge variant="warning" size="sm">PENDIENTE</Badge>
             </div>
@@ -200,6 +213,13 @@ interface CursoDto {
   estado: string
   idDisenador?: number | null
   nombreDisenador?: string | null
+  imagen?: string | null
+  paralelos?: ParaleloDto[]
+}
+
+interface ParaleloDto {
+  codigo: string
+  lugar?: string | null
 }
 
 interface EventoDto {
@@ -207,6 +227,8 @@ interface EventoDto {
   idCarrera: number
   nombre: string
   estado: string
+  imagen?: string | null
+  lugar?: string | null
 }
 
 interface SolicitudDto {
@@ -305,6 +327,25 @@ const plantillasFiltradas = computed(() => {
     return false
   })
 })
+
+const getSolicitudImagen = (solicitud: SolicitudDto) => {
+  if (solicitud.codigoParalelo) {
+    const curso = cursos.value.find(item => item.nombre === solicitud.nombreActividad)
+    return curso?.imagen || ''
+  }
+  const evento = eventos.value.find(item => item.nombre === solicitud.nombreActividad)
+  return evento?.imagen || ''
+}
+
+const getSolicitudLugar = (solicitud: SolicitudDto) => {
+  if (solicitud.codigoParalelo) {
+    const curso = cursos.value.find(item => item.nombre === solicitud.nombreActividad)
+    const paralelo = curso?.paralelos?.find(item => item.codigo === solicitud.codigoParalelo)
+    return paralelo?.lugar || ''
+  }
+  const evento = eventos.value.find(item => item.nombre === solicitud.nombreActividad)
+  return evento?.lugar || ''
+}
 
 const loadCarreras = async () => {
   const response = await api.get('/coordinador/carreras') as CarreraDto[]

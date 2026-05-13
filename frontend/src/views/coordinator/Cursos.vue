@@ -113,6 +113,31 @@
             class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
           ></textarea>
         </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-700">Imagen</label>
+          <input
+            ref="cursoImageInputRef"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="handleCursoImageChange"
+          />
+          <button
+            type="button"
+            class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            @click="triggerCursoImagePicker"
+          >
+            Seleccionar imagen
+          </button>
+          <p class="mt-2 text-xs text-slate-500">Formatos: JPG, PNG o WebP. Maximo 5MB.</p>
+          <div v-if="cursoImagePreview" class="mt-3">
+            <img
+              :src="cursoImagePreview"
+              alt="Vista previa"
+              class="h-32 w-full rounded-lg object-cover"
+            />
+          </div>
+        </div>
         <div class="grid gap-4 md:grid-cols-2">
           <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">Carrera</label>
@@ -250,6 +275,7 @@
               <Button variant="ghost" size="sm" @click="openEditParalelo(paralelo)">Editar</Button>
             </div>
             <p class="mt-2 text-xs text-slate-500">Docente: {{ paralelo.nombreDocente || 'Sin asignar' }}</p>
+            <p v-if="paralelo.lugar" class="mt-1 text-xs text-slate-500">Lugar: {{ paralelo.lugar }}</p>
           </div>
         </div>
       </div>
@@ -346,6 +372,14 @@
           />
         </div>
         <div>
+          <label class="mb-1 block text-sm font-medium text-slate-700">Lugar</label>
+          <input
+            v-model="formParalelo.lugar"
+            type="text"
+            class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
+          />
+        </div>
+        <div>
           <label class="mb-1 block text-sm font-medium text-slate-700">Link</label>
           <input
             v-model="formParalelo.link"
@@ -381,6 +415,7 @@ interface ParaleloDto {
   modalidad: string
   cupoMaximo: number | null
   horarioDescripcion: string
+  lugar: string
   link: string
   nombreDocente?: string
 }
@@ -391,6 +426,7 @@ interface CursoDto {
   nombreCarrera: string
   nombre: string
   descripcion: string
+  imagen?: string | null
   cargaHoraria: number
   fechaInicio: string
   costoExterno: number
@@ -434,10 +470,14 @@ const docenteAssignError = ref('')
 const showCursoModal = ref(false)
 const editingCurso = ref<CursoDto | null>(null)
 const editingEstado = ref('')
+const cursoImageInputRef = ref<HTMLInputElement | null>(null)
+const cursoImageFile = ref<File | null>(null)
+const cursoImagePreview = ref('')
 const formCurso = ref({
   idCarrera: 0,
   nombre: '',
   descripcion: '',
+  imagen: '',
   cargaHoraria: 1,
   fechaInicio: '',
   costoExterno: 0,
@@ -462,6 +502,7 @@ const formParalelo = ref({
   modalidad: 'PRESENCIAL',
   cupoMaximo: null as number | null,
   horarioDescripcion: '',
+  lugar: '',
   link: ''
 })
 
@@ -532,6 +573,7 @@ const openCreateCurso = () => {
     idCarrera: selectedCarreraId.value || carreras.value[0]?.idCarrera || 0,
     nombre: '',
     descripcion: '',
+    imagen: '',
     cargaHoraria: 1,
     fechaInicio: '',
     costoExterno: 0,
@@ -539,6 +581,8 @@ const openCreateCurso = () => {
     notaAprobacion: 51,
     estado: 'ABIERTO'
   }
+  clearCursoImagePreview()
+  cursoImageFile.value = null
   showCursoModal.value = true
 }
 
@@ -549,12 +593,19 @@ const openEditCurso = (curso: CursoDto) => {
     idCarrera: curso.idCarrera,
     nombre: curso.nombre,
     descripcion: curso.descripcion || '',
+    imagen: curso.imagen || '',
     cargaHoraria: curso.cargaHoraria,
     fechaInicio: curso.fechaInicio,
     costoExterno: Number(curso.costoExterno || 0),
     costoUmsa: Number(curso.costoUmsa || 0),
     notaAprobacion: Number(curso.notaAprobacion || 51),
     estado: curso.estado
+  }
+  cursoImageFile.value = null
+  if (curso.imagen) {
+    cursoImagePreview.value = curso.imagen
+  } else {
+    clearCursoImagePreview()
   }
   showCursoModal.value = true
 }
@@ -563,6 +614,8 @@ const closeCursoModal = () => {
   showCursoModal.value = false
   editingCurso.value = null
   editingEstado.value = ''
+  clearCursoImagePreview()
+  cursoImageFile.value = null
 }
 
 const saveCurso = async () => {
@@ -581,11 +634,21 @@ const saveCurso = async () => {
 
   saving.value = true
   try {
+    if (!formCurso.value.imagen && !cursoImageFile.value) {
+      alertStore.push({ type: 'warning', message: 'Debes subir una imagen para el curso.' })
+      saving.value = false
+      return
+    }
+
+    const imagenUrl = await uploadCursoImagen()
+    formCurso.value.imagen = imagenUrl
+
     if (editingCurso.value) {
       await api.put(`/cursos/${editingCurso.value.idCurso}`, {
         idCarrera: formCurso.value.idCarrera,
         nombre: formCurso.value.nombre,
         descripcion: formCurso.value.descripcion,
+        imagen: imagenUrl,
         cargaHoraria: formCurso.value.cargaHoraria,
         fechaInicio: formCurso.value.fechaInicio,
         costoExterno: formCurso.value.costoExterno,
@@ -601,6 +664,7 @@ const saveCurso = async () => {
         idCarrera: formCurso.value.idCarrera,
         nombre: formCurso.value.nombre,
         descripcion: formCurso.value.descripcion,
+        imagen: imagenUrl,
         cargaHoraria: formCurso.value.cargaHoraria,
         fechaInicio: formCurso.value.fechaInicio,
         costoExterno: formCurso.value.costoExterno,
@@ -623,6 +687,56 @@ const saveCurso = async () => {
   } finally {
     saving.value = false
   }
+}
+
+const clearCursoImagePreview = () => {
+  if (cursoImagePreview.value.startsWith('blob:')) {
+    URL.revokeObjectURL(cursoImagePreview.value)
+  }
+  cursoImagePreview.value = ''
+}
+
+const handleCursoImageChange = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files && input.files.length > 0 ? input.files[0] : null
+  if (!file) {
+    cursoImageFile.value = null
+    clearCursoImagePreview()
+    return
+  }
+
+  cursoImageFile.value = file
+  clearCursoImagePreview()
+  cursoImagePreview.value = URL.createObjectURL(file)
+}
+
+const triggerCursoImagePicker = () => {
+  cursoImageInputRef.value?.click()
+}
+
+const uploadCursoImagen = async () => {
+  if (!cursoImageFile.value) return formCurso.value.imagen || ''
+
+  const formData = new FormData()
+  formData.append('archivo', cursoImageFile.value)
+
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+  const token = localStorage.getItem('token')
+
+  const response = await fetch(`${baseUrl}/archivos/imagenes`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null)
+    const message = data?.message || response.statusText || 'No se pudo subir la imagen.'
+    throw new Error(message)
+  }
+
+  const data = await response.json().catch(() => null)
+  return String(data?.url ?? '')
 }
 
 const confirmDeleteCurso = (curso: CursoDto) => {
@@ -670,6 +784,7 @@ const openCreateParalelo = (defaultCode: string | Event = '') => {
     modalidad: 'PRESENCIAL',
     cupoMaximo: null,
     horarioDescripcion: '',
+    lugar: '',
     link: ''
   }
   docenteSearch.value = ''
@@ -687,6 +802,7 @@ const openEditParalelo = (paralelo: ParaleloDto) => {
     modalidad: paralelo.modalidad,
     cupoMaximo: paralelo.cupoMaximo ?? null,
     horarioDescripcion: paralelo.horarioDescripcion || '',
+    lugar: paralelo.lugar || '',
     link: paralelo.link || ''
   }
   docenteSearch.value = ''
@@ -735,6 +851,7 @@ const saveParalelo = async () => {
       modalidad: formParalelo.value.modalidad,
       cupoMaximo: formParalelo.value.cupoMaximo,
       horarioDescripcion: formParalelo.value.horarioDescripcion,
+      lugar: formParalelo.value.lugar,
       link: formParalelo.value.link
     }
 

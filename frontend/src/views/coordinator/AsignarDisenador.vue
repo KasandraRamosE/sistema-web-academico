@@ -9,7 +9,7 @@
     </div>
 
     <Card>
-      <div class="grid gap-4 md:grid-cols-3">
+      <div class="grid gap-4 md:grid-cols-4">
         <div>
           <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Carrera</label>
           <select
@@ -23,20 +23,34 @@
           </select>
         </div>
         <div>
-          <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Buscar cursos</label>
-          <input
-            v-model="cursoSearch"
-            type="text"
-            placeholder="Nombre del curso"
+          <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tipo</label>
+          <select
+            v-model="tipoFiltro"
             class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
-          />
+          >
+            <option value="">Todos</option>
+            <option value="CURSO">Curso</option>
+            <option value="EVENTO">Evento</option>
+          </select>
         </div>
         <div>
-          <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Buscar eventos</label>
+          <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Estado</label>
+          <select
+            v-model="estadoFiltro"
+            class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
+          >
+            <option value="">Todos</option>
+            <option value="ABIERTO">Abierto</option>
+            <option value="LLENO">Lleno</option>
+            <option value="FINALIZADO">Finalizado</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Buscar</label>
           <input
-            v-model="eventoSearch"
+            v-model="searchTerm"
             type="text"
-            placeholder="Nombre del evento"
+            placeholder="Nombre de curso o evento"
             class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
           />
         </div>
@@ -46,93 +60,57 @@
     <Card>
       <div class="flex items-center justify-between">
         <div>
-          <h3 class="text-lg font-semibold text-slate-900">Cursos</h3>
-          <p class="text-sm text-slate-500">Asignacion de disenador para cursos.</p>
+          <h3 class="text-lg font-semibold text-slate-900">Actividades</h3>
+          <p class="text-sm text-slate-500">Listado unificado de cursos y eventos para asignar disenador.</p>
         </div>
-        <Badge v-if="cursosFiltrados.length > 0" variant="primary" size="sm">
-          {{ cursosFiltrados.length }} cursos
+        <Badge v-if="actividadesFiltradas.length > 0" variant="primary" size="sm">
+          {{ actividadesFiltradas.length }} actividades
         </Badge>
       </div>
 
-      <div v-if="loadingCursos" class="py-8 text-center text-sm text-slate-500">
-        Cargando cursos...
+      <div v-if="loading" class="py-8 text-center text-sm text-slate-500">
+        Cargando actividades...
       </div>
-      <div v-else-if="cursosFiltrados.length === 0" class="py-8 text-center text-sm text-slate-500">
-        No hay cursos para mostrar.
+      <div v-else-if="actividadesFiltradas.length === 0" class="py-8 text-center text-sm text-slate-500">
+        No hay actividades para mostrar.
       </div>
       <div v-else class="mt-4 overflow-x-auto">
         <table class="min-w-full text-left text-sm">
           <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
-              <th class="px-4 py-3">Curso</th>
+              <th class="px-4 py-3">Actividad</th>
+              <th class="px-4 py-3">Tipo</th>
+              <th class="px-4 py-3">Estado</th>
               <th class="px-4 py-3">Disenador</th>
               <th class="px-4 py-3 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100">
-            <tr v-for="curso in cursosFiltrados" :key="curso.idCurso">
+            <tr v-for="actividad in actividadesFiltradas" :key="actividad.key">
               <td class="px-4 py-3">
-                <p class="font-semibold text-slate-900">{{ curso.nombre }}</p>
+                <p class="font-semibold text-slate-900">{{ actividad.nombre }}</p>
+                <p class="text-xs text-slate-500">{{ actividad.carreraNombre || 'Sin carrera' }}</p>
+              </td>
+              <td class="px-4 py-3">
+                <Badge :variant="actividad.tipo === 'CURSO' ? 'primary' : 'secondary'" size="sm">
+                  {{ actividad.tipo }}
+                </Badge>
+              </td>
+              <td class="px-4 py-3">
+                <Badge :variant="estadoActividadBadge(actividad.estadoActividad)" size="sm">
+                  {{ actividad.estadoActividad }}
+                </Badge>
               </td>
               <td class="px-4 py-3 text-slate-600">
-                {{ curso.nombreDisenador || 'Sin asignar' }}
+                {{ actividad.nombreDisenador || 'Sin asignar' }}
               </td>
               <td class="px-4 py-3 text-right">
                 <Button
                   variant="outline"
                   size="sm"
-                  @click="openDesignerModal('CURSO', curso.idCurso, curso.nombre, curso.idDisenador, curso.nombreDisenador)"
+                  @click="openDesignerModal(actividad.tipo, actividad.id, actividad.nombre, actividad.idDisenador, actividad.nombreDisenador)"
                 >
-                  Asignar
-                </Button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </Card>
-
-    <Card>
-      <div class="flex items-center justify-between">
-        <div>
-          <h3 class="text-lg font-semibold text-slate-900">Eventos</h3>
-          <p class="text-sm text-slate-500">Asignacion de disenador para eventos.</p>
-        </div>
-        <Badge v-if="eventosFiltrados.length > 0" variant="secondary" size="sm">
-          {{ eventosFiltrados.length }} eventos
-        </Badge>
-      </div>
-
-      <div v-if="loadingEventos" class="py-8 text-center text-sm text-slate-500">
-        Cargando eventos...
-      </div>
-      <div v-else-if="eventosFiltrados.length === 0" class="py-8 text-center text-sm text-slate-500">
-        No hay eventos para mostrar.
-      </div>
-      <div v-else class="mt-4 overflow-x-auto">
-        <table class="min-w-full text-left text-sm">
-          <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th class="px-4 py-3">Evento</th>
-              <th class="px-4 py-3">Disenador</th>
-              <th class="px-4 py-3 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            <tr v-for="evento in eventosFiltrados" :key="evento.idEvento">
-              <td class="px-4 py-3">
-                <p class="font-semibold text-slate-900">{{ evento.nombre }}</p>
-              </td>
-              <td class="px-4 py-3 text-slate-600">
-                {{ evento.nombreDisenador || 'Sin asignar' }}
-              </td>
-              <td class="px-4 py-3 text-right">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  @click="openDesignerModal('EVENTO', evento.idEvento, evento.nombre, evento.idDisenador, evento.nombreDisenador)"
-                >
-                  Asignar
+                  {{ actividad.idDisenador ? 'Reasignar' : 'Asignar' }}
                 </Button>
               </td>
             </tr>
@@ -226,6 +204,8 @@ interface CursoDto {
   idCurso: number
   idCarrera: number
   nombre: string
+  estado?: string
+  nombreCarrera?: string
   idDisenador?: number | null
   nombreDisenador?: string | null
 }
@@ -234,6 +214,20 @@ interface EventoDto {
   idEvento: number
   idCarrera: number
   nombre: string
+  estado?: string
+  nombreCarrera?: string
+  idDisenador?: number | null
+  nombreDisenador?: string | null
+}
+
+interface ActividadRow {
+  key: string
+  tipo: 'CURSO' | 'EVENTO'
+  id: number
+  idCarrera: number
+  nombre: string
+  carreraNombre?: string
+  estadoActividad: string
   idDisenador?: number | null
   nombreDisenador?: string | null
 }
@@ -258,6 +252,8 @@ const alertStore = useAlertStore()
 
 const carreras = ref<CarreraDto[]>([])
 const selectedCarreraId = ref<number | ''>('')
+const tipoFiltro = ref('')
+const estadoFiltro = ref('')
 
 const cursos = ref<CursoDto[]>([])
 const eventos = ref<EventoDto[]>([])
@@ -270,29 +266,50 @@ const loadingDesigners = ref(false)
 const loadingParticipantes = ref(false)
 const savingDesigner = ref(false)
 
-const cursoSearch = ref('')
-const eventoSearch = ref('')
+const searchTerm = ref('')
 const designerSearch = ref('')
 
 const showDesignerModal = ref(false)
 const assigningActivity = ref<AssigningActivity | null>(null)
 const selectedDesigner = ref<PersonaDto | null>(null)
 
-const cursosFiltrados = computed(() => {
-  const term = cursoSearch.value.trim().toLowerCase()
-  return cursos.value.filter(curso => {
-    const carreraOk = !selectedCarreraId.value || curso.idCarrera === selectedCarreraId.value
-    const searchOk = !term || curso.nombre.toLowerCase().includes(term)
-    return carreraOk && searchOk
-  })
+const actividades = computed((): ActividadRow[] => {
+  const cursosRows = cursos.value.map((curso) => ({
+    key: `CURSO-${curso.idCurso}`,
+    tipo: 'CURSO' as const,
+    id: curso.idCurso,
+    idCarrera: curso.idCarrera,
+    nombre: curso.nombre,
+    carreraNombre: curso.nombreCarrera,
+    estadoActividad: curso.estado || '-',
+    idDisenador: curso.idDisenador ?? null,
+    nombreDisenador: curso.nombreDisenador ?? null
+  }))
+
+  const eventosRows = eventos.value.map((evento) => ({
+    key: `EVENTO-${evento.idEvento}`,
+    tipo: 'EVENTO' as const,
+    id: evento.idEvento,
+    idCarrera: evento.idCarrera,
+    nombre: evento.nombre,
+    carreraNombre: evento.nombreCarrera,
+    estadoActividad: evento.estado || '-',
+    idDisenador: evento.idDisenador ?? null,
+    nombreDisenador: evento.nombreDisenador ?? null
+  }))
+
+  return [...cursosRows, ...eventosRows]
 })
 
-const eventosFiltrados = computed(() => {
-  const term = eventoSearch.value.trim().toLowerCase()
-  return eventos.value.filter(evento => {
-    const carreraOk = !selectedCarreraId.value || evento.idCarrera === selectedCarreraId.value
-    const searchOk = !term || evento.nombre.toLowerCase().includes(term)
-    return carreraOk && searchOk
+const actividadesFiltradas = computed(() => {
+  const term = searchTerm.value.trim().toLowerCase()
+
+  return actividades.value.filter((actividad) => {
+    const carreraOk = !selectedCarreraId.value || actividad.idCarrera === selectedCarreraId.value
+    const tipoOk = !tipoFiltro.value || actividad.tipo === tipoFiltro.value
+    const estadoOk = !estadoFiltro.value || actividad.estadoActividad === estadoFiltro.value
+    const searchOk = !term || actividad.nombre.toLowerCase().includes(term)
+    return carreraOk && tipoOk && estadoOk && searchOk
   })
 })
 
@@ -368,6 +385,10 @@ const loadAll = async () => {
     loadParticipantes()
   ])
 }
+
+const loading = computed(() => {
+  return loadingCursos.value || loadingEventos.value
+})
 
 const openDesignerModal = (
   tipo: AssigningActivity['tipo'],
@@ -446,6 +467,19 @@ const assignDesigner = async () => {
 
 const isDesigner = (roles: string[]) => {
   return roles.some(role => role === 'DISENADOR' || role === 'DISEÑADOR')
+}
+
+const estadoActividadBadge = (estado: string) => {
+  switch (estado) {
+    case 'ABIERTO':
+      return 'success'
+    case 'LLENO':
+      return 'warning'
+    case 'FINALIZADO':
+      return 'gray'
+    default:
+      return 'gray'
+  }
 }
 
 onMounted(() => {

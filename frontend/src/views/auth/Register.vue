@@ -63,7 +63,7 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Contrasena</label>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
           <div class="relative">
             <input
               v-model="form.password"
@@ -93,7 +93,7 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Confirmar contrasena</label>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Confirmar contraseña</label>
           <div class="relative">
             <input
               v-model="form.confirmPassword"
@@ -101,7 +101,7 @@
               autocomplete="new-password"
               :disabled="isSubmitting"
               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition pr-10"
-              placeholder="Repite tu contrasena"
+              placeholder="Repite tu contraseña"
             />
             <button
               type="button"
@@ -194,25 +194,52 @@ const handleRegister = async () => {
     message.value = ''
     errorMessage.value = ''
 
-    if (form.password !== form.confirmPassword) {
-      errorMessage.value = 'Las contrasenas no coinciden'
+    const trimmedUsername = form.username.trim()
+    const trimmedNombres = form.nombres.trim()
+    const trimmedApellidos = form.apellidos.trim()
+    const trimmedEmail = form.email.trim()
+    const trimmedPassword = form.password.trim()
+    const trimmedConfirm = form.confirmPassword.trim()
+
+    if (!trimmedUsername || !trimmedNombres || !trimmedApellidos || !trimmedEmail || !trimmedPassword || !trimmedConfirm) {
+      errorMessage.value = 'Completa todos los campos obligatorios'
+      return
+    }
+
+    if (!/^[\w.\-]+$/i.test(trimmedUsername)) {
+      errorMessage.value = 'El usuario solo puede tener letras, numeros, puntos o guiones'
+      return
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      errorMessage.value = 'El email no tiene un formato valido'
+      return
+    }
+
+    if (trimmedPassword.length < 8) {
+      errorMessage.value = 'La contraseña debe tener al menos 8 caracteres'
+      return
+    }
+
+    if (trimmedPassword !== trimmedConfirm) {
+      errorMessage.value = 'Las contraseñas no coinciden'
       return
     }
 
     isSubmitting.value = true
     const response = await auth.register({
-      username: form.username,
-      nombres: form.nombres,
-      apellidos: form.apellidos,
-      email: form.email,
-      password: form.password,
+      username: trimmedUsername,
+      nombres: trimmedNombres,
+      apellidos: trimmedApellidos,
+      email: trimmedEmail,
+      password: trimmedPassword,
       tipoParticipante: 'EXTERNO'
     })
 
     message.value = response
     router.push({
       name: 'verify-email',
-      query: { username: form.username }
+      query: { username: trimmedUsername }
     })
   } catch (error) {
     errorMessage.value = (error as Error).message

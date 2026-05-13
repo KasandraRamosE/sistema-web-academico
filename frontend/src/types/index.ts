@@ -135,6 +135,10 @@ export interface Actividad {
   estado: EstadoActividad;
   carrera?: Carrera; // Información de la carrera
   
+  // Imagen y ubicación
+  imagen: string; // URL de la imagen (por defecto si no está disponible)
+  lugar?: string | null; // Ubicación del curso/evento
+  
   fecha_creacion: string;
 }
 

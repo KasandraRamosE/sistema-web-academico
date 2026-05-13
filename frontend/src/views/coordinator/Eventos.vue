@@ -113,6 +113,31 @@
             class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
           ></textarea>
         </div>
+        <div>
+          <label class="mb-2 block text-sm font-medium text-slate-700">Imagen</label>
+          <input
+            ref="eventoImageInputRef"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="handleEventoImageChange"
+          />
+          <button
+            type="button"
+            class="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            @click="triggerEventoImagePicker"
+          >
+            Seleccionar imagen
+          </button>
+          <p class="mt-2 text-xs text-slate-500">Formatos: JPG, PNG o WebP. Maximo 5MB.</p>
+          <div v-if="eventoImagePreview" class="mt-3">
+            <img
+              :src="eventoImagePreview"
+              alt="Vista previa"
+              class="h-32 w-full rounded-lg object-cover"
+            />
+          </div>
+        </div>
         <div class="grid gap-4 md:grid-cols-2">
           <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">Carrera</label>
@@ -135,6 +160,14 @@
               class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
             />
           </div>
+        </div>
+        <div>
+          <label class="mb-1 block text-sm font-medium text-slate-700">Lugar</label>
+          <input
+            v-model="formEvento.lugar"
+            type="text"
+            class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
+          />
         </div>
         <div class="grid gap-4 md:grid-cols-3">
           <div>
@@ -332,6 +365,8 @@ interface EventoDto {
   nombreCarrera: string
   nombre: string
   descripcion: string
+  imagen?: string | null
+  lugar?: string | null
   cargaHoraria: number
   modalidad: string
   fechaHora: string
@@ -373,10 +408,15 @@ const estadoFiltro = ref('')
 const showEventoModal = ref(false)
 const editingEvento = ref<EventoDto | null>(null)
 const editingEstado = ref('')
+const eventoImageInputRef = ref<HTMLInputElement | null>(null)
+const eventoImageFile = ref<File | null>(null)
+const eventoImagePreview = ref('')
 const formEvento = ref({
   idCarrera: 0,
   nombre: '',
   descripcion: '',
+  imagen: '',
+  lugar: '',
   cargaHoraria: 1,
   modalidad: 'PRESENCIAL',
   fechaHora: '',
@@ -519,6 +559,8 @@ const openCreateEvento = () => {
     idCarrera: selectedCarreraId.value || carreras.value[0]?.idCarrera || 0,
     nombre: '',
     descripcion: '',
+    imagen: '',
+    lugar: '',
     cargaHoraria: 1,
     modalidad: 'PRESENCIAL',
     fechaHora: '',
@@ -528,6 +570,8 @@ const openCreateEvento = () => {
     link: '',
     estado: 'ABIERTO'
   }
+  clearEventoImagePreview()
+  eventoImageFile.value = null
   showEventoModal.value = true
 }
 
@@ -538,6 +582,8 @@ const openEditEvento = (evento: EventoDto) => {
     idCarrera: evento.idCarrera,
     nombre: evento.nombre,
     descripcion: evento.descripcion || '',
+    imagen: evento.imagen || '',
+    lugar: evento.lugar || '',
     cargaHoraria: evento.cargaHoraria,
     modalidad: evento.modalidad,
     fechaHora: evento.fechaHora ? evento.fechaHora.slice(0, 16) : '',
@@ -547,6 +593,12 @@ const openEditEvento = (evento: EventoDto) => {
     link: evento.link || '',
     estado: evento.estado
   }
+  eventoImageFile.value = null
+  if (evento.imagen) {
+    eventoImagePreview.value = evento.imagen
+  } else {
+    clearEventoImagePreview()
+  }
   showEventoModal.value = true
 }
 
@@ -554,15 +606,28 @@ const closeEventoModal = () => {
   showEventoModal.value = false
   editingEvento.value = null
   editingEstado.value = ''
+  clearEventoImagePreview()
+  eventoImageFile.value = null
 }
 
 const saveEvento = async () => {
   saving.value = true
   try {
+    if (!formEvento.value.imagen && !eventoImageFile.value) {
+      alertStore.push({ type: 'warning', message: 'Debes subir una imagen para el evento.' })
+      saving.value = false
+      return
+    }
+
+    const imagenUrl = await uploadEventoImagen()
+    formEvento.value.imagen = imagenUrl
+
     const payload = {
       idCarrera: formEvento.value.idCarrera,
       nombre: formEvento.value.nombre,
       descripcion: formEvento.value.descripcion,
+      imagen: imagenUrl,
+      lugar: formEvento.value.lugar || null,
       cargaHoraria: formEvento.value.cargaHoraria,
       modalidad: formEvento.value.modalidad,
       fechaHora: formEvento.value.fechaHora,
@@ -590,6 +655,56 @@ const saveEvento = async () => {
   } finally {
     saving.value = false
   }
+}
+
+const clearEventoImagePreview = () => {
+  if (eventoImagePreview.value.startsWith('blob:')) {
+    URL.revokeObjectURL(eventoImagePreview.value)
+  }
+  eventoImagePreview.value = ''
+}
+
+const handleEventoImageChange = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files && input.files.length > 0 ? input.files[0] : null
+  if (!file) {
+    eventoImageFile.value = null
+    clearEventoImagePreview()
+    return
+  }
+
+  eventoImageFile.value = file
+  clearEventoImagePreview()
+  eventoImagePreview.value = URL.createObjectURL(file)
+}
+
+const triggerEventoImagePicker = () => {
+  eventoImageInputRef.value?.click()
+}
+
+const uploadEventoImagen = async () => {
+  if (!eventoImageFile.value) return formEvento.value.imagen || ''
+
+  const formData = new FormData()
+  formData.append('archivo', eventoImageFile.value)
+
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+  const token = localStorage.getItem('token')
+
+  const response = await fetch(`${baseUrl}/archivos/imagenes`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData
+  })
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null)
+    const message = data?.message || response.statusText || 'No se pudo subir la imagen.'
+    throw new Error(message)
+  }
+
+  const data = await response.json().catch(() => null)
+  return String(data?.url ?? '')
 }
 
 const openAuxiliares = (evento: EventoDto) => {

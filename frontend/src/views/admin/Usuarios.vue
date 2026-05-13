@@ -1199,8 +1199,24 @@ const submitUsuario = async () => {
   saving.value = true
   try {
     if (modoEdicion.value) {
-      // Solo se pueden editar usuarios EXTERNOS
-      alertStore.push({ type: 'warning', message: 'La edicion de usuarios aun no esta disponible.' })
+      if (!usuarioSeleccionado.value) {
+        alertStore.push({ type: 'warning', message: 'Selecciona un usuario para editar.' })
+        saving.value = false
+        return
+      }
+
+      const payload: Record<string, string> = {
+        nombres: formUsuario.value.nombres,
+        apellidos: formUsuario.value.apellidos
+      }
+
+      if (formUsuario.value.tipoUsuario === 'EXTERNO') {
+        payload.email = formUsuario.value.email
+        payload.estado = formUsuario.value.estado
+      }
+
+      await api.put(`/usuarios/${usuarioSeleccionado.value.idUsuario}`, payload)
+      alertStore.push({ type: 'success', message: 'Usuario actualizado correctamente.' })
     } else {
       // Solo se pueden crear usuarios EXTERNOS
       await api.post('/auth/registro', {

@@ -50,7 +50,7 @@ const clearAuthAndRedirect = () => {
   }
 }
 
-const request = async (path: string, options: RequestInit = {}) => {
+const request = async (path: string, options: RequestInit = {}, retried = false) => {
   const headers = new Headers(options.headers)
   if (!headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
@@ -69,6 +69,17 @@ const request = async (path: string, options: RequestInit = {}) => {
   const isAuthRequest = path.startsWith('/auth/')
 
   if (!isAuthRequest && response.status === 401) {
+    if (!retried) {
+      const pinia = getActivePinia()
+      if (pinia) {
+        const authStore = useAuthStore(pinia)
+        const refreshed = await authStore.refreshAccessToken()
+        if (refreshed) {
+          return request(path, options, true)
+        }
+      }
+    }
+
     notifySessionExpired()
     clearAuthAndRedirect()
     throw new Error('Unauthorized')

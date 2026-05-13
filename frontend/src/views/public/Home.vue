@@ -156,6 +156,7 @@ import { filterActivities } from '@/utils/mockData'
 import { api } from '@/utils/api'
 import type { Actividad, FiltrosActividad } from '@/types'
 import bannerImage from '@/assets/images/banner.jpg'
+import defaultActivityImage from '@/assets/images/defecto.jpg'
 
 // ============================================
 // COMPOSABLES
@@ -391,6 +392,8 @@ const loadActivities = async () => {
         nota_minima_aprobacion: curso.notaAprobacion !== undefined ? Number(curso.notaAprobacion) : undefined,
         estado: String(curso.estado ?? 'ABIERTO') as Actividad['estado'],
         carrera: idCarrera ? buildCarrera(idCarrera, nombreCarrera) : undefined,
+        imagen: String(curso.imagen ?? '').trim() ? String(curso.imagen ?? '') : defaultActivityImage,
+        lugar: paralelos.length > 0 ? String(paralelos[0].lugar ?? '') || null : null,
         fecha_creacion: String(curso.fechaCreacion ?? '')
       }
     })
@@ -420,6 +423,8 @@ const loadActivities = async () => {
         es_gratuito: Number(evento.costoExterno ?? 0) === 0 && Number(evento.costoUmsa ?? 0) === 0,
         estado: String(evento.estado ?? 'ABIERTO') as Actividad['estado'],
         carrera: idCarrera ? buildCarrera(idCarrera, nombreCarrera) : undefined,
+        imagen: String(evento.imagen ?? '').trim() ? String(evento.imagen ?? '') : defaultActivityImage,
+        lugar: String(evento.lugar ?? '') || null,
         fecha_creacion: String(evento.fechaCreacion ?? '')
       }
     })

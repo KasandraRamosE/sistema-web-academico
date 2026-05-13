@@ -388,6 +388,15 @@ const routes: RouteRecordRaw[] = [
           title: 'Asignar Disenador',
           breadcrumb: 'Disenadores'
         }
+      },
+      {
+        path: 'reportes',
+        name: 'coordinator-reports',
+        component: () => import('@/views/coordinator/Reportes.vue'),
+        meta: {
+          title: 'Reportes',
+          breadcrumb: 'Reportes'
+        }
       }
     ]
   },
@@ -496,6 +505,16 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: 'Gestión de Plantillas',
           breadcrumb: 'Plantillas'
+        }
+      }
+      ,
+      {
+        path: 'mis-plantillas',
+        name: 'designer-mis-plantillas',
+        component: () => import('@/views/disenador/MisPlantillas.vue'),
+        meta: {
+          title: 'Mis Plantillas',
+          breadcrumb: 'Mis Plantillas'
         }
       }
     ]

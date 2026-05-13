@@ -42,9 +42,14 @@
                 <p class="text-xs uppercase text-gray-400">Cupos libres</p>
                 <p class="font-semibold">{{ actividad.cupos_disponibles }} / {{ actividad.cupo_maximo }}</p>
               </div>
+              <div v-if="actividad.lugar">
+                <p class="text-xs uppercase text-gray-400">Lugar</p>
+                <p class="font-semibold">{{ actividad.lugar }}</p>
+              </div>
             </div>
           </Card>
 
+          
           <Card v-if="actividad.tipo === 'CURSO'">
             <div class="space-y-3">
               <h2 class="text-lg font-semibold text-gray-800">Paralelos disponibles</h2>
@@ -74,6 +79,7 @@
                     </p>
                     <p class="text-xs text-gray-500">Cupos libres: {{ paralelo.cuposDisponibles ?? paralelo.cupoMaximo }} / {{ paralelo.cupoMaximo }}</p>
                     <p v-if="paralelo.horarioDescripcion" class="text-xs text-gray-500">Horario: {{ paralelo.horarioDescripcion }}</p>
+                    <p v-if="paralelo.lugar" class="text-xs text-gray-500">Lugar: {{ paralelo.lugar }}</p>
                   </div>
                 </label>
               </div>
@@ -186,6 +192,7 @@ interface ParaleloItem {
   nombreDocente: string | null
   tituloDocente: string | null
   horarioDescripcion: string | null
+  lugar?: string | null
 }
 
 interface ActividadDetalle {
@@ -202,6 +209,7 @@ interface ActividadDetalle {
   costo_externo: number
   costo_umsa: number
   estado: string
+  lugar?: string | null
 }
 
 const route = useRoute()
@@ -290,7 +298,8 @@ const mapCurso = (curso: Record<string, unknown>) => {
     cupos_disponibles: Math.max(0, cupoMaximo - inscritos),
     costo_externo: Number(curso.costoExterno ?? 0),
     costo_umsa: Number(curso.costoUmsa ?? 0),
-    estado: String(curso.estado ?? 'ABIERTO')
+    estado: String(curso.estado ?? 'ABIERTO'),
+    lugar: paralelosList.length > 0 ? String(paralelosList[0].lugar ?? '') || null : null
   }
 
   paralelos.value = paralelosList.map((paralelo) => ({
@@ -302,7 +311,8 @@ const mapCurso = (curso: Record<string, unknown>) => {
       : null,
     nombreDocente: paralelo.nombreDocente ? String(paralelo.nombreDocente) : null,
     tituloDocente: paralelo.tituloDocente ? String(paralelo.tituloDocente) : null,
-    horarioDescripcion: paralelo.horarioDescripcion ? String(paralelo.horarioDescripcion) : null
+    horarioDescripcion: paralelo.horarioDescripcion ? String(paralelo.horarioDescripcion) : null,
+    lugar: paralelo.lugar ? String(paralelo.lugar) : null
   }))
 
   if (paralelos.value.length === 1) {
@@ -326,7 +336,8 @@ const mapEvento = (evento: Record<string, unknown>) => {
     cupos_disponibles: Number(evento.cuposDisponibles ?? 0),
     costo_externo: Number(evento.costoExterno ?? 0),
     costo_umsa: Number(evento.costoUmsa ?? 0),
-    estado: String(evento.estado ?? 'ABIERTO')
+    estado: String(evento.estado ?? 'ABIERTO'),
+    lugar: String(evento.lugar ?? '') || null
   }
   paralelos.value = []
 
