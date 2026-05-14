@@ -78,12 +78,18 @@
           {{ errorMessage }}
         </p>
 
-        <div class="text-center pt-2">
+        <div class="flex items-center justify-between text-sm pt-2">
+          <router-link
+            to="/auth/reset-password"
+            class="text-slate-600 hover:text-slate-900 font-medium"
+          >
+            ¿Olvidaste tu contraseña?
+          </router-link>
           <router-link
             to="/auth/registro"
-            class="text-sm text-amber-700 hover:text-amber-800"
+            class="text-amber-700 hover:text-amber-800"
           >
-            ¿No tienes cuenta? Crea una ahora
+            Crear cuenta
           </router-link>
         </div>
       </form>

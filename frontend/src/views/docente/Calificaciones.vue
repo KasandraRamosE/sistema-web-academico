@@ -227,8 +227,14 @@ const paralelosDelCurso = computed(() => {
 
 const stats = computed(() => {
   const inscritos = estudiantes.value.length
-  const aprobados = estudiantes.value.filter(est => (est.notaEditada ?? est.notaFinal) !== null && (est.notaEditada ?? est.notaFinal) >= (cursoSeleccionado.value?.notaAprobacion ?? 51)).length
-  const reprobados = estudiantes.value.filter(est => (est.notaEditada ?? est.notaFinal) !== null && (est.notaEditada ?? est.notaFinal) < (cursoSeleccionado.value?.notaAprobacion ?? 51)).length
+  const aprobados = estudiantes.value.filter(est => {
+    const nota = est.notaEditada ?? est.notaFinal
+    return nota !== null && nota >= (cursoSeleccionado.value?.notaAprobacion ?? 51)
+  }).length
+  const reprobados = estudiantes.value.filter(est => {
+    const nota = est.notaEditada ?? est.notaFinal
+    return nota !== null && nota < (cursoSeleccionado.value?.notaAprobacion ?? 51)
+  }).length
   const pendientes = estudiantes.value.filter(est => (est.notaEditada ?? est.notaFinal) === null).length
   return { inscritos, aprobados, reprobados, pendientes }
 })
@@ -300,7 +306,7 @@ const loadEstudiantes = async () => {
     const inscripciones = inscripcionesResponse as Array<Record<string, unknown>>
     const evaluaciones = evaluacionesResponse as Array<Record<string, unknown>>
 
-    const evaluacionesMap = new Map<number, number>()
+    const evaluacionesMap = new Map<number, number | null>()
     evaluaciones.forEach(item => {
       const idInscripcion = Number(item.idInscripcion)
       const notaFinal = item.notaFinal !== undefined && item.notaFinal !== null

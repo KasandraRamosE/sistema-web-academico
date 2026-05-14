@@ -98,7 +98,7 @@
                   <p>Solicitud: {{ item.fechaSolicitud ? formatDatetime(item.fechaSolicitud) : '-' }}</p>
                 </div>
                 <div v-else>
-                  <p>Fecha evento: {{ formatDatetime(item.fechaEvento) }}</p>
+                  <p>Fecha evento: {{ item.fechaEvento ? formatDatetime(item.fechaEvento) : '-' }}</p>
                   <p>Plantilla: {{ item.templateVigente ? 'Aprobada' : 'Sin aprobar' }}</p>
                   <p>Emitidos: {{ item.certificadosEmitidos ?? 0 }}</p>
                 </div>
@@ -153,6 +153,7 @@ interface EventoDto {
   idCarrera: number
   nombre: string
   nombreCarrera?: string
+  fechaHora?: string
 }
 
 interface SolicitudDto {
@@ -184,6 +185,8 @@ interface ActivityRow {
   canEmit: boolean
   idCurso?: number
   idEvento?: number
+  idSolicitud?: number
+  codigoParalelo?: string | null
   nombreDocente?: string | null
   cantidadAprobados?: number | null
   fechaSolicitud?: string | null
@@ -272,15 +275,19 @@ const activities = computed((): ActivityRow[] => {
 
     return {
       key,
-      tipo: 'CURSO',
+      tipo: 'CURSO' as const,
       nombre: curso.nombre,
       carreraNombre: curso.nombreCarrera || 'Sin carrera',
       estado,
       canEmit: estado === 'LISTO',
       idCurso: curso.idCurso,
+      idEvento: undefined,
+      idSolicitud: solicitud?.idSolicitud,
+      codigoParalelo: solicitud?.codigoParalelo ?? null,
       nombreDocente: solicitud?.nombreDocente ?? null,
       cantidadAprobados: solicitud?.cantidadAprobados ?? null,
       fechaSolicitud: solicitud?.fechaSolicitud ?? null,
+      fechaEvento: undefined,
       templateVigente,
       certificadosEmitidos: emittedCount
     }
@@ -290,7 +297,7 @@ const activities = computed((): ActivityRow[] => {
     const key = `EVENTO-${evento.nombre}`
     const emittedCount = certificadosEmitidosMap.value.get(key) || 0
     const templateVigente = Boolean(plantillasVigentesEventos.value[evento.idEvento])
-    const fechaPasada = new Date(evento.fechaHora) <= new Date()
+    const fechaPasada = evento.fechaHora ? new Date(evento.fechaHora) <= new Date() : false
     const estado: ActivityRow['estado'] = emittedCount > 0
       ? 'EMITIDO'
       : templateVigente && fechaPasada
@@ -299,12 +306,18 @@ const activities = computed((): ActivityRow[] => {
 
     return {
       key,
-      tipo: 'EVENTO',
+      tipo: 'EVENTO' as const,
       nombre: evento.nombre,
       carreraNombre: evento.nombreCarrera || 'Sin carrera',
       estado,
       canEmit: estado === 'LISTO',
+      idCurso: undefined,
       idEvento: evento.idEvento,
+      idSolicitud: undefined,
+      codigoParalelo: undefined,
+      nombreDocente: undefined,
+      cantidadAprobados: undefined,
+      fechaSolicitud: undefined,
       fechaEvento: evento.fechaHora,
       templateVigente,
       certificadosEmitidos: emittedCount
@@ -408,22 +421,24 @@ const ensurePlantillaVigente = async (payload: { idCurso?: number; idEvento?: nu
   throw new Error('No se encontro la actividad para emitir.')
 }
 
-const emitirCurso = async (solicitud: SolicitudView) => {
-  if (!solicitud.canEmit) {
+const emitirCurso = async (item: ActivityRow) => {
+  if (!item || !item.canEmit || item.tipo !== 'CURSO') {
     alertStore.push({ type: 'error', message: 'No se encontro la actividad para emitir.' })
     return
   }
 
-  processingKey.value = `CURSO-${solicitud.nombreActividad}`
+  processingKey.value = item.key
   try {
-    await ensurePlantillaVigente({ idCurso: solicitud.idCurso, idEvento: solicitud.idEvento })
+    await ensurePlantillaVigente({ idCurso: item.idCurso, idEvento: item.idEvento })
 
     await api.post('/certificados/lote', {
-      idCurso: solicitud.idCurso,
-      codigoParalelo: solicitud.codigoParalelo
+      idCurso: item.idCurso,
+      codigoParalelo: item.codigoParalelo
     })
 
-    await api.patch(`/evaluaciones/solicitudes/${solicitud.idSolicitud}?estado=COMPLETADO`)
+    if (item.idSolicitud) {
+      await api.patch(`/evaluaciones/solicitudes/${item.idSolicitud}?estado=COMPLETADO`)
+    }
 
     alertStore.push({
       type: 'success',
@@ -441,10 +456,15 @@ const emitirCurso = async (solicitud: SolicitudView) => {
   }
 }
 
-const emitirEvento = async (evento: { idEvento: number; nombre: string; carreraNombre: string }) => {
-  processingKey.value = `EVENTO-${evento.nombre}`
+const emitirEvento = async (item: ActivityRow) => {
+  if (!item || !item.canEmit || item.tipo !== 'EVENTO' || !item.idEvento) {
+    alertStore.push({ type: 'error', message: 'No se encontro la actividad para emitir.' })
+    return
+  }
+
+  processingKey.value = item.key
   try {
-    const solicitud = await api.post(`/evaluaciones/solicitudes/evento/${evento.idEvento}`, {
+    const solicitud = await api.post(`/evaluaciones/solicitudes/evento/${item.idEvento}`, {
       notas: 'Generada desde el panel de emisión'
     }) as { idSolicitud: number }
 
@@ -452,7 +472,7 @@ const emitirEvento = async (evento: { idEvento: number; nombre: string; carreraN
 
     alertStore.push({
       type: 'success',
-      message: `Certificados de ${evento.nombre} emitidos correctamente.`
+      message: `Certificados de ${item.nombre} emitidos correctamente.`
     })
 
     await loadAll()

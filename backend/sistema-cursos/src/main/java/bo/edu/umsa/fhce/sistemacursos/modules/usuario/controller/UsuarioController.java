@@ -22,7 +22,6 @@ import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarCarrerasRequ
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarPerfilRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarEventosRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarParalelosRequest;
-import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarUsuarioRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ParaleloRefRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.RolDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.UsuarioDetalleDto;
@@ -116,16 +115,6 @@ public class UsuarioController {
     public ResponseEntity<UsuarioDetalleDto> actualizarPerfil(
             @Valid @RequestBody ActualizarPerfilRequest request) {
         return ResponseEntity.ok(usuarioService.actualizarPerfilExterno(request));
-    }
-
-    // PUT /api/usuarios/{id}
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
-    @Operation(summary = "Actualizar datos de usuario")
-    public ResponseEntity<UsuarioResumenDto> actualizarUsuario(
-            @PathVariable Long id,
-            @Valid @RequestBody ActualizarUsuarioRequest request) {
-        return ResponseEntity.ok(usuarioService.actualizarUsuarioAdmin(id, request));
     }
 
     // POST /api/usuarios/me/password

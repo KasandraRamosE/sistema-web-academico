@@ -18,6 +18,7 @@ public class CursoDto {
     private String nombreDisenador;
     private String nombre;
     private String descripcion;
+    private String lugar;
     private String imagen;
     private Integer cargaHoraria;
     private LocalDate fechaInicio;

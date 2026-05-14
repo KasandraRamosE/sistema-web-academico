@@ -8,6 +8,9 @@ import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RefreshTokenRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RefreshTokenResponse;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.VerificarEmailRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RegistroRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.SolicitarResetPasswordRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.VerificarCodigoResetRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.CambiarPasswordRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.service.AuthService;
 import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -82,5 +85,26 @@ public class AuthController {
         response.put("roles", user.getAuthorities().stream()
             .map(GrantedAuthority::getAuthority).toList());
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/solicitar-reset-password")
+    @Operation(summary = "Solicitar código para resetear contraseña")
+    public ResponseEntity<MensajeResponse> solicitarResetPassword(
+            @Valid @RequestBody SolicitarResetPasswordRequest request) {
+        return ResponseEntity.ok(authService.solicitarResetPassword(request));
+    }
+
+    @PostMapping("/verificar-codigo-reset")
+    @Operation(summary = "Verificar código de reset de contraseña")
+    public ResponseEntity<MensajeResponse> verificarCodigoReset(
+            @Valid @RequestBody VerificarCodigoResetRequest request) {
+        return ResponseEntity.ok(authService.verificarCodigoReset(request));
+    }
+
+    @PostMapping("/cambiar-password")
+    @Operation(summary = "Cambiar contraseña con código verificado")
+    public ResponseEntity<MensajeResponse> cambiarPassword(
+            @Valid @RequestBody CambiarPasswordRequest request) {
+        return ResponseEntity.ok(authService.cambiarPassword(request));
     }
 }

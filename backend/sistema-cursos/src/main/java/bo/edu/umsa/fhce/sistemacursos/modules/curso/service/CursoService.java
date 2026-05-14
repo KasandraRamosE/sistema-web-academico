@@ -11,9 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.Carrera;
-import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.CoordinadorCarrera;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CarreraRepository;
-import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.dto.CursoDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.dto.CursoRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.dto.AsignarDisenadorRequest;
@@ -40,7 +38,6 @@ public class CursoService {
     private final CursoRepository    cursoRepository;
     private final ParaleloRepository paraleloRepository;
     private final CarreraRepository  carreraRepository;
-    private final CoordinadorCarreraRepository coordinadorCarreraRepository;
     private final UsuarioRepository  usuarioRepository;
     private final DocenteRepository  docenteRepository;
     private final InscripcionRepository inscripcionRepository;
@@ -57,26 +54,9 @@ public class CursoService {
     // ── Listar todos (admin y coordinador) ───────────────────────────────────
     @Transactional(readOnly = true)
     public List<CursoDto> listarTodos(Long idCarrera) {
-        Usuario actual = getUsuarioActual();
-        if (esAdmin(actual)) {
-            List<Curso> cursos = (idCarrera != null)
-                ? cursoRepository.findByCarrera_IdCarrera(idCarrera)
-                : cursoRepository.findAll();
-            return cursos.stream().map(this::toCursoDto).toList();
-        }
-
-        requireCoordinador(actual);
-
-        List<Long> carrerasAsignadas = getCarrerasAsignadas(actual.getIdUsuario());
-        if (idCarrera != null && !carrerasAsignadas.contains(idCarrera)) {
-            throw new BusinessException("No tienes permisos para ver cursos de esta carrera", 403);
-        }
-
         List<Curso> cursos = (idCarrera != null)
             ? cursoRepository.findByCarrera_IdCarrera(idCarrera)
-            : cursoRepository.findAll().stream()
-                .filter(curso -> carrerasAsignadas.contains(curso.getCarrera().getIdCarrera()))
-                .toList();
+            : cursoRepository.findAll();
         return cursos.stream().map(this::toCursoDto).toList();
     }
 
@@ -112,6 +92,7 @@ public class CursoService {
             .organizador(organizador)
             .nombre(request.getNombre())
             .descripcion(request.getDescripcion())
+            .lugar(request.getLugar())
             .imagen(request.getImagen())
             .cargaHoraria(request.getCargaHoraria())
             .fechaInicio(request.getFechaInicio())
@@ -138,6 +119,7 @@ public class CursoService {
         curso.setCarrera(carrera);
         curso.setNombre(request.getNombre());
         curso.setDescripcion(request.getDescripcion());
+        curso.setLugar(request.getLugar());
         curso.setImagen(request.getImagen());
         curso.setCargaHoraria(request.getCargaHoraria());
         curso.setFechaInicio(request.getFechaInicio());
@@ -153,7 +135,6 @@ public class CursoService {
     @Transactional
     public CursoDto cambiarEstado(Long idCurso, String estado) {
         Curso curso = buscarCurso(idCurso);
-        verificarAccesoCarrera(getUsuarioActual(), curso.getCarrera());
         try {
             curso.setEstado(Curso.EstadoCurso.valueOf(estado));
         } catch (IllegalArgumentException e) {
@@ -205,7 +186,6 @@ public class CursoService {
     @Transactional
     public ParaleloDto agregarParalelo(Long idCurso, ParaleloRequest request) {
         Curso curso = buscarCurso(idCurso);
-        verificarAccesoCarrera(getUsuarioActual(), curso.getCarrera());
 
         // Verificar que el código no esté repetido en ese curso
         ParaleloId pk = new ParaleloId(idCurso, request.getCodigo());
@@ -219,7 +199,6 @@ public class CursoService {
         paralelo.setModalidad(Paralelo.Modalidad.valueOf(request.getModalidad()));
         paralelo.setCupoMaximo(request.getCupoMaximo());
         paralelo.setHorarioDescripcion(request.getHorarioDescripcion());
-        paralelo.setLugar(request.getLugar());
         paralelo.setLink(request.getLink());
 
         // Asignar docente si se especificó
@@ -250,12 +229,9 @@ public class CursoService {
             .orElseThrow(() -> new BusinessException(
                 "Paralelo '" + codigo + "' no encontrado en el curso " + idCurso, 404));
 
-        verificarAccesoCarrera(getUsuarioActual(), paralelo.getCurso().getCarrera());
-
         paralelo.setModalidad(Paralelo.Modalidad.valueOf(request.getModalidad()));
         paralelo.setCupoMaximo(request.getCupoMaximo());
         paralelo.setHorarioDescripcion(request.getHorarioDescripcion());
-        paralelo.setLugar(request.getLugar());
         paralelo.setLink(request.getLink());
 
         if (request.getIdDocente() != null) {
@@ -274,11 +250,11 @@ public class CursoService {
     @Transactional
     public void eliminarParalelo(Long idCurso, String codigo) {
         ParaleloId pk = new ParaleloId(idCurso, codigo);
-        Paralelo paralelo = paraleloRepository.findById(pk)
-            .orElseThrow(() -> new BusinessException(
-                "Paralelo '" + codigo + "' no encontrado", 404));
-        verificarAccesoCarrera(getUsuarioActual(), paralelo.getCurso().getCarrera());
-        paraleloRepository.delete(paralelo);
+        if (!paraleloRepository.existsById(pk)) {
+            throw new BusinessException(
+                "Paralelo '" + codigo + "' no encontrado", 404);
+        }
+        paraleloRepository.deleteById(pk);
         log.info("Paralelo {} eliminado del curso {}", codigo, idCurso);
     }
 
@@ -301,36 +277,18 @@ public class CursoService {
     // Verifica que el usuario pueda gestionar la carrera
     // Admin puede todo — coordinador solo su carrera asignada
     private void verificarAccesoCarrera(Usuario usuario, Carrera carrera) {
-        if (esAdmin(usuario)) return; // admin tiene acceso a todo
+        boolean esAdmin = usuario.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+        if (esAdmin) return; // admin tiene acceso a todo
 
-        requireCoordinador(usuario);
-        boolean tieneCarrera = coordinadorCarreraRepository
-            .existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
-                usuario.getIdUsuario(), carrera.getIdCarrera()
-            );
-        if (!tieneCarrera) {
-            throw new BusinessException("No tienes permisos para gestionar esta carrera", 403);
-        }
-    }
-
-    private boolean esAdmin(Usuario usuario) {
-        return usuario.getRoles().stream().anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
-    }
-
-    private void requireCoordinador(Usuario usuario) {
-        boolean esCoordinador = usuario.getRoles().stream()
+        // Verificar que el coordinador esté asignado a esa carrera
+        boolean tieneAcceso = usuario.getRoles().stream()
             .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
-        if (!esCoordinador) {
+        if (!tieneAcceso) {
             throw new BusinessException("No tienes permisos para gestionar cursos", 403);
         }
-    }
-
-    private List<Long> getCarrerasAsignadas(Long idUsuario) {
-        return coordinadorCarreraRepository.findByIdCoordinador(idUsuario)
-            .stream()
-            .map(CoordinadorCarrera::getCarrera)
-            .map(Carrera::getIdCarrera)
-            .toList();
+        // Nota: la verificación de carrera específica del coordinador
+        // se implementa aquí cuando tengamos CoordinadorCarreraRepository inyectado
     }
 
     // Convierte Curso → CursoDto incluyendo sus paralelos
@@ -348,6 +306,7 @@ public class CursoService {
         }
         dto.setNombre(c.getNombre());
         dto.setDescripcion(c.getDescripcion());
+        dto.setLugar(c.getLugar());
         dto.setImagen(c.getImagen());
         dto.setCargaHoraria(c.getCargaHoraria());
         dto.setFechaInicio(c.getFechaInicio());
@@ -374,7 +333,6 @@ public class CursoService {
         dto.setModalidad(p.getModalidad().name());
         dto.setCupoMaximo(p.getCupoMaximo());
         dto.setHorarioDescripcion(p.getHorarioDescripcion());
-        dto.setLugar(p.getLugar());
         dto.setLink(p.getLink());
 
         if (p.getDocente() != null) {

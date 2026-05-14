@@ -199,6 +199,43 @@ export const useAuthStore = defineStore('auth', () => {
     return response.mensaje
   }
 
+  // ============================================
+  // RESET PASSWORD - 3 pasos
+  // ============================================
+
+  /**
+   * Paso 1: Solicitar código de reset
+   */
+  const solicitarResetPassword = async (username: string): Promise<string> => {
+    const response = await api.post('/auth/solicitar-reset-password', {
+      username
+    }) as MensajeResponse
+    return response.mensaje
+  }
+
+  /**
+   * Paso 2: Verificar código de reset
+   */
+  const verificarCodigoReset = async (username: string, codigo: string): Promise<string> => {
+    const response = await api.post('/auth/verificar-codigo-reset', {
+      username,
+      codigo
+    }) as MensajeResponse
+    return response.mensaje
+  }
+
+  /**
+   * Paso 3: Cambiar contraseña
+   */
+  const cambiarPassword = async (username: string, codigo: string, newPassword: string): Promise<string> => {
+    const response = await api.post('/auth/cambiar-password', {
+      username,
+      codigo,
+      newPassword
+    }) as MensajeResponse
+    return response.mensaje
+  }
+
   /**
    * Cerrar sesión
    */
@@ -349,6 +386,9 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     verifyEmail,
     resendCode,
+    solicitarResetPassword,
+    verificarCodigoReset,
+    cambiarPassword,
     logout,
     refreshAccessToken,
     changeRole,

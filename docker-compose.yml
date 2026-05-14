@@ -24,7 +24,7 @@ services:
       start_period: 30s
 
   backend:
-    build: ./backend
+    build: ./backend/sistema-cursos
     container_name: fhce_backend
     restart: unless-stopped
     ports:

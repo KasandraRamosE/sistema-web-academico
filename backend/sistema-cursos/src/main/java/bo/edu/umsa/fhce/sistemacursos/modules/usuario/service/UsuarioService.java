@@ -99,40 +99,6 @@ public class UsuarioService {
         return toDetalleDto(usuario);
     }
 
-    // ── Actualizar usuario (admin) ───────────────────────────────────────
-    @Transactional
-    public UsuarioResumenDto actualizarUsuarioAdmin(Long idUsuario, ActualizarUsuarioRequest request) {
-        Usuario usuario = buscarUsuario(idUsuario);
-
-        usuario.setNombres(request.getNombres().trim());
-        usuario.setApellidos(request.getApellidos().trim());
-
-        boolean esExterno = usuario.getPasswordHash() != null;
-        if (esExterno) {
-            String email = request.getEmail();
-            if (email == null || email.isBlank()) {
-                throw new BusinessException("El email es obligatorio para usuarios externos", 400);
-            }
-            if (!email.equals(usuario.getEmail()) && usuarioRepository.existsByEmail(email)) {
-                throw new BusinessException("El email '" + email + "' ya está registrado", 409);
-            }
-            usuario.setEmail(email.trim());
-
-            if (request.getEstado() != null && !request.getEstado().isBlank()) {
-                try {
-                    Usuario.EstadoUsuario nuevoEstado = Usuario.EstadoUsuario.valueOf(request.getEstado());
-                    usuario.setEstado(nuevoEstado);
-                } catch (IllegalArgumentException e) {
-                    throw new BusinessException(
-                        "Estado inválido: " + request.getEstado() + ". Use ACTIVO o INACTIVO", 400);
-                }
-            }
-        }
-
-        usuarioRepository.save(usuario);
-        return toResumenDto(usuario);
-    }
-
     // ── Cambiar contrasena (solo externo) ─────────────────────────────────-
     @Transactional
     public void cambiarPasswordExterno(CambiarPasswordRequest request) {

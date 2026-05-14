@@ -482,13 +482,13 @@ const navigationItems = computed((): NavItem[] => {
     case 'COORDINADOR':
       return [
         { name: 'dashboard',  label: 'Dashboard',           shortLabel: 'Inicio',   path: '/coordinador',            icon: IconDashboard },
-        { name: 'activities', label: 'Cursos',               shortLabel: 'Cursos',     path: '/coordinador/actividades', icon: IconCalendar },
+        { name: 'activities', label: 'Actividades',          shortLabel: 'Act.',     path: '/coordinador/actividades', icon: IconCalendar },
         { name: 'events',     label: 'Eventos',              shortLabel: 'Eventos',  path: '/coordinador/eventos',     icon: IconCalendar },
         { name: 'enrolled',   label: 'Inscritos',            shortLabel: 'Inscrip.', path: '/coordinador/inscritos',  icon: IconClipboard },
-        { name: 'inbox',      label: 'Bandeja',              shortLabel: 'Bandeja',  path: '/coordinador/bandeja',    icon: IconInbox     },
-        { name: 'designers',  label: 'Diseñadores',          shortLabel: 'Disen.',   path: '/coordinador/disenadores', icon: IconPhoto     },
-        { name: 'emit',       label: 'Emitir Certificados',  shortLabel: 'Emitir',   path: '/coordinador/emitir',     icon: IconAward     },
         { name: 'reports',    label: 'Reportes',             shortLabel: 'Reportes', path: '/coordinador/reportes',   icon: IconChart },
+        { name: 'inbox',      label: 'Bandeja',              shortLabel: 'Bandeja',  path: '/coordinador/bandeja',    icon: IconInbox     },
+        { name: 'designers',  label: 'Disenadores',          shortLabel: 'Disen.',   path: '/coordinador/disenadores', icon: IconPhoto     },
+        { name: 'emit',       label: 'Emitir Certificados',  shortLabel: 'Emitir',   path: '/coordinador/emitir',     icon: IconAward     },
       ]
 
     case 'DOCENTE':

@@ -24,6 +24,9 @@ import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RefreshTokenRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RefreshTokenResponse;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RegistroRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.VerificarEmailRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.SolicitarResetPasswordRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.VerificarCodigoResetRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.CambiarPasswordRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.entity.CodigoVerificacion;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.entity.RefreshToken;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.integration.UmsaAuthClient;
@@ -395,6 +398,132 @@ public class AuthService {
         RefreshToken nuevoRefresh = crearRefreshToken(usuario);
 
         return new RefreshTokenResponse(jwt, "Bearer", nuevoRefresh.getToken());
+    }
+
+    // ── Logout ─────────────────────────────────────────────────────────────
+    @Transactional
+    public MensajeResponse logout(LogoutRequest request) {
+        refreshTokenRepository.revocarPorToken(request.getRefreshToken());
+        return new MensajeResponse("Sesión cerrada correctamente");
+    }
+
+    // ── Reset Password: Solicitar código ────────────────────────────────────
+    @Transactional
+    public MensajeResponse solicitarResetPassword(SolicitarResetPasswordRequest request) {
+        String username = request.getUsername().trim();
+        
+        // Buscar usuario
+        Usuario usuario = usuarioRepository.findByUsername(username)
+            .orElseThrow(() -> new BusinessException("Usuario no encontrado", 404));
+
+        // Validar que sea usuario EXTERNO (con hash de contraseña)
+        if (usuario.getPasswordHash() == null) {
+            throw new BusinessException(
+                "Los usuarios UMSA deben recuperar su contraseña a través del portal institucional", 403);
+        }
+
+        // Validar que la cuenta esté activa
+        if (usuario.getEstado() == Usuario.EstadoUsuario.INACTIVO) {
+            throw new BusinessException("La cuenta está inactiva", 403);
+        }
+
+        // Invalidar códigos anteriores
+        codigoRepository.invalidarCodigosAnteriores(
+            usuario.getIdUsuario(), CodigoVerificacion.TipoCodigo.RESET_PASSWORD);
+
+        // Generar nuevo código
+        String codigo = generarCodigo6Digitos();
+        CodigoVerificacion codigoVerificacion = CodigoVerificacion.builder()
+            .usuario(usuario)
+            .codigo(codigo)
+            .tipo(CodigoVerificacion.TipoCodigo.RESET_PASSWORD)
+            .fechaCreacion(LocalDateTime.now())
+            .fechaExpiracion(LocalDateTime.now().plusHours(expiracionHoras))
+            .usado(false)
+            .build();
+        codigoRepository.save(codigoVerificacion);
+
+        // Enviar email
+        emailService.enviarCodigoVerificacion(
+            usuario.getEmail(), usuario.getNombres(), codigo);
+
+        log.info("Solicitud de reset de contraseña para usuario: {}", username);
+
+        return new MensajeResponse(
+            "Se envió un código a tu correo " + usuario.getEmail() +
+            " para cambiar tu contraseña.");
+    }
+
+    // ── Reset Password: Verificar código ────────────────────────────────────
+    @Transactional
+    public MensajeResponse verificarCodigoReset(VerificarCodigoResetRequest request) {
+        String username = request.getUsername().trim();
+        
+        // Buscar usuario
+        Usuario usuario = usuarioRepository.findByUsername(username)
+            .orElseThrow(() -> new BusinessException("Usuario no encontrado", 404));
+
+        // Buscar código activo
+        CodigoVerificacion codigo = codigoRepository
+            .findUltimoCodigoActivo(usuario.getIdUsuario(), CodigoVerificacion.TipoCodigo.RESET_PASSWORD)
+            .orElseThrow(() -> new BusinessException(
+                "No hay un código de reset activo. Solicita uno nuevo.", 400));
+
+        // Verificar código
+        if (!codigo.getCodigo().equals(request.getCodigo())) {
+            throw new BusinessException("Código incorrecto", 400);
+        }
+
+        if (!codigo.esValido()) {
+            throw new BusinessException("El código ha expirado. Solicita uno nuevo.", 400);
+        }
+
+        log.info("Código de reset verificado para usuario: {}", username);
+
+        return new MensajeResponse("Código verificado. Ya puedes cambiar tu contraseña.");
+    }
+
+    // ── Reset Password: Cambiar contraseña ──────────────────────────────────
+    @Transactional
+    public MensajeResponse cambiarPassword(CambiarPasswordRequest request) {
+        String username = request.getUsername().trim();
+        
+        // Buscar usuario
+        Usuario usuario = usuarioRepository.findByUsername(username)
+            .orElseThrow(() -> new BusinessException("Usuario no encontrado", 404));
+
+        // Validar que sea usuario EXTERNO
+        if (usuario.getPasswordHash() == null) {
+            throw new BusinessException("No puedes cambiar la contraseña de una cuenta UMSA", 403);
+        }
+
+        // Buscar código
+        CodigoVerificacion codigo = codigoRepository
+            .findUltimoCodigoActivo(usuario.getIdUsuario(), CodigoVerificacion.TipoCodigo.RESET_PASSWORD)
+            .orElseThrow(() -> new BusinessException(
+                "No hay un código de reset activo. Solicita uno nuevo.", 400));
+
+        // Verificar código
+        if (!codigo.getCodigo().equals(request.getCodigo())) {
+            throw new BusinessException("Código incorrecto", 400);
+        }
+
+        if (!codigo.esValido()) {
+            throw new BusinessException("El código ha expirado. Solicita uno nuevo.", 400);
+        }
+
+        // Cambiar contraseña
+        usuario.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        usuarioRepository.save(usuario);
+
+        // Marcar código como usado
+        codigo.setUsado(true);
+        codigo.setFechaUso(LocalDateTime.now());
+        codigoRepository.save(codigo);
+
+        log.info("Contraseña cambiada para usuario: {}", username);
+
+        return new MensajeResponse("Contraseña cambiada exitosamente. Ya puedes iniciar sesión.");
     }
 
     // ── Logout ─────────────────────────────────────────────────────────────

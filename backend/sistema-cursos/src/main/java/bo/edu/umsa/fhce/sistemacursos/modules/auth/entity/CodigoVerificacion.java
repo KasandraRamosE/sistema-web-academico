@@ -59,6 +59,6 @@ public class CodigoVerificacion {
     }
 
     public enum TipoCodigo {
-        EMAIL, REGISTRO
+        EMAIL, REGISTRO, RESET_PASSWORD
     }
 }
