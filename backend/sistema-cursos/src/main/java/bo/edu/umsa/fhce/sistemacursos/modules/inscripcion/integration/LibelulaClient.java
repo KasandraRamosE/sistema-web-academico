@@ -4,24 +4,40 @@ package bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.integration;
 
 import java.math.BigDecimal;
 
-// Interfaz que abstrae la pasarela de pagos
-// En dev: MockLibelulaClient — aprueba todo automáticamente
-// En prod: RealLibelulaClient — conecta a la API real
+// Interfaz que abstrae la pasarela de pagos Libélula, según
+// "GUÍA DE INTEGRACIÓN PARA EMPRESAS v2.145".
+// En dev: MockLibelulaClient — simula la plataforma en memoria.
+// En prod: RealLibelulaClient — llama a la API real (requiere appkey).
 public interface LibelulaClient {
 
-    // Inicia un pago y devuelve la referencia de transacción
-    PagoResultado iniciarPago(BigDecimal monto, String descripcion);
+    // Servicio "REGISTRAR DEUDA" — POST /rest/deuda/registrar
+    // Devuelve la URL de la pasarela a la que hay que redirigir al participante.
+    DeudaRegistrada registrarDeuda(RegistrarDeudaParams params);
 
-    // Verifica el estado de una transacción
-    EstadoPagoExterno verificarPago(String referenciaTransaccion);
+    // Servicio "CONSULTAR DEUDAS POR IDENTIFICADOR" — POST /rest/deuda/consultar_deudas/por_identificador
+    // Es la fuente de verdad server-to-server: el callback GET de Libélula no trae
+    // firma ni monto, así que nunca se confirma un pago sin esta verificación.
+    ConsultaDeuda consultarDeuda(String identificadorDeuda);
 
-    record PagoResultado(
-        String referenciaTransaccion,
-        String metodoPago,
-        boolean aprobado
+    record RegistrarDeudaParams(
+        String identificadorDeuda,   // nuestro ID único de la deuda (no el de Libélula)
+        BigDecimal monto,
+        String descripcion,
+        String emailCliente,
+        String nombreCliente,
+        String apellidoCliente,
+        String ci,
+        String callbackUrl
     ) {}
 
-    enum EstadoPagoExterno {
-        APROBADO, RECHAZADO, PENDIENTE
-    }
+    record DeudaRegistrada(
+        String idTransaccionLibelula, // id_transaccion devuelto por Libélula
+        String urlPasarelaPagos       // URL a la que se redirige al participante para pagar
+    ) {}
+
+    record ConsultaDeuda(
+        boolean pagado,
+        BigDecimal valorTotal,
+        String formaPago
+    ) {}
 }

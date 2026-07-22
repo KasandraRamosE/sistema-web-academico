@@ -13,6 +13,7 @@ import java.util.List;
 public class UsuarioDetalleDto {
     private Long idUsuario;
     private String username;
+    private String ci;
     private String nombres;
     private String apellidos;
     private String email;

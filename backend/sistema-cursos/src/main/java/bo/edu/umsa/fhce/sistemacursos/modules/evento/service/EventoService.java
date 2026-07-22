@@ -1,6 +1,11 @@
 package bo.edu.umsa.fhce.sistemacursos.modules.evento.service;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -10,6 +15,7 @@ import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.Carrera;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CarreraRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.AsignarAuxiliarRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.AsignarDisenadorRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.dto.AuxiliarResumenDto;
@@ -32,28 +38,49 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class EventoService {
 
+    private static final ZoneId BOLIVIA_ZONE = ZoneId.of("America/La_Paz");
+
     private final EventoRepository        eventoRepository;
     private final AuxiliarEventoRepository auxiliarEventoRepository;
     private final CarreraRepository       carreraRepository;
+    private final CoordinadorCarreraRepository coordinadorCarreraRepository;
     private final UsuarioRepository       usuarioRepository;
     private final InscripcionRepository inscripcionRepository;
+    private final EventoEstadoService eventoEstadoService;
 
     // ── Listar eventos abiertos (catálogo) ───────────────────────────────────
     @Transactional(readOnly = true)
     public List<EventoDto> listarAbiertos(Long idCarrera) {
-        return eventoRepository.findAbiertos(idCarrera)
-            .stream()
-            .map(this::toEventoDto)
-            .toList();
+        return mapearEventos(eventoRepository.findAbiertos(idCarrera));
     }
 
     // ── Listar todos (admin y coordinador) ───────────────────────────────────
     @Transactional(readOnly = true)
     public List<EventoDto> listarTodos(Long idCarrera) {
-        List<Evento> eventos = (idCarrera != null)
-            ? eventoRepository.findByCarrera_IdCarrera(idCarrera)
-            : eventoRepository.findAll();
-        return eventos.stream().map(this::toEventoDto).toList();
+        Usuario actual = getUsuarioActual();
+        List<Evento> eventos;
+
+        if (esAdmin(actual)) {
+            eventos = (idCarrera != null)
+                ? eventoRepository.findByCarrera_IdCarrera(idCarrera)
+                : eventoRepository.findAll();
+        } else if (esCoordinador(actual)) {
+            List<Long> carrerasAsignadas = carrerasAsignadas(actual);
+            if (idCarrera != null) {
+                if (!carrerasAsignadas.contains(idCarrera)) {
+                    throw new BusinessException(
+                        "No tienes permisos para ver eventos de esta carrera", 403);
+                }
+                eventos = eventoRepository.findByCarrera_IdCarrera(idCarrera);
+            } else {
+                eventos = carrerasAsignadas.isEmpty()
+                    ? List.of()
+                    : eventoRepository.findByCarrera_IdCarreraIn(carrerasAsignadas);
+            }
+        } else {
+            throw new BusinessException("No tienes permisos para ver eventos", 403);
+        }
+        return mapearEventos(eventos);
     }
 
     // ── Listar eventos asignados al disenador ──────────────────────────────
@@ -61,13 +88,13 @@ public class EventoService {
     public List<EventoDto> listarAsignadosDisenador() {
         Usuario actual = getUsuarioActual();
         List<Evento> eventos = eventoRepository.findByDisenador_IdUsuario(actual.getIdUsuario());
-        return eventos.stream().map(this::toEventoDto).toList();
+        return mapearEventos(eventos);
     }
 
     // ── Obtener evento por id ────────────────────────────────────────────────
     @Transactional(readOnly = true)
     public EventoDto obtener(Long idEvento) {
-        return toEventoDto(buscarEvento(idEvento));
+        return mapearEventos(List.of(buscarEvento(idEvento))).get(0);
     }
 
     // ── Crear evento ─────────────────────────────────────────────────────────
@@ -77,6 +104,10 @@ public class EventoService {
             .orElseThrow(() -> new ResourceNotFoundException("Carrera", request.getIdCarrera()));
 
         Usuario organizador = getUsuarioActual();
+
+        // Verificar que el coordinador gestione esa carrera
+        // (el admin puede crear en cualquier carrera)
+        verificarAccesoCarrera(organizador, carrera);
 
         Evento evento = Evento.builder()
             .carrera(carrera)
@@ -104,9 +135,14 @@ public class EventoService {
     @Transactional
     public EventoDto actualizar(Long idEvento, EventoRequest request) {
         Evento evento = buscarEvento(idEvento);
+        Usuario actual = getUsuarioActual();
+        verificarAccesoCarrera(actual, evento.getCarrera());
 
         Carrera carrera = carreraRepository.findById(request.getIdCarrera())
             .orElseThrow(() -> new ResourceNotFoundException("Carrera", request.getIdCarrera()));
+        // También se valida la carrera DESTINO: un coordinador no puede mover
+        // un evento a una carrera que no administra.
+        verificarAccesoCarrera(actual, carrera);
 
         evento.setCarrera(carrera);
         evento.setNombre(request.getNombre());
@@ -143,6 +179,7 @@ public class EventoService {
     @Transactional
     public EventoDto asignarDisenador(Long idEvento, AsignarDisenadorRequest request) {
         Evento evento = buscarEvento(idEvento);
+        verificarAccesoCarrera(getUsuarioActual(), evento.getCarrera());
 
         if (request.getIdDisenador() == null) {
             evento.setDisenador(null);
@@ -170,6 +207,7 @@ public class EventoService {
     @Transactional
     public void eliminar(Long idEvento) {
         Evento evento = buscarEvento(idEvento);
+        verificarAccesoCarrera(getUsuarioActual(), evento.getCarrera());
         eventoRepository.delete(evento);
         log.info("Evento eliminado: {}", idEvento);
     }
@@ -178,6 +216,7 @@ public class EventoService {
     @Transactional
     public void asignarAuxiliar(Long idEvento, AsignarAuxiliarRequest request) {
         Evento evento = buscarEvento(idEvento);
+        verificarAccesoCarrera(getUsuarioActual(), evento.getCarrera());
 
         Usuario auxiliar = usuarioRepository.findById(request.getIdAuxiliar())
             .orElseThrow(() -> new ResourceNotFoundException(
@@ -191,12 +230,13 @@ public class EventoService {
                 "El usuario no tiene el rol AUXILIAR", 400);
         }
 
-        // Verificar que no esté ya asignado
+        // Verificar que no esté ya asignado — hacer idempotente: si ya existe, regresar
         AuxiliarEventoId pk = new AuxiliarEventoId(
             auxiliar.getIdUsuario(), idEvento);
         if (auxiliarEventoRepository.existsById(pk)) {
-            throw new BusinessException(
-                "El auxiliar ya está asignado a este evento", 409);
+            log.warn("Intento de asignar auxiliar ya existente: {} -> evento {}",
+                auxiliar.getUsername(), idEvento);
+            return; // idempotent: nothing to do
         }
 
         AuxiliarEvento asignacion = new AuxiliarEvento(auxiliar, evento);
@@ -208,10 +248,13 @@ public class EventoService {
     // ── Remover auxiliar de evento ───────────────────────────────────────────
     @Transactional
     public void removerAuxiliar(Long idEvento, Long idAuxiliar) {
+        Evento evento = buscarEvento(idEvento);
+        verificarAccesoCarrera(getUsuarioActual(), evento.getCarrera());
+
         AuxiliarEventoId pk = new AuxiliarEventoId(idAuxiliar, idEvento);
         if (!auxiliarEventoRepository.existsById(pk)) {
-            throw new BusinessException(
-                "El auxiliar no está asignado a este evento", 404);
+            log.warn("Intento de remover auxiliar no asignado: {} <- evento {}", idAuxiliar, idEvento);
+            return; // idempotent: nothing to do
         }
         auxiliarEventoRepository.deleteById(pk);
     }
@@ -245,11 +288,15 @@ public class EventoService {
                 "El usuario no tiene el rol AUXILIAR", 403);
         }
 
-        return auxiliarEventoRepository.findByIdAuxiliar(usuario.getIdUsuario())
+        LocalDateTime ahoraBolivia = LocalDateTime.now(BOLIVIA_ZONE);
+
+        List<Evento> eventos = auxiliarEventoRepository.findByIdAuxiliar(usuario.getIdUsuario())
             .stream()
             .map(AuxiliarEvento::getEvento)
-            .map(this::toEventoDto)
+            .filter(evento -> !evento.getFechaHora().isBefore(ahoraBolivia))
+            .sorted(Comparator.comparing(Evento::getFechaHora))
             .toList();
+        return mapearEventos(eventos);
     }
 
     // ── Helpers privados ─────────────────────────────────────────────────────
@@ -267,7 +314,29 @@ public class EventoService {
                 "Usuario", userDetails.getIdUsuario()));
     }
 
+    private List<EventoDto> mapearEventos(List<Evento> eventos) {
+        if (eventos == null || eventos.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Integer> inscritosPorEvento = new HashMap<>();
+        List<Long> idsEvento = eventos.stream().map(Evento::getIdEvento).toList();
+        for (Object[] row : inscripcionRepository.contarConfirmadasPorEventoIds(idsEvento)) {
+            Long idEvento = (Long) row[0];
+            Number total = (Number) row[1];
+            inscritosPorEvento.put(idEvento, total.intValue());
+        }
+
+        return eventos.stream()
+            .map(evento -> toEventoDto(evento, inscritosPorEvento))
+            .toList();
+    }
+
     private EventoDto toEventoDto(Evento e) {
+        return toEventoDto(e, Map.of());
+    }
+
+    private EventoDto toEventoDto(Evento e, Map<Long, Integer> inscritosPorEvento) {
         EventoDto dto = new EventoDto();
         dto.setIdEvento(e.getIdEvento());
         dto.setIdCarrera(e.getCarrera().getIdCarrera());
@@ -293,7 +362,7 @@ public class EventoService {
         dto.setFechaCreacion(e.getFechaCreacion());
         dto.setLink(e.getLink());
 
-        int inscritos = inscripcionRepository.contarConfirmadasEnEvento(e.getIdEvento());
+        int inscritos = inscritosPorEvento.getOrDefault(e.getIdEvento(), 0);
         dto.setInscritos(inscritos);
         if (e.getCupoMaximo() != null) {
             dto.setCuposDisponibles(Math.max(0, e.getCupoMaximo() - inscritos));
@@ -304,6 +373,36 @@ public class EventoService {
 
     private String normalizeRolName(String nombreRol) {
         if (nombreRol == null) return "";
-        return nombreRol.replace("Ñ", "N").replace("ñ", "n").toUpperCase();
+        return nombreRol.replace("ROLE_", "").replace("Ñ", "N").replace("ñ", "n").toUpperCase();
+    }
+
+    // Verifica que el usuario pueda gestionar la carrera del evento.
+    // Admin puede todo — coordinador solo su(s) carrera(s) asignada(s).
+    private void verificarAccesoCarrera(Usuario usuario, Carrera carrera) {
+        if (esAdmin(usuario)) return;
+
+        if (!esCoordinador(usuario)
+                || !coordinadorCarreraRepository.existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                    usuario.getIdUsuario(), carrera.getIdCarrera())) {
+            throw new BusinessException(
+                "No tienes permisos para gestionar el evento de la carrera " + carrera.getNombre(), 403);
+        }
+    }
+
+    private List<Long> carrerasAsignadas(Usuario usuario) {
+        return coordinadorCarreraRepository.findByIdCoordinador(usuario.getIdUsuario())
+            .stream()
+            .map(cc -> cc.getCarrera().getIdCarrera())
+            .toList();
+    }
+
+    private boolean esAdmin(Usuario usuario) {
+        return usuario.getRoles().stream()
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals("ADMINISTRADOR"));
+    }
+
+    private boolean esCoordinador(Usuario usuario) {
+        return usuario.getRoles().stream()
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals("COORDINADOR"));
     }
 }

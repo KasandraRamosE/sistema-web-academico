@@ -11,6 +11,10 @@ public class RegistroRequest {
     @Size(min = 4, max = 50, message = "El username debe tener entre 4 y 50 caracteres")
     private String username;
 
+    @NotBlank(message = "El carnet de identidad es obligatorio")
+    @Size(max = 20, message = "El carnet de identidad es demasiado largo")
+    private String ci;
+
     @NotBlank(message = "Los nombres son obligatorios")
     @Size(max = 100, message = "Nombres demasiado largos")
     private String nombres;

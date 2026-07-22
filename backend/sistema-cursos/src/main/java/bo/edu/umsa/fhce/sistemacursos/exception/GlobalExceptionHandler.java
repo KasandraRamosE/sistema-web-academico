@@ -6,6 +6,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -13,10 +14,13 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 // @RestControllerAdvice intercepta TODAS las excepciones lanzadas desde
 // cualquier controller y las convierte en respuestas JSON estructuradas.
 // Sin esto, Spring devuelve páginas HTML de error — inaceptable para una API REST.
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     // ── Estructura estándar de error que devolvemos ──────────────────────────
@@ -84,13 +88,26 @@ public class GlobalExceptionHandler {
             .body(buildError(403, "Forbidden", "No tienes permisos para realizar esta acción"));
     }
 
+    // ── 405: método HTTP no soportado ───────────────────────────────────────
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        String message = "Método HTTP no soportado para este endpoint";
+        if (ex.getMethod() != null) {
+            message = message + ": " + ex.getMethod();
+        }
+        return ResponseEntity
+            .status(HttpStatus.METHOD_NOT_ALLOWED)
+            .body(buildError(405, "Method Not Allowed", message));
+    }
+
     // ── 500: cualquier error no esperado ────────────────────────────────────
     // Este es el catch-all: si algo explota y no lo capturamos antes,
     // el usuario recibe 500 en vez de un stack trace completo.
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
-        // Log completo en servidor, mensaje genérico al cliente
-        ex.printStackTrace();
+        // Log completo en servidor (va al logging estructurado configurado
+        // por perfil), mensaje genérico al cliente — nunca ex.getMessage().
+        log.error("Error no controlado", ex);
         return ResponseEntity
             .status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(buildError(500, "Internal Server Error",

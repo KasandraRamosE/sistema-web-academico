@@ -43,6 +43,24 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
     // Inscripciones de un evento
     List<Inscripcion> findByEvento_IdEvento(Long idEvento);
 
+        @Query("""
+                SELECT i FROM Inscripcion i
+                JOIN FETCH i.participante p
+                WHERE i.curso.idCurso = :idCurso
+                    AND i.estado = 'CONFIRMADA'
+                ORDER BY p.apellidos ASC, p.nombres ASC
+                """)
+        List<Inscripcion> findConfirmadasCursoParaReporte(@Param("idCurso") Long idCurso);
+
+        @Query("""
+                SELECT i FROM Inscripcion i
+                JOIN FETCH i.participante p
+                WHERE i.evento.idEvento = :idEvento
+                    AND i.estado = 'CONFIRMADA'
+                ORDER BY p.apellidos ASC, p.nombres ASC
+                """)
+        List<Inscripcion> findConfirmadasEventoParaReporte(@Param("idEvento") Long idEvento);
+
     // Contar confirmadas en un paralelo — para control de cupo
     @Query("""
         SELECT COUNT(i) FROM Inscripcion i
@@ -62,6 +80,24 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
         AND i.estado = 'CONFIRMADA'
         """)
     int contarConfirmadasEnEvento(@Param("idEvento") Long idEvento);
+
+        @Query("""
+                SELECT i.curso.idCurso, i.codigoParalelo, COUNT(i)
+                FROM Inscripcion i
+                WHERE i.estado = 'CONFIRMADA'
+                    AND i.curso.idCurso IN :idCursos
+                GROUP BY i.curso.idCurso, i.codigoParalelo
+                """)
+        List<Object[]> contarConfirmadasPorCursoYParalelo(@Param("idCursos") List<Long> idCursos);
+
+        @Query("""
+                SELECT i.evento.idEvento, COUNT(i)
+                FROM Inscripcion i
+                WHERE i.estado = 'CONFIRMADA'
+                    AND i.evento.idEvento IN :idEventos
+                GROUP BY i.evento.idEvento
+                """)
+        List<Object[]> contarConfirmadasPorEventoIds(@Param("idEventos") List<Long> idEventos);
 
     long countByEstado(Inscripcion.EstadoInscripcion estado);
 

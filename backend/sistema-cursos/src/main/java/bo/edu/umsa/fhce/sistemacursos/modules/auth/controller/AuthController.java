@@ -2,21 +2,24 @@ package bo.edu.umsa.fhce.sistemacursos.modules.auth.controller;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LoginRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LoginResponse;
-import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LogoutRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.MensajeResponse;
-import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RefreshTokenRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RefreshTokenResponse;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.VerificarEmailRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RegistroRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.SolicitarResetPasswordRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.VerificarCodigoResetRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.CambiarPasswordRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.ReenviarCodigoRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.service.AuthService;
 import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,24 +36,73 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Autenticación", description = "Login, registro y verificación de usuarios")
 public class AuthController {
 
+    private static final String REFRESH_COOKIE_NAME = "refreshToken";
+
     private final AuthService authService;
 
+    @Value("${app.jwt.refresh-expiration-ms:604800000}")
+    private long refreshExpirationMs;
+
+    // false por defecto: hoy el servidor se sirve por HTTP plano. Activar
+    // vía COOKIE_SECURE=true apenas se agregue HTTPS — sin volver a tocar código.
+    @Value("${app.jwt.cookie-secure:false}")
+    private boolean cookieSecure;
+
     @PostMapping("/login")
-    @Operation(summary = "Login", description = "Devuelve JWT para usuarios UMSA y externos")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+    @Operation(summary = "Login", description = "Devuelve JWT para usuarios UMSA y externos; el refresh token se setea como cookie HttpOnly")
+    public ResponseEntity<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+        LoginResponse loginResponse = authService.login(request);
+        setRefreshCookie(response, loginResponse.getRefreshToken());
+        return ResponseEntity.ok(loginResponse);
     }
 
     @PostMapping("/refresh")
-    @Operation(summary = "Refrescar token", description = "Devuelve un nuevo JWT usando refresh token")
-    public ResponseEntity<RefreshTokenResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
-        return ResponseEntity.ok(authService.refreshToken(request));
+    @Operation(summary = "Refrescar token", description = "Lee el refresh token de la cookie HttpOnly y devuelve un nuevo JWT")
+    public ResponseEntity<RefreshTokenResponse> refresh(
+            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshTokenCookie,
+            HttpServletResponse response) {
+        RefreshTokenResponse refreshResponse = authService.refreshToken(refreshTokenCookie);
+        setRefreshCookie(response, refreshResponse.getRefreshToken());
+        return ResponseEntity.ok(refreshResponse);
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "Logout", description = "Revoca el refresh token actual")
-    public ResponseEntity<MensajeResponse> logout(@Valid @RequestBody LogoutRequest request) {
-        return ResponseEntity.ok(authService.logout(request));
+    @Operation(summary = "Logout", description = "Revoca el refresh token de la cookie y la limpia")
+    public ResponseEntity<MensajeResponse> logout(
+            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshTokenCookie,
+            HttpServletResponse response) {
+        MensajeResponse mensaje = authService.logout(refreshTokenCookie);
+        clearRefreshCookie(response);
+        return ResponseEntity.ok(mensaje);
+    }
+
+    // ── Cookie del refresh token ──────────────────────────────────────────
+    // HttpOnly: inaccesible desde JS (protege contra robo vía XSS).
+    // SameSite=Strict: el navegador no la manda en requests iniciados desde
+    // otro sitio (mitiga CSRF sobre /auth/refresh y /auth/logout).
+    // Path=/api: coincide con server.servlet.context-path, se manda en toda
+    // la API pero no se filtra a rutas fuera de ella.
+    private void setRefreshCookie(HttpServletResponse response, String token) {
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, token)
+            .httpOnly(true)
+            .secure(cookieSecure)
+            .sameSite("Strict")
+            .path("/api")
+            .maxAge(refreshExpirationMs / 1000)
+            .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    private void clearRefreshCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_COOKIE_NAME, "")
+            .httpOnly(true)
+            .secure(cookieSecure)
+            .sameSite("Strict")
+            .path("/api")
+            .maxAge(0)
+            .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     @PostMapping("/registro")
@@ -69,8 +121,9 @@ public class AuthController {
 
     @PostMapping("/reenviar-codigo")
     @Operation(summary = "Reenviar código de verificación")
-    public ResponseEntity<MensajeResponse> reenviarCodigo(@RequestParam String username) {
-        return ResponseEntity.ok(authService.reenviarCodigo(username));
+    public ResponseEntity<MensajeResponse> reenviarCodigo(
+            @Valid @RequestBody ReenviarCodigoRequest request) {
+        return ResponseEntity.ok(authService.reenviarCodigo(request.getUsername()));
     }
 
     @GetMapping("/me")

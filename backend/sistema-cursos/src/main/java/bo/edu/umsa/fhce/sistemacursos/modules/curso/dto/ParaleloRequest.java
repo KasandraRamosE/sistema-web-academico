@@ -4,10 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
-import lombok.Getter;
-import lombok.Setter;
 
-@Getter @Setter
 public class ParaleloRequest {
 
     @NotBlank(message = "El código del paralelo es obligatorio")
@@ -31,4 +28,60 @@ public class ParaleloRequest {
 
     @Size(max = 255)
     private String link;
+
+    public String getCodigo() {
+        return codigo;
+    }
+
+    public void setCodigo(String codigo) {
+        this.codigo = codigo;
+    }
+
+    public Long getIdDocente() {
+        return idDocente;
+    }
+
+    public void setIdDocente(Long idDocente) {
+        this.idDocente = idDocente;
+    }
+
+    public String getModalidad() {
+        return modalidad;
+    }
+
+    public void setModalidad(String modalidad) {
+        this.modalidad = modalidad;
+    }
+
+    public Integer getCupoMaximo() {
+        return cupoMaximo;
+    }
+
+    public void setCupoMaximo(Integer cupoMaximo) {
+        this.cupoMaximo = cupoMaximo;
+    }
+
+    public String getHorarioDescripcion() {
+        return horarioDescripcion;
+    }
+
+    public void setHorarioDescripcion(String horarioDescripcion) {
+        this.horarioDescripcion = horarioDescripcion;
+    }
+
+    public String getLugar() {
+        return lugar;
+    }
+
+    public void setLugar(String lugar) {
+        this.lugar = lugar;
+    }
+
+    public String getLink() {
+        return link;
+    }
+
+    public void setLink(String link) {
+        this.link = link;
+    }
 }

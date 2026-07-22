@@ -10,6 +10,7 @@ import lombok.Setter;
 public class UsuarioResumenDto {
     private Long idUsuario;
     private String username;
+    private String ci;
     private String nombres;
     private String apellidos;
     private String email;

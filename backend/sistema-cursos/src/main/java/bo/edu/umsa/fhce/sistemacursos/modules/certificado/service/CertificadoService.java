@@ -4,11 +4,15 @@ package bo.edu.umsa.fhce.sistemacursos.modules.certificado.service;
 
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.Carrera;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.dto.*;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.entity.CAnulacion;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.entity.Certificado;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.repository.AnulacionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.repository.CertificadoRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Curso;
+import bo.edu.umsa.fhce.sistemacursos.modules.curso.repository.CursoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity.EvaluacionEstudiante;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.AsistenciaRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.EvaluacionRepository;
@@ -46,26 +50,51 @@ public class CertificadoService {
     private final UsuarioRepository      usuarioRepository;
     private final CertificadoPdfService  pdfService;
     private final PlantillaService plantillaService;
+    private final CursoRepository cursoRepository;
+    private final CoordinadorCarreraRepository coordinadorCarreraRepository;
 
     @Value("${app.email.base-url}")
     private String baseUrl;
 
-    // ── Emitir certificado individual ────────────────────────────────────────
+    // ── Emitir certificado individual (API directa: valida carrera) ─────────
     @Transactional
     public CertificadoDto emitir(EmitirCertificadoRequest request) {
+        return emitir(request, true);
+    }
+
+    // Usado internamente por AsistenciaService al auto-emitir tras registrar
+    // asistencia: el auxiliar ya probó su acceso al evento puntual (más
+    // específico que "carrera"), así que no se repite el chequeo de carrera.
+    @Transactional
+    public CertificadoDto emitirSinValidarAcceso(EmitirCertificadoRequest request) {
+        return emitir(request, false);
+    }
+
+    private CertificadoDto emitir(EmitirCertificadoRequest request, boolean validarAccesoCarrera) {
         Inscripcion inscripcion = inscripcionRepository
             .findById(request.getIdInscripcion())
             .orElseThrow(() -> new ResourceNotFoundException(
                 "Inscripcion", request.getIdInscripcion()));
 
-        Optional<Certificado> existente = certificadoRepository
-            .findByInscripcion_IdInscripcion(inscripcion.getIdInscripcion());
+        if (validarAccesoCarrera) {
+            verificarAccesoCarrera(getUsuarioActual(), carreraDe(inscripcion));
+        }
 
-        if (existente.isPresent() &&
-                existente.get().getEstadoEmision() == Certificado.EstadoEmision.GENERADO) {
+        Optional<Certificado> vigente = certificadoRepository
+            .findFirstByInscripcion_IdInscripcionAndEstadoEmisionOrderByVersionDescIdCertificadoDesc(
+                inscripcion.getIdInscripcion(),
+                Certificado.EstadoEmision.GENERADO);
+
+        if (vigente.isPresent()) {
             throw new BusinessException(
                 "Este participante ya tiene un certificado emitido", 409);
         }
+
+        int siguienteVersion = certificadoRepository
+            .findFirstByInscripcion_IdInscripcionOrderByVersionDescIdCertificadoDesc(
+                inscripcion.getIdInscripcion())
+            .map(c -> c.getVersion() + 1)
+            .orElse(1);
 
         validarRequisitos(inscripcion);
 
@@ -86,7 +115,7 @@ public class CertificadoService {
             .inscripcion(inscripcion)
             .codigoVerificacion(codigoVerificacion)
             .estadoEmision(Certificado.EstadoEmision.GENERADO)
-            .version(1)
+            .version(siguienteVersion)
             .build();
 
         certificado = certificadoRepository.save(certificado);
@@ -104,6 +133,10 @@ public class CertificadoService {
     // ── Emitir en lote para un paralelo ─────────────────────────────────────
     @Transactional
     public List<CertificadoDto> emitirLote(EmitirLoteRequest request) {
+        Curso curso = cursoRepository.findById(request.getIdCurso())
+            .orElseThrow(() -> new ResourceNotFoundException("Curso", request.getIdCurso()));
+        verificarAccesoCarrera(getUsuarioActual(), curso.getCarrera());
+
         // Obtener inscripciones confirmadas y aprobadas del paralelo
         List<Inscripcion> inscripciones = inscripcionRepository
             .findConfirmadasPorParalelo(request.getIdCurso(), request.getCodigoParalelo());
@@ -122,15 +155,18 @@ public class CertificadoService {
                     .orElse(false);
 
                 boolean sinCertificado = certificadoRepository
-                    .findByInscripcion_IdInscripcion(i.getIdInscripcion())
-                    .map(c -> c.getEstadoEmision() != Certificado.EstadoEmision.GENERADO)
-                    .orElse(true);
+                    .findFirstByInscripcion_IdInscripcionAndEstadoEmisionOrderByVersionDescIdCertificadoDesc(
+                        i.getIdInscripcion(),
+                        Certificado.EstadoEmision.GENERADO)
+                    .isEmpty();
 
                 return aprobado && sinCertificado;
             })
+            // Ya se validó el acceso a la carrera una vez arriba, para todo
+            // el paralelo (todas las inscripciones son del mismo curso).
             .map(i -> emitir(new EmitirCertificadoRequest() {{
                 setIdInscripcion(i.getIdInscripcion());
-            }}))
+            }}, false))
             .toList();
     }
 
@@ -140,12 +176,39 @@ public class CertificadoService {
         Certificado certificado = buscarCertificado(idCertificado);
         Usuario usuario = getUsuarioActual();
 
-        if (certificado.getEstadoEmision() == Certificado.EstadoEmision.ANULADO) {
+        if (certificado.getEstadoEmision() == Certificado.EstadoEmision.REEMITIDO) {
+            throw new BusinessException("El certificado ya fue reemitido", 400);
+        }
+
+        if (certificado.getEstadoEmision() == Certificado.EstadoEmision.ANULADO
+                && !request.isReemitir()) {
             throw new BusinessException("El certificado ya está anulado", 400);
         }
 
+        if (certificado.getEstadoEmision() == Certificado.EstadoEmision.ANULADO) {
+            CAnulacion anulacion = anulacionRepository
+                .findByCertificado_IdCertificado(certificado.getIdCertificado())
+                .orElseThrow(() -> new BusinessException(
+                    "No se encontró el registro de anulación del certificado", 400));
+
+            if (anulacion.getCertificadoReemplazo() == null) {
+                anulacion.setCertificadoReemplazo(generarReemplazo(certificado));
+                anulacionRepository.saveAndFlush(anulacion);
+            }
+
+            certificado.setEstadoEmision(Certificado.EstadoEmision.REEMITIDO);
+            certificado = certificadoRepository.save(certificado);
+
+            log.info("Certificado {} reemitido por {}",
+                idCertificado, usuario.getUsername());
+
+            return toCertificadoDto(certificado);
+        }
+
         // Marcar como anulado
-        certificado.setEstadoEmision(Certificado.EstadoEmision.ANULADO);
+        certificado.setEstadoEmision(request.isReemitir()
+            ? Certificado.EstadoEmision.REEMITIDO
+            : Certificado.EstadoEmision.ANULADO);
         certificadoRepository.save(certificado);
 
         Certificado certificadoReemplazo = null;
@@ -153,9 +216,6 @@ public class CertificadoService {
         // Si se pide reemisión, generar uno nuevo
         if (request.isReemitir()) {
             certificadoReemplazo = generarReemplazo(certificado);
-            // Marcar el original como REEMITIDO en vez de ANULADO
-            certificado.setEstadoEmision(Certificado.EstadoEmision.REEMITIDO);
-            certificadoRepository.save(certificado);
         }
 
         // Registrar la anulación
@@ -165,7 +225,14 @@ public class CertificadoService {
             .motivoAnulacion(request.getMotivo())
             .certificadoReemplazo(certificadoReemplazo)
             .build();
-        anulacionRepository.save(anulacion);
+        anulacionRepository.saveAndFlush(anulacion);
+
+        // El trigger de anulación puede marcarlo como ANULADO al insertar c_anulacion.
+        // Si hay reemplazo, dejamos el estado final correcto dentro de la misma transacción.
+        if (request.isReemitir()) {
+            certificado.setEstadoEmision(Certificado.EstadoEmision.REEMITIDO);
+            certificado = certificadoRepository.save(certificado);
+        }
 
         log.info("Certificado {} anulado por {} — reemitido: {}",
             idCertificado, usuario.getUsername(), request.isReemitir());
@@ -190,9 +257,9 @@ public class CertificadoService {
                 "No tienes permisos para descargar este certificado", 403);
         }
 
-        if (certificado.getEstadoEmision() == Certificado.EstadoEmision.ANULADO) {
+        if (certificado.getEstadoEmision() != Certificado.EstadoEmision.GENERADO) {
             throw new BusinessException(
-                "Este certificado está anulado y no puede descargarse", 400);
+                "Este certificado no está vigente y no puede descargarse", 400);
         }
 
         // Si el archivo ya existe en disco, usarlo directamente
@@ -249,14 +316,20 @@ public class CertificadoService {
                 "Certificado no encontrado", 404));
 
         Inscripcion inscripcion = certificado.getInscripcion();
+        Certificado ultimoCertificado = certificadoRepository
+            .findFirstByInscripcion_IdInscripcionOrderByVersionDescIdCertificadoDesc(
+                inscripcion.getIdInscripcion())
+            .orElse(certificado);
+
+        if (!ultimoCertificado.getIdCertificado().equals(certificado.getIdCertificado())
+                || certificado.getEstadoEmision() != Certificado.EstadoEmision.GENERADO) {
+            throw new BusinessException(
+                "Este certificado no esta vigente. Verifica la ultima version emitida.", 400);
+        }
         VerificacionDto dto = new VerificacionDto();
 
         // Estado legible para el usuario
-        dto.setEstado(switch (certificado.getEstadoEmision()) {
-            case GENERADO  -> "VÁLIDO";
-            case ANULADO   -> "ANULADO";
-            case REEMITIDO -> "REEMITIDO";
-        });
+        dto.setEstado("VALIDO");
 
         dto.setNombreTitular(
             inscripcion.getParticipante().getNombres()
@@ -327,12 +400,17 @@ public class CertificadoService {
 
     private Certificado generarReemplazo(Certificado original) {
         String nuevoCodigo = UUID.randomUUID().toString();
+        int siguienteVersion = certificadoRepository
+            .findFirstByInscripcion_IdInscripcionOrderByVersionDescIdCertificadoDesc(
+                original.getInscripcion().getIdInscripcion())
+            .map(c -> c.getVersion() + 1)
+            .orElse(original.getVersion() + 1);
 
         Certificado reemplazo = Certificado.builder()
             .inscripcion(original.getInscripcion())
             .codigoVerificacion(nuevoCodigo)
             .estadoEmision(Certificado.EstadoEmision.GENERADO)
-            .version(original.getVersion() + 1)
+            .version(siguienteVersion)
             .build();
 
         reemplazo = certificadoRepository.save(reemplazo);
@@ -355,6 +433,29 @@ public class CertificadoService {
         return certificadoRepository.findById(idCertificado)
             .orElseThrow(() -> new ResourceNotFoundException(
                 "Certificado", idCertificado));
+    }
+
+    private Carrera carreraDe(Inscripcion inscripcion) {
+        return inscripcion.getCurso() != null
+            ? inscripcion.getCurso().getCarrera()
+            : inscripcion.getEvento().getCarrera();
+    }
+
+    // Admin puede emitir para cualquier carrera — coordinador solo la(s)
+    // que tiene asignada(s) en coordinador_carrera.
+    private void verificarAccesoCarrera(Usuario usuario, Carrera carrera) {
+        boolean esAdmin = usuario.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+        if (esAdmin) return;
+
+        boolean esCoordinadorDeCarrera = coordinadorCarreraRepository
+            .existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                usuario.getIdUsuario(), carrera.getIdCarrera());
+
+        if (!esCoordinadorDeCarrera) {
+            throw new BusinessException(
+                "No tienes permisos para emitir certificados de la carrera " + carrera.getNombre(), 403);
+        }
     }
 
     private Usuario getUsuarioActual() {

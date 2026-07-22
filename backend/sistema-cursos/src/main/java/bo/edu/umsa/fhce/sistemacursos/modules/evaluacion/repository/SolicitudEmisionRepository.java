@@ -13,6 +13,8 @@ public interface SolicitudEmisionRepository
     List<SolicitudEmision> findByEstadoOrderByFechaSolicitudAsc(
         SolicitudEmision.EstadoSolicitud estado);
 
+    List<SolicitudEmision> findAllByOrderByFechaSolicitudDesc();
+
     // Solicitudes de un docente específico
     List<SolicitudEmision> findByDocente_IdUsuario(Long idDocente);
 
@@ -25,6 +27,11 @@ public interface SolicitudEmisionRepository
         Long idCurso,
         String codigoParalelo,
         SolicitudEmision.EstadoSolicitud estado
+    );
+
+    boolean existsByCurso_IdCursoAndCodigoParalelo(
+        Long idCurso,
+        String codigoParalelo
     );
 
     long countByEstado(SolicitudEmision.EstadoSolicitud estado);

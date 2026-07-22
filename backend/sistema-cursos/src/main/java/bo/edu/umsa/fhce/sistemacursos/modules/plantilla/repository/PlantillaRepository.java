@@ -54,8 +54,26 @@ public interface PlantillaRepository
     @Query("""
         UPDATE PlantillaCertificado p
         SET p.estado = 'HISTORICA'
+        WHERE p.curso.idCurso = :idCurso
+        AND p.estado = 'PENDIENTE'
+        """)
+    void archivarPendientesDeCurso(@Param("idCurso") Long idCurso);
+
+    @Modifying
+    @Query("""
+        UPDATE PlantillaCertificado p
+        SET p.estado = 'HISTORICA'
         WHERE p.evento.idEvento = :idEvento
         AND p.estado = 'VIGENTE'
         """)
     void archivarVigentesDeEvento(@Param("idEvento") Long idEvento);
+
+    @Modifying
+    @Query("""
+        UPDATE PlantillaCertificado p
+        SET p.estado = 'HISTORICA'
+        WHERE p.evento.idEvento = :idEvento
+        AND p.estado = 'PENDIENTE'
+        """)
+    void archivarPendientesDeEvento(@Param("idEvento") Long idEvento);
 }

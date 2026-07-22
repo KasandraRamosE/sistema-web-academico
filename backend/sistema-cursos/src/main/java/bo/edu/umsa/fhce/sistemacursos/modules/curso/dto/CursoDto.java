@@ -18,9 +18,10 @@ public class CursoDto {
     private String nombreDisenador;
     private String nombre;
     private String descripcion;
-    private String lugar;
     private String imagen;
     private Integer cargaHoraria;
+    private Integer duracion;
+    private String unidad;
     private LocalDate fechaInicio;
     private BigDecimal costoExterno;
     private BigDecimal costoUmsa;

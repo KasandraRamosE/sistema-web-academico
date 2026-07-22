@@ -19,8 +19,8 @@ public class Certificado {
     @Column(name = "id_certificado")
     private Long idCertificado;
 
-    // 1:1 con inscripción — un participante tiene un certificado por actividad
-    @OneToOne(fetch = FetchType.LAZY)
+    // Varias versiones pueden pertenecer a la misma inscripción.
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_inscripcion", nullable = false)
     private Inscripcion inscripcion;
 

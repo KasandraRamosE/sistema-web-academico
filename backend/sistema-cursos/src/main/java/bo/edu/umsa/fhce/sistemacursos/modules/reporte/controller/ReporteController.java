@@ -3,6 +3,9 @@ package bo.edu.umsa.fhce.sistemacursos.modules.reporte.controller;
 import java.time.LocalDate;
 
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -87,5 +90,66 @@ public class ReporteController {
             @RequestParam String tipo,
             @RequestParam Long idActividad) {
         return ResponseEntity.ok(reporteService.reporteDetalleActividad(tipo, idActividad));
+    }
+
+    @GetMapping(value = "/actividad/inscritos/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Reporte PDF de inscritos por actividad (curso o evento)")
+    public ResponseEntity<byte[]> inscritosPdf(
+            @RequestParam String tipo,
+            @RequestParam Long idActividad) {
+        byte[] pdf = reporteService.reporteInscritosPdf(tipo, idActividad);
+
+        String fileName = "reporte-inscritos-"
+            + tipo.trim().toLowerCase()
+            + "-"
+            + idActividad
+            + ".pdf";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.inline().filename(fileName).build());
+
+        return ResponseEntity.ok()
+            .headers(headers)
+            .body(pdf);
+    }
+
+    @GetMapping(value = "/academicos/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Reporte académico (PDF) para coordinador con filtros")
+    public ResponseEntity<byte[]> academicosPdf(
+            @RequestParam(required = false) Long idCarrera,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(required = false) String tipo,
+            @RequestParam(required = false) String buscar) {
+
+        byte[] pdf = reporteService.reporteAcademicoCoordinadorPdf(desde, hasta, idCarrera, tipo, buscar);
+
+        String fileName = "reporte-academico" + (idCarrera != null ? "-carrera-" + idCarrera : "") + ".pdf";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.inline().filename(fileName).build());
+        return ResponseEntity.ok().headers(headers).body(pdf);
+    }
+
+    @GetMapping(value = "/financieros/coordinador/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
+    @Operation(summary = "Reporte financiero (PDF) para coordinador con filtros")
+    public ResponseEntity<byte[]> financierosCoordinadorPdf(
+            @RequestParam(required = false) Long idCarrera,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(required = false) String tipo,
+            @RequestParam(required = false) String buscar) {
+
+        byte[] pdf = reporteService.reporteFinancieroCoordinadorPdf(desde, hasta, idCarrera, tipo, buscar);
+
+        String fileName = "reporte-financiero" + (idCarrera != null ? "-carrera-" + idCarrera : "") + ".pdf";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.inline().filename(fileName).build());
+        return ResponseEntity.ok().headers(headers).body(pdf);
     }
 }

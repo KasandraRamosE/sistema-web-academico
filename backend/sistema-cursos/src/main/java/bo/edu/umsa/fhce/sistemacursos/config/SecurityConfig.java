@@ -2,10 +2,10 @@
 
 package bo.edu.umsa.fhce.sistemacursos.config;
 
-import bo.edu.umsa.fhce.sistemacursos.security.JwtAuthFilter;
-import bo.edu.umsa.fhce.sistemacursos.security.RestAccessDeniedHandler;
-import bo.edu.umsa.fhce.sistemacursos.security.RestAuthenticationEntryPoint;
-import lombok.RequiredArgsConstructor;
+import java.util.Arrays;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -24,7 +24,10 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.List;
+import bo.edu.umsa.fhce.sistemacursos.security.JwtAuthFilter;
+import bo.edu.umsa.fhce.sistemacursos.security.RestAccessDeniedHandler;
+import bo.edu.umsa.fhce.sistemacursos.security.RestAuthenticationEntryPoint;
+import lombok.RequiredArgsConstructor;
 
 @Configuration
 @EnableWebSecurity
@@ -37,6 +40,14 @@ public class SecurityConfig {
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
     private final RestAccessDeniedHandler restAccessDeniedHandler;
 
+    // Orígenes permitidos para CORS, separados por coma.
+    // En dev: localhost del servidor de Vite. En prod: SIN default — debe
+    // venir de ALLOWED_ORIGINS con el dominio real una vez desplegado.
+    // Si queda vacío, no se permite ningún origen cross-origin (falla cerrado,
+    // no abierto): la API sigue funcionando, solo el navegador bloquea el CORS.
+    @Value("${app.cors.allowed-origins:}")
+    private String allowedOriginsRaw;
+
     // ── Endpoints PÚBLICOS — no requieren JWT ────────────────────────────────
     private static final String[] PUBLIC_ENDPOINTS = {
         "/auth/**",              // login, registro, verificación de email
@@ -46,22 +57,22 @@ public class SecurityConfig {
         "/swagger-ui/**",        // documentación API en desarrollo
         "/swagger-ui.html",
         "/api-docs/**",
-        "/v3/api-docs/**"
+        "/v3/api-docs/**",
+        // Context path /api
+        "/api/swagger-ui/**",
+        "/api/swagger-ui.html",
+        "/api/v3/api-docs/**",
+        "/api/api-docs/**"
     };
 
     // ── Cadena de filtros de seguridad ───────────────────────────────────────
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // Deshabilitar CSRF: no necesario para APIs REST con JWT
-            // (CSRF protege formularios HTML con sesiones — no aplica aquí)
             .csrf(AbstractHttpConfigurer::disable)
 
-            // Configurar CORS para permitir peticiones desde Vue (localhost:5173)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-            // Sin sesiones: cada request se autentica por JWT
-            // STATELESS = Spring nunca crea ni usa HttpSession
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
@@ -72,21 +83,27 @@ public class SecurityConfig {
 
             // Reglas de autorización por endpoint
             .authorizeHttpRequests(auth -> auth
+                // Perfil actual: requiere JWT válido
+                .requestMatchers(HttpMethod.GET, "/auth/me").authenticated()
+
                 // Endpoints públicos: acceso sin token
                 .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
 
                 // Verificación de certificados: GET público
                 .requestMatchers(HttpMethod.GET, "/certificados/verificar/**").permitAll()
 
+                // Callback de Libélula: lo llama el servidor de Libélula, sin JWT.
+                // La seguridad NO depende de este permitAll — depende de que
+                // InscripcionService.confirmarPagoLibelula() vuelve a consultar
+                // a Libélula (server-to-server, con appkey) antes de confirmar nada.
+                .requestMatchers(HttpMethod.GET, "/payments/libelula/callback").permitAll()
+
                 // Catálogo público
                 .requestMatchers(HttpMethod.GET, "/cursos/**", "/eventos/**", "/carreras/**").permitAll()
 
-                // Todo lo demás requiere autenticación
-                // La autorización por ROL se maneja con @PreAuthorize en los controllers
                 .anyRequest().authenticated()
             )
 
-            // Agregar el filtro JWT ANTES del filtro de usuario/contraseña de Spring
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -109,16 +126,18 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
-    // ── CORS: permite que Vue (puerto 5173) llame al backend (puerto 8080) ───
+    // ── CORS: solo los orígenes de app.cors.allowed-origins (ver arriba) ────
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // En producción cambiar por el dominio real del frontend
-        config.setAllowedOrigins(List.of(
-            "http://localhost:5173",  // Vite dev server
-            "http://localhost:4173"   // Vite preview
-        ));
+        List<String> allowedOrigins = Arrays.stream(allowedOriginsRaw.split(","))
+            .map(String::trim)
+            .filter(origin -> !origin.isEmpty())
+            .toList();
+        // Lista explícita (no patrón "*"): es la única forma de combinar
+        // orígenes concretos con allowCredentials(true) de forma segura.
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

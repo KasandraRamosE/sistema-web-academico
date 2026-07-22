@@ -1,6 +1,7 @@
 package bo.edu.umsa.fhce.sistemacursos.modules.auth.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,5 +16,6 @@ public class VerificarCodigoResetRequest {
     private String username;
 
     @NotBlank(message = "El código es requerido")
+    @Pattern(regexp = "\\d{6}", message = "El código debe tener exactamente 6 dígitos")
     private String codigo;
 }

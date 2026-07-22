@@ -15,4 +15,8 @@ public class PagoDto {
     private String referenciaTransaccion;
     private String estado;
     private LocalDateTime fechaPago;
+
+    // Solo presente en la respuesta de iniciarPago(): URL a la que el
+    // frontend debe redirigir al participante para completar el pago.
+    private String urlPasarelaPagos;
 }

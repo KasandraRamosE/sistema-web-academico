@@ -3,6 +3,7 @@
 package bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.controller;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.*;
+import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.ParaleloEstadoDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity.Historial;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.service.EvaluacionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,6 +54,18 @@ public class EvaluacionController {
         return ResponseEntity.ok(evaluacionService.notasDeParalelo(idCurso, codigo));
     }
 
+    // GET /api/evaluaciones/paralelo/{idCurso}/{codigo}/estado
+    @GetMapping("/paralelo/{idCurso}/{codigo}/estado")
+    @PreAuthorize("hasAnyRole('DOCENTE', 'COORDINADOR', 'ADMINISTRADOR')")
+    @Operation(summary = "Estado de confirmacion del paralelo")
+    public ResponseEntity<ParaleloEstadoDto> estadoParalelo(
+            @PathVariable Long idCurso,
+            @PathVariable String codigo) {
+        ParaleloEstadoDto dto = new ParaleloEstadoDto();
+        dto.setConfirmado(evaluacionService.paraleloConfirmado(idCurso, codigo));
+        return ResponseEntity.ok(dto);
+    }
+
     // PATCH /api/evaluaciones/{id}/nota
     @PatchMapping("/{id}/nota")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
@@ -88,6 +101,14 @@ public class EvaluacionController {
     @Operation(summary = "Ver solicitudes de emisión pendientes")
     public ResponseEntity<List<SolicitudEmisionDto>> solicitudes() {
         return ResponseEntity.ok(evaluacionService.solicitudesPendientes());
+    }
+
+    // GET /api/evaluaciones/solicitudes/todas
+    @GetMapping("/solicitudes/todas")
+    @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
+    @Operation(summary = "Ver historial de solicitudes de emisión")
+    public ResponseEntity<List<SolicitudEmisionDto>> solicitudesTodas() {
+        return ResponseEntity.ok(evaluacionService.solicitudesTodas());
     }
 
     // POST /api/evaluaciones/solicitudes/evento/{idEvento}

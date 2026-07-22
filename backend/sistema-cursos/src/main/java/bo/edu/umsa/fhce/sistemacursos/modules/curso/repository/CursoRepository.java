@@ -13,9 +13,16 @@ public interface CursoRepository extends JpaRepository<Curso, Long> {
     // Cursos por carrera
     List<Curso> findByCarrera_IdCarrera(Long idCarrera);
 
+    List<Curso> findByCarrera_IdCarreraIn(List<Long> idsCarrera);
+
     // Cursos abiertos de una carrera — para el catálogo de participantes
     @Query("""
-        SELECT c FROM Curso c
+        SELECT DISTINCT c FROM Curso c
+        LEFT JOIN FETCH c.carrera
+        LEFT JOIN FETCH c.organizador
+        LEFT JOIN FETCH c.disenador
+        LEFT JOIN FETCH c.paralelos p
+        LEFT JOIN FETCH p.docente
         WHERE c.estado = 'ABIERTO'
         AND (:idCarrera IS NULL OR c.carrera.idCarrera = :idCarrera)
         ORDER BY c.fechaInicio ASC
@@ -29,6 +36,15 @@ public interface CursoRepository extends JpaRepository<Curso, Long> {
     List<Curso> findByDisenador_IdUsuario(Long idUsuario);
 
     long countByEstado(Curso.EstadoCurso estado);
+
+        @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+        @org.springframework.data.jpa.repository.Query("""
+                UPDATE Curso c
+                SET c.estado = 'FINALIZADO'
+                WHERE c.estado IN ('ABIERTO', 'LLENO')
+                    AND c.fechaInicio < :hoy
+                """)
+        int finalizarCursosVencidos(@org.springframework.data.repository.query.Param("hoy") java.time.LocalDate hoy);
 
     @Query("""
         SELECT new bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteAcademicoCursoDto(

@@ -3,6 +3,7 @@ package bo.edu.umsa.fhce.sistemacursos.modules.evento.repository;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,8 +14,13 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
 
     List<Evento> findByCarrera_IdCarrera(Long idCarrera);
 
+    List<Evento> findByCarrera_IdCarreraIn(List<Long> idsCarrera);
+
     @Query("""
-        SELECT e FROM Evento e
+        SELECT DISTINCT e FROM Evento e
+        LEFT JOIN FETCH e.carrera
+        LEFT JOIN FETCH e.organizador
+        LEFT JOIN FETCH e.disenador
         WHERE e.estado = 'ABIERTO'
         AND (:idCarrera IS NULL OR e.carrera.idCarrera = :idCarrera)
         ORDER BY e.fechaHora ASC
@@ -25,6 +31,15 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
 
     // Eventos asignados a un disenador
     List<Evento> findByDisenador_IdUsuario(Long idUsuario);
+
+        @Modifying(clearAutomatically = true, flushAutomatically = true)
+        @Query("""
+                UPDATE Evento e
+                SET e.estado = 'FINALIZADO'
+                WHERE e.estado IN ('ABIERTO', 'LLENO')
+                    AND e.fechaHora < :ahora
+                """)
+        int finalizarEventosVencidos(@Param("ahora") java.time.LocalDateTime ahora);
      
     // Contar inscritos confirmados — temporal hasta tener Inscripcion
     @Query("""

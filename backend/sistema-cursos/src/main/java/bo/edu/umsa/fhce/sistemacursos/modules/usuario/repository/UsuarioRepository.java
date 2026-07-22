@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 // JpaRepository<Entidad, TipoDeLaPK> nos da gratis:
@@ -25,6 +26,17 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     // (evita el problema N+1 de Hibernate)
     @Query("SELECT u FROM Usuario u JOIN FETCH u.roles WHERE u.username = :username")
     Optional<Usuario> findByUsernameWithRoles(@Param("username") String username);
+
+    // Listado por rol con roles cargados en la misma query para evitar N+1
+    @Query("""
+        SELECT DISTINCT u
+        FROM Usuario u
+        JOIN FETCH u.roles roles
+        JOIN u.roles filtro
+        WHERE UPPER(filtro.nombre) = UPPER(:nombreRol)
+        ORDER BY u.apellidos, u.nombres, u.username
+        """)
+    List<Usuario> findByRolWithRoles(@Param("nombreRol") String nombreRol);
 
     long countByPasswordHashIsNull();
 

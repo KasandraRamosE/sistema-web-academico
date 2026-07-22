@@ -39,6 +39,18 @@ public class InscripcionController {
         return ResponseEntity.ok(inscripcionService.iniciarPago(request));
     }
 
+    // POST /api/inscripciones/pago/confirmar
+    // Confirmación MANUAL, solo para soporte/administración — la confirmación
+    // normal ocurre en LibelulaCallbackController tras verificar contra Libélula.
+    // No es de uso del participante: nunca confirma sin haber recibido el dinero.
+    @PostMapping("/pago/confirmar")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Confirmar pago de una inscripción manualmente (solo soporte/administración)")
+    public ResponseEntity<PagoDto> confirmarPago(
+            @Valid @RequestBody PagoConfirmarRequest request) {
+        return ResponseEntity.ok(inscripcionService.confirmarPago(request));
+    }
+
     // GET /api/inscripciones/mis-inscripciones
     @GetMapping("/mis-inscripciones")
     @PreAuthorize("hasRole('PARTICIPANTE')")

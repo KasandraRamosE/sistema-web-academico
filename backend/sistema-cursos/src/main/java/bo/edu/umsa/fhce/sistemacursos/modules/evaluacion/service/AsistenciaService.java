@@ -9,13 +9,16 @@ import bo.edu.umsa.fhce.sistemacursos.modules.certificado.dto.EmitirCertificadoR
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.entity.Certificado;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.repository.CertificadoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.service.CertificadoService;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.AsistenciaAdminDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.AsistenciaDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.RegistrarAsistenciaRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity.Asistencia;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.AsistenciaRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.repository.SolicitudEmisionRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.Evento;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.AuxiliarEventoRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.EventoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.entity.Inscripcion;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.repository.InscripcionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
@@ -43,6 +46,8 @@ public class AsistenciaService {
     private final CertificadoRepository  certificadoRepository;
     private final CertificadoService     certificadoService;
     private final UsuarioRepository       usuarioRepository;
+    private final EventoRepository        eventoRepository;
+    private final CoordinadorCarreraRepository coordinadorCarreraRepository;
 
     // ── Registrar asistencia ─────────────────────────────────────────────────
     @Transactional
@@ -93,6 +98,8 @@ public class AsistenciaService {
     // ── Ver asistentes de un evento ──────────────────────────────────────────
     @Transactional(readOnly = true)
     public List<AsistenciaDto> asistentesDeEvento(Long idEvento) {
+        verificarAccesoEvento(idEvento);
+
         return asistenciaRepository.findByIdEvento(idEvento)
             .stream()
             .map(this::toAsistenciaDto)
@@ -102,6 +109,8 @@ public class AsistenciaService {
     // ── Ver inscripciones de un evento con asistencia ─────────────────────
     @Transactional(readOnly = true)
     public List<AsistenciaAdminDto> inscripcionesConAsistencia(Long idEvento) {
+        verificarAccesoEvento(idEvento);
+
         return inscripcionRepository.findByEvento_IdEvento(idEvento)
             .stream()
             .map(inscripcion -> {
@@ -150,13 +159,15 @@ public class AsistenciaService {
     // ── Helpers privados ─────────────────────────────────────────────────────
 
     private void verificarPermisoRegistro(Usuario usuario, Inscripcion inscripcion) {
-        boolean esAdmin = usuario.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+        boolean esAdmin = tieneRol(usuario, "ADMINISTRADOR");
         if (esAdmin) return;
 
-        boolean esCoordinador = usuario.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
-        if (esCoordinador) return;
+        boolean esCoordinador = tieneRol(usuario, "COORDINADOR");
+        if (esCoordinador
+                && coordinadorCarreraRepository.existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                    usuario.getIdUsuario(), inscripcion.getEvento().getCarrera().getIdCarrera())) {
+            return;
+        }
 
         // Verificar que sea auxiliar asignado a ese evento
         boolean esAuxiliarAsignado = auxiliarEventoRepository
@@ -180,17 +191,17 @@ public class AsistenciaService {
     }
 
     private void validarPermisoAnulacion(Usuario usuario, Asistencia asistencia) {
-        boolean esAdmin = usuario.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
-        boolean esCoordinador = usuario.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
+        boolean esAdmin = tieneRol(usuario, "ADMINISTRADOR");
+        boolean esCoordinador = tieneRol(usuario, "COORDINADOR")
+            && coordinadorCarreraRepository.existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                usuario.getIdUsuario(),
+                asistencia.getInscripcion().getEvento().getCarrera().getIdCarrera());
 
         if (esAdmin || esCoordinador) {
             return;
         }
 
-        boolean esAuxiliar = usuario.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("AUXILIAR"));
+        boolean esAuxiliar = tieneRol(usuario, "AUXILIAR");
 
         if (!esAuxiliar) {
             throw new BusinessException(
@@ -224,14 +235,14 @@ public class AsistenciaService {
 
         if (!asistio) {
             certificadoRepository
-                .findByInscripcion_IdInscripcion(inscripcion.getIdInscripcion())
+                .findFirstByInscripcion_IdInscripcionAndEstadoEmisionOrderByVersionDescIdCertificadoDesc(
+                    inscripcion.getIdInscripcion(),
+                    Certificado.EstadoEmision.GENERADO)
                 .ifPresent(certificado -> {
-                    if (certificado.getEstadoEmision() != Certificado.EstadoEmision.ANULADO) {
-                        AnularCertificadoRequest request = new AnularCertificadoRequest();
-                        request.setMotivo("Auto-anulado por inasistencia");
-                        request.setReemitir(false);
-                        certificadoService.anular(certificado.getIdCertificado(), request);
-                    }
+                    AnularCertificadoRequest request = new AnularCertificadoRequest();
+                    request.setMotivo("Auto-anulado por inasistencia");
+                    request.setReemitir(false);
+                    certificadoService.anular(certificado.getIdCertificado(), request);
                 });
             return;
         }
@@ -246,9 +257,10 @@ public class AsistenciaService {
         }
 
         boolean yaGenerado = certificadoRepository
-            .findByInscripcion_IdInscripcion(inscripcion.getIdInscripcion())
-            .map(c -> c.getEstadoEmision() == Certificado.EstadoEmision.GENERADO)
-            .orElse(false);
+            .findFirstByInscripcion_IdInscripcionAndEstadoEmisionOrderByVersionDescIdCertificadoDesc(
+                inscripcion.getIdInscripcion(),
+                Certificado.EstadoEmision.GENERADO)
+            .isPresent();
 
         if (yaGenerado) {
             return;
@@ -256,7 +268,41 @@ public class AsistenciaService {
 
         EmitirCertificadoRequest request = new EmitirCertificadoRequest();
         request.setIdInscripcion(inscripcion.getIdInscripcion());
-        certificadoService.emitir(request);
+        // Sin re-chequeo de carrera: quien llamó a registrar() ya probó su
+        // acceso a este evento puntual en verificarPermisoRegistro().
+        certificadoService.emitirSinValidarAcceso(request);
+    }
+
+    private void verificarAccesoEvento(Long idEvento) {
+        Evento evento = eventoRepository.findById(idEvento)
+            .orElseThrow(() -> new ResourceNotFoundException("Evento", idEvento));
+        Usuario usuario = getUsuarioActual();
+
+        if (tieneRol(usuario, "ADMINISTRADOR")) return;
+
+        if (tieneRol(usuario, "COORDINADOR")
+                && coordinadorCarreraRepository.existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                    usuario.getIdUsuario(), evento.getCarrera().getIdCarrera())) {
+            return;
+        }
+
+        if (tieneRol(usuario, "AUXILIAR")
+                && auxiliarEventoRepository.existsByAuxiliar_IdUsuarioAndEvento_IdEvento(
+                    usuario.getIdUsuario(), evento.getIdEvento())) {
+            return;
+        }
+
+        throw new BusinessException("No tienes permisos para ver las asistencias de este evento", 403);
+    }
+
+    private boolean tieneRol(Usuario usuario, String rol) {
+        return usuario.getRoles().stream()
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals(rol));
+    }
+
+    private String normalizeRolName(String nombreRol) {
+        if (nombreRol == null) return "";
+        return nombreRol.replace("ROLE_", "").replace("Ñ", "N").replace("ñ", "n").toUpperCase();
     }
 
     private AsistenciaDto toAsistenciaDto(Asistencia a) {

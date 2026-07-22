@@ -1,13 +1,10 @@
 package bo.edu.umsa.fhce.sistemacursos.modules.curso.dto;
 
 import jakarta.validation.constraints.*;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-@Getter @Setter
 public class CursoRequest {
 
     @NotNull(message = "La carrera es obligatoria")
@@ -26,6 +23,11 @@ public class CursoRequest {
     @Positive(message = "La carga horaria debe ser mayor a 0")
     private Integer cargaHoraria;
 
+    @Pattern(regexp = "^(días|semanas|meses)$", message = "La unidad debe ser días, semanas o meses")
+    private String unidad;
+
+    private Integer duracion;
+
     @NotNull(message = "La fecha de inicio es obligatoria")
     @FutureOrPresent(message = "La fecha de inicio no puede ser en el pasado")
     private LocalDate fechaInicio;
@@ -42,4 +44,92 @@ public class CursoRequest {
     @DecimalMin(value = "0.00", message = "La nota mínima no puede ser negativa")
     @DecimalMax(value = "100.00", message = "La nota mínima no puede superar 100")
     private BigDecimal notaAprobacion;
+
+    public Long getIdCarrera() {
+        return idCarrera;
+    }
+
+    public void setIdCarrera(Long idCarrera) {
+        this.idCarrera = idCarrera;
+    }
+
+    public String getNombre() {
+        return nombre;
+    }
+
+    public void setNombre(String nombre) {
+        this.nombre = nombre;
+    }
+
+    public String getDescripcion() {
+        return descripcion;
+    }
+
+    public void setDescripcion(String descripcion) {
+        this.descripcion = descripcion;
+    }
+
+    public String getImagen() {
+        return imagen;
+    }
+
+    public void setImagen(String imagen) {
+        this.imagen = imagen;
+    }
+
+    public Integer getCargaHoraria() {
+        return cargaHoraria;
+    }
+
+    public void setCargaHoraria(Integer cargaHoraria) {
+        this.cargaHoraria = cargaHoraria;
+    }
+
+    public String getUnidad() {
+        return unidad;
+    }
+
+    public void setUnidad(String unidad) {
+        this.unidad = unidad;
+    }
+
+    public Integer getDuracion() {
+        return duracion;
+    }
+
+    public void setDuracion(Integer duracion) {
+        this.duracion = duracion;
+    }
+
+    public LocalDate getFechaInicio() {
+        return fechaInicio;
+    }
+
+    public void setFechaInicio(LocalDate fechaInicio) {
+        this.fechaInicio = fechaInicio;
+    }
+
+    public BigDecimal getCostoExterno() {
+        return costoExterno;
+    }
+
+    public void setCostoExterno(BigDecimal costoExterno) {
+        this.costoExterno = costoExterno;
+    }
+
+    public BigDecimal getCostoUmsa() {
+        return costoUmsa;
+    }
+
+    public void setCostoUmsa(BigDecimal costoUmsa) {
+        this.costoUmsa = costoUmsa;
+    }
+
+    public BigDecimal getNotaAprobacion() {
+        return notaAprobacion;
+    }
+
+    public void setNotaAprobacion(BigDecimal notaAprobacion) {
+        this.notaAprobacion = notaAprobacion;
+    }
 }

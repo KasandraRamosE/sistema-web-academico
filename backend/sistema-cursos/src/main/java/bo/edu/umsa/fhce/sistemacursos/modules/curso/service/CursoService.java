@@ -2,7 +2,10 @@
 
 package bo.edu.umsa.fhce.sistemacursos.modules.curso.service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -12,6 +15,7 @@ import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.Carrera;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CarreraRepository;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.dto.CursoDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.dto.CursoRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.dto.AsignarDisenadorRequest;
@@ -38,6 +42,7 @@ public class CursoService {
     private final CursoRepository    cursoRepository;
     private final ParaleloRepository paraleloRepository;
     private final CarreraRepository  carreraRepository;
+    private final CoordinadorCarreraRepository coordinadorCarreraRepository;
     private final UsuarioRepository  usuarioRepository;
     private final DocenteRepository  docenteRepository;
     private final InscripcionRepository inscripcionRepository;
@@ -45,19 +50,36 @@ public class CursoService {
     // ── Listar cursos abiertos (catálogo público autenticado) ────────────────
     @Transactional(readOnly = true)
     public List<CursoDto> listarAbiertos(Long idCarrera) {
-        return cursoRepository.findAbiertos(idCarrera)
-            .stream()
-            .map(this::toCursoDto)
-            .toList();
+        return mapearCursos(cursoRepository.findAbiertos(idCarrera));
     }
 
     // ── Listar todos (admin y coordinador) ───────────────────────────────────
     @Transactional(readOnly = true)
     public List<CursoDto> listarTodos(Long idCarrera) {
-        List<Curso> cursos = (idCarrera != null)
-            ? cursoRepository.findByCarrera_IdCarrera(idCarrera)
-            : cursoRepository.findAll();
-        return cursos.stream().map(this::toCursoDto).toList();
+        Usuario actual = getUsuarioActual();
+        List<Curso> cursos;
+
+        if (esAdmin(actual)) {
+            cursos = (idCarrera != null)
+                ? cursoRepository.findByCarrera_IdCarrera(idCarrera)
+                : cursoRepository.findAll();
+        } else if (esCoordinador(actual)) {
+            List<Long> carrerasAsignadas = carrerasAsignadas(actual);
+            if (idCarrera != null) {
+                if (!carrerasAsignadas.contains(idCarrera)) {
+                    throw new BusinessException(
+                        "No tienes permisos para ver cursos de esta carrera", 403);
+                }
+                cursos = cursoRepository.findByCarrera_IdCarrera(idCarrera);
+            } else {
+                cursos = carrerasAsignadas.isEmpty()
+                    ? List.of()
+                    : cursoRepository.findByCarrera_IdCarreraIn(carrerasAsignadas);
+            }
+        } else {
+            throw new BusinessException("No tienes permisos para ver cursos", 403);
+        }
+        return mapearCursos(cursos);
     }
 
     // ── Listar cursos asignados al disenador ───────────────────────────────
@@ -65,13 +87,13 @@ public class CursoService {
     public List<CursoDto> listarAsignadosDisenador() {
         Usuario actual = getUsuarioActual();
         List<Curso> cursos = cursoRepository.findByDisenador_IdUsuario(actual.getIdUsuario());
-        return cursos.stream().map(this::toCursoDto).toList();
+        return mapearCursos(cursos);
     }
 
     // ── Obtener curso por id ─────────────────────────────────────────────────
     @Transactional(readOnly = true)
     public CursoDto obtener(Long idCurso) {
-        return toCursoDto(buscarCurso(idCurso));
+        return mapearCursos(List.of(buscarCurso(idCurso))).get(0);
     }
 
     // ── Crear curso ──────────────────────────────────────────────────────────
@@ -92,9 +114,10 @@ public class CursoService {
             .organizador(organizador)
             .nombre(request.getNombre())
             .descripcion(request.getDescripcion())
-            .lugar(request.getLugar())
             .imagen(request.getImagen())
             .cargaHoraria(request.getCargaHoraria())
+            .duracion(request.getDuracion())
+            .unidad(normalizeUnidadDuracion(request.getUnidad()))
             .fechaInicio(request.getFechaInicio())
             .costoExterno(request.getCostoExterno())
             .costoUmsa(request.getCostoUmsa())
@@ -111,17 +134,22 @@ public class CursoService {
     @Transactional
     public CursoDto actualizar(Long idCurso, CursoRequest request) {
         Curso curso = buscarCurso(idCurso);
-        verificarAccesoCarrera(getUsuarioActual(), curso.getCarrera());
+        Usuario actual = getUsuarioActual();
+        verificarAccesoCarrera(actual, curso.getCarrera());
 
         Carrera carrera = carreraRepository.findById(request.getIdCarrera())
             .orElseThrow(() -> new ResourceNotFoundException("Carrera", request.getIdCarrera()));
+        // También se valida la carrera DESTINO: un coordinador no puede mover
+        // un curso a una carrera que no administra.
+        verificarAccesoCarrera(actual, carrera);
 
         curso.setCarrera(carrera);
         curso.setNombre(request.getNombre());
         curso.setDescripcion(request.getDescripcion());
-        curso.setLugar(request.getLugar());
         curso.setImagen(request.getImagen());
         curso.setCargaHoraria(request.getCargaHoraria());
+        curso.setDuracion(request.getDuracion());
+        curso.setUnidad(normalizeUnidadDuracion(request.getUnidad()));
         curso.setFechaInicio(request.getFechaInicio());
         curso.setCostoExterno(request.getCostoExterno());
         curso.setCostoUmsa(request.getCostoUmsa());
@@ -186,6 +214,7 @@ public class CursoService {
     @Transactional
     public ParaleloDto agregarParalelo(Long idCurso, ParaleloRequest request) {
         Curso curso = buscarCurso(idCurso);
+        verificarAccesoCarrera(getUsuarioActual(), curso.getCarrera());
 
         // Verificar que el código no esté repetido en ese curso
         ParaleloId pk = new ParaleloId(idCurso, request.getCodigo());
@@ -199,6 +228,7 @@ public class CursoService {
         paralelo.setModalidad(Paralelo.Modalidad.valueOf(request.getModalidad()));
         paralelo.setCupoMaximo(request.getCupoMaximo());
         paralelo.setHorarioDescripcion(request.getHorarioDescripcion());
+        paralelo.setLugar(request.getLugar());
         paralelo.setLink(request.getLink());
 
         // Asignar docente si se especificó
@@ -228,10 +258,12 @@ public class CursoService {
         Paralelo paralelo = paraleloRepository.findById(pk)
             .orElseThrow(() -> new BusinessException(
                 "Paralelo '" + codigo + "' no encontrado en el curso " + idCurso, 404));
+        verificarAccesoCarrera(getUsuarioActual(), paralelo.getCurso().getCarrera());
 
         paralelo.setModalidad(Paralelo.Modalidad.valueOf(request.getModalidad()));
         paralelo.setCupoMaximo(request.getCupoMaximo());
         paralelo.setHorarioDescripcion(request.getHorarioDescripcion());
+        paralelo.setLugar(request.getLugar());
         paralelo.setLink(request.getLink());
 
         if (request.getIdDocente() != null) {
@@ -250,10 +282,11 @@ public class CursoService {
     @Transactional
     public void eliminarParalelo(Long idCurso, String codigo) {
         ParaleloId pk = new ParaleloId(idCurso, codigo);
-        if (!paraleloRepository.existsById(pk)) {
-            throw new BusinessException(
-                "Paralelo '" + codigo + "' no encontrado", 404);
-        }
+        Paralelo paralelo = paraleloRepository.findById(pk)
+            .orElseThrow(() -> new BusinessException(
+                "Paralelo '" + codigo + "' no encontrado", 404));
+        verificarAccesoCarrera(getUsuarioActual(), paralelo.getCurso().getCarrera());
+
         paraleloRepository.deleteById(pk);
         log.info("Paralelo {} eliminado del curso {}", codigo, idCurso);
     }
@@ -277,22 +310,77 @@ public class CursoService {
     // Verifica que el usuario pueda gestionar la carrera
     // Admin puede todo — coordinador solo su carrera asignada
     private void verificarAccesoCarrera(Usuario usuario, Carrera carrera) {
-        boolean esAdmin = usuario.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
-        if (esAdmin) return; // admin tiene acceso a todo
+        if (esAdmin(usuario)) return; // admin tiene acceso a todo
 
-        // Verificar que el coordinador esté asignado a esa carrera
-        boolean tieneAcceso = usuario.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("COORDINADOR"));
-        if (!tieneAcceso) {
-            throw new BusinessException("No tienes permisos para gestionar cursos", 403);
+        if (!esCoordinador(usuario)
+                || !coordinadorCarreraRepository.existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                    usuario.getIdUsuario(), carrera.getIdCarrera())) {
+            throw new BusinessException(
+                "No tienes permisos para gestionar el curso de la carrera " + carrera.getNombre(), 403);
         }
-        // Nota: la verificación de carrera específica del coordinador
-        // se implementa aquí cuando tengamos CoordinadorCarreraRepository inyectado
+    }
+
+    private List<Long> carrerasAsignadas(Usuario usuario) {
+        return coordinadorCarreraRepository.findByIdCoordinador(usuario.getIdUsuario())
+            .stream()
+            .map(cc -> cc.getCarrera().getIdCarrera())
+            .toList();
+    }
+
+    private boolean esAdmin(Usuario usuario) {
+        return usuario.getRoles().stream()
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals("ADMINISTRADOR"));
+    }
+
+    private boolean esCoordinador(Usuario usuario) {
+        return usuario.getRoles().stream()
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals("COORDINADOR"));
+    }
+
+    private List<CursoDto> mapearCursos(List<Curso> cursos) {
+        if (cursos == null || cursos.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> cursoIds = cursos.stream()
+            .map(Curso::getIdCurso)
+            .toList();
+
+        Map<ParaleloId, Integer> inscritosPorParalelo = new HashMap<>();
+        for (Object[] row : inscripcionRepository.contarConfirmadasPorCursoYParalelo(cursoIds)) {
+            Long idCurso = (Long) row[0];
+            String codigo = (String) row[1];
+            Number total = (Number) row[2];
+            inscritosPorParalelo.put(new ParaleloId(idCurso, codigo), total.intValue());
+        }
+
+        List<Long> docenteIds = cursos.stream()
+            .flatMap(curso -> curso.getParalelos().stream())
+            .map(Paralelo::getDocente)
+            .filter(java.util.Objects::nonNull)
+            .map(docente -> docente.getIdUsuario())
+            .distinct()
+            .toList();
+
+        Map<Long, String> titulosDocentes = docenteIds.isEmpty()
+            ? Map.of()
+            : docenteRepository.findByIdUsuarioIn(docenteIds).stream()
+                .collect(Collectors.toMap(
+                    docente -> docente.getIdUsuario(),
+                    docente -> docente.getTitulo()));
+
+        return cursos.stream()
+            .map(curso -> toCursoDto(curso, inscritosPorParalelo, titulosDocentes))
+            .toList();
     }
 
     // Convierte Curso → CursoDto incluyendo sus paralelos
     private CursoDto toCursoDto(Curso c) {
+        return toCursoDto(c, Map.of(), Map.of());
+    }
+
+    private CursoDto toCursoDto(Curso c, Map<ParaleloId, Integer> inscritosPorParalelo,
+            Map<Long, String> titulosDocentes) {
         CursoDto dto = new CursoDto();
         dto.setIdCurso(c.getIdCurso());
         dto.setIdCarrera(c.getCarrera().getIdCarrera());
@@ -306,9 +394,10 @@ public class CursoService {
         }
         dto.setNombre(c.getNombre());
         dto.setDescripcion(c.getDescripcion());
-        dto.setLugar(c.getLugar());
         dto.setImagen(c.getImagen());
         dto.setCargaHoraria(c.getCargaHoraria());
+        dto.setDuracion(c.getDuracion());
+        dto.setUnidad(c.getUnidad());
         dto.setFechaInicio(c.getFechaInicio());
         dto.setCostoExterno(c.getCostoExterno());
         dto.setCostoUmsa(c.getCostoUmsa());
@@ -316,36 +405,59 @@ public class CursoService {
         dto.setEstado(c.getEstado().name());
         dto.setFechaCreacion(c.getFechaCreacion());
         dto.setParalelos(c.getParalelos().stream()
-            .map(this::toParaleloDto)
+            .map(paralelo -> toParaleloDto(paralelo, inscritosPorParalelo, titulosDocentes))
             .toList());
         return dto;
     }
 
     private String normalizeRolName(String nombreRol) {
         if (nombreRol == null) return "";
-        return nombreRol.replace("Ñ", "N").replace("ñ", "n").toUpperCase();
+        return nombreRol.replace("ROLE_", "").replace("Ñ", "N").replace("ñ", "n").toUpperCase();
+    }
+
+    private String normalizeUnidadDuracion(String unidad) {
+        if (unidad == null || unidad.isBlank()) {
+            return null;
+        }
+
+        String normalized = unidad.trim().toLowerCase();
+        if (normalized.equals("dias") || normalized.equals("días")) {
+            return "días";
+        }
+        if (normalized.equals("semanas")) {
+            return "semanas";
+        }
+        if (normalized.equals("meses")) {
+            return "meses";
+        }
+
+        throw new BusinessException(
+            "Unidad inválida. Use: días, semanas o meses", 400);
     }
 
     private ParaleloDto toParaleloDto(Paralelo p) {
+        return toParaleloDto(p, Map.of(), Map.of());
+    }
+
+    private ParaleloDto toParaleloDto(Paralelo p, Map<ParaleloId, Integer> inscritosPorParalelo,
+            Map<Long, String> titulosDocentes) {
         ParaleloDto dto = new ParaleloDto();
         dto.setCodigo(p.getId().getCodigo());
         dto.setIdCurso(p.getId().getIdCurso());
         dto.setModalidad(p.getModalidad().name());
         dto.setCupoMaximo(p.getCupoMaximo());
         dto.setHorarioDescripcion(p.getHorarioDescripcion());
+        dto.setLugar(p.getLugar());
         dto.setLink(p.getLink());
 
         if (p.getDocente() != null) {
+            dto.setIdDocente(p.getDocente().getIdUsuario());
             dto.setNombreDocente(
                 p.getDocente().getNombres() + " " + p.getDocente().getApellidos());
-
-            docenteRepository.findById(p.getDocente().getIdUsuario())
-                .ifPresent(docente -> dto.setTituloDocente(docente.getTitulo()));
+            dto.setTituloDocente(titulosDocentes.get(p.getDocente().getIdUsuario()));
         }
 
-        // Calcular inscritos y cupos disponibles
-        int inscritos = inscripcionRepository.contarConfirmadasEnParalelo(
-            p.getId().getIdCurso(), p.getId().getCodigo());
+        int inscritos = inscritosPorParalelo.getOrDefault(p.getId(), 0);
         dto.setInscritos(inscritos);
 
         if (p.getCupoMaximo() != null) {

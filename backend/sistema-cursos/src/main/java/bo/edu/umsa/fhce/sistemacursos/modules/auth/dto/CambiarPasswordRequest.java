@@ -1,6 +1,7 @@
 package bo.edu.umsa.fhce.sistemacursos.modules.auth.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,6 +17,7 @@ public class CambiarPasswordRequest {
     private String username;
 
     @NotBlank(message = "El código es requerido")
+    @Pattern(regexp = "\\d{6}", message = "El código debe tener exactamente 6 dígitos")
     private String codigo;
 
     @NotBlank(message = "La nueva contraseña es requerida")

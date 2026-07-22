@@ -14,7 +14,16 @@ public interface CertificadoRepository extends JpaRepository<Certificado, Long> 
 
     Optional<Certificado> findByCodigoVerificacion(String codigoVerificacion);
 
-    Optional<Certificado> findByInscripcion_IdInscripcion(Long idInscripcion);
+    List<Certificado> findByInscripcion_IdInscripcion(Long idInscripcion);
+
+    Optional<Certificado> findFirstByInscripcion_IdInscripcionAndEstadoEmisionOrderByVersionDescIdCertificadoDesc(
+        Long idInscripcion,
+        Certificado.EstadoEmision estadoEmision
+    );
+
+    Optional<Certificado> findFirstByInscripcion_IdInscripcionOrderByVersionDescIdCertificadoDesc(
+        Long idInscripcion
+    );
 
     // Certificados de un participante
     List<Certificado> findByInscripcion_Participante_IdUsuario(Long idUsuario);

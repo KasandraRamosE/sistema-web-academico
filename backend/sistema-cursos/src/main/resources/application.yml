@@ -42,6 +42,13 @@ server:
 
 # Variables de la aplicación (JWT, etc.)
 app:
+  eventos:
+    # Cada 5 minutos: segundo minuto hora dia-mes mes dia-semana
+    finalizacion-cron: "0 */5 * * * *"
+  cors:
+    # Orígenes permitidos para CORS, separados por coma.
+    # En prod se sobreescribe con ALLOWED_ORIGINS (ver application-prod.yml).
+    allowed-origins: "http://localhost:5173,http://localhost:4173"
   jwt:
     # IMPORTANTE: en producción esto va en variable de entorno, no aquí
     # Debe tener al menos 256 bits (32 caracteres) para HS256
@@ -50,9 +57,14 @@ app:
     expiration-ms: 86400000
     # Tiempo de expiración del refresh token: 7 días en milisegundos
     refresh-expiration-ms: 604800000
+    # Flag Secure de la cookie del refresh token. false en dev (HTTP plano).
+    # En prod se sobreescribe con COOKIE_SECURE (ver application-prod.yml).
+    cookie-secure: false
+    # Todos los días a las 3 AM: borra refresh_token revocados/expirados
+    limpieza-cron: "0 0 3 * * *"
   email:
     from: "ramos.e.kasandra@gmail.com"
-    base-url: "http://localhost:5173"
+    base-url: "http://192.168.0.3:5173"
   certificados:
     directorio: certificados  # relativo al directorio donde corre la app
 
@@ -70,6 +82,17 @@ app:
 
   umsa:
     email-domain: "umsa.bo"
+
+  # Pasarela de pagos Libélula (Guía de Integración v2.145).
+  # En dev no se usan (MockLibelulaClient simula todo en memoria).
+  # En prod son obligatorios y vienen de variables de entorno:
+  #   LIBELULA_APPKEY, LIBELULA_CALLBACK_BASE_URL
+  # Mientras UMSA/FHCE no reciba el appkey real, RealLibelulaClient
+  # responde 503 en vez de fallar de forma confusa.
+  libelula:
+    appkey: ""
+    base-url: "https://api.libelula.bo"
+    callback-base-url: "http://localhost:8080/api"
 
 # Swagger UI — accesible en http://localhost:8080/api/swagger-ui.html
 springdoc:

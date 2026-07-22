@@ -1,8 +1,5 @@
 package bo.edu.umsa.fhce.sistemacursos.modules.auth.integration;
 
-import lombok.Getter;
-
-@Getter
 public class UmsaAuthResult {
 
     private final UmsaAuthStatus status;
@@ -35,5 +32,21 @@ public class UmsaAuthResult {
 
     public static UmsaAuthResult unavailable() {
         return new UmsaAuthResult(UmsaAuthStatus.UNAVAILABLE, null, null, null);
+    }
+
+    public UmsaAuthStatus getStatus() {
+        return status;
+    }
+
+    public String getRu() {
+        return ru;
+    }
+
+    public String getNombres() {
+        return nombres;
+    }
+
+    public String getApellidos() {
+        return apellidos;
     }
 }

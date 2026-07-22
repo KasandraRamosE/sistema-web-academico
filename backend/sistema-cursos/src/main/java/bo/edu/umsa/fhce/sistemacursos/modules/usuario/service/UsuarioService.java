@@ -64,10 +64,11 @@ public class UsuarioService {
     // ── Listar usuarios por rol ──────────────────────────────────────────────
     @Transactional(readOnly = true)
     public List<UsuarioResumenDto> listarPorRol(String nombreRol) {
-        String rolNormalizado = normalizeRolName(nombreRol);
-        return usuarioRepository.findAll().stream()
-            .filter(u -> u.getRoles().stream()
-                .anyMatch(r -> normalizeRolName(r.getNombre()).equals(rolNormalizado)))
+        String rolDB = findRolByNombreCompat(nombreRol)
+            .map(Rol::getNombre)
+            .orElse(normalizeRolName(nombreRol));
+
+        return usuarioRepository.findByRolWithRoles(rolDB).stream()
             .map(this::toResumenDto)
             .toList();
     }
@@ -92,6 +93,7 @@ public class UsuarioService {
         Usuario usuario = buscarUsuario(requireUsuarioActualId());
         validarExterno(usuario);
 
+        usuario.setCi(request.getCi().trim());
         usuario.setNombres(request.getNombres().trim());
         usuario.setApellidos(request.getApellidos().trim());
         usuarioRepository.save(usuario);
@@ -214,6 +216,7 @@ public class UsuarioService {
     @Transactional
     public UsuarioDetalleDto revocarRol(Long idUsuario, String nombreRol) {
         Usuario usuario = buscarUsuario(idUsuario);
+        String rolNormalizado = normalizeRolName(nombreRol);
 
         // No permitir quitarle el último rol
         if (usuario.getRoles().size() <= 1) {
@@ -221,11 +224,11 @@ public class UsuarioService {
                 "No se puede revocar el último rol del usuario", 400);
         }
 
-        rolRepository.findByNombre(nombreRol)
+        findRolByNombreCompat(nombreRol)
             .orElseThrow(() -> new BusinessException("Rol no encontrado: " + nombreRol, 404));
 
         boolean tienEelRol = usuario.getRoles().removeIf(
-            r -> r.getNombre().equals(nombreRol));
+            r -> normalizeRolName(r.getNombre()).equals(rolNormalizado));
 
         if (!tienEelRol) {
             throw new BusinessException(
@@ -448,6 +451,7 @@ public class UsuarioService {
         UsuarioResumenDto dto = new UsuarioResumenDto();
         dto.setIdUsuario(u.getIdUsuario());
         dto.setUsername(u.getUsername());
+        dto.setCi(u.getCi());
         dto.setNombres(u.getNombres());
         dto.setApellidos(u.getApellidos());
         dto.setEmail(u.getEmail());
@@ -466,6 +470,7 @@ public class UsuarioService {
         UsuarioDetalleDto dto = new UsuarioDetalleDto();
         dto.setIdUsuario(u.getIdUsuario());
         dto.setUsername(u.getUsername());
+        dto.setCi(u.getCi());
         dto.setNombres(u.getNombres());
         dto.setApellidos(u.getApellidos());
         dto.setEmail(u.getEmail());

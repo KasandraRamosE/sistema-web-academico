@@ -152,6 +152,8 @@ CREATE TABLE curso (
     lugar            VARCHAR(255)    NULL,
     imagen           VARCHAR(255)    NULL,
     carga_horaria    INT             NOT NULL  COMMENT 'Total de horas académicas',
+    duracion         INT             NULL      COMMENT 'Duración numérica del curso',
+    unidad           ENUM('días','semanas','meses') NULL COMMENT 'Unidad de duración del curso',
     fecha_inicio     DATE            NOT NULL,
     costo_externo    DECIMAL(10,2)   NOT NULL DEFAULT 0.00 COMMENT 'Precio para participantes externos',
     costo_umsa       DECIMAL(10,2)   NOT NULL DEFAULT 0.00 COMMENT 'Precio preferencial UMSA',
@@ -270,12 +272,14 @@ CREATE TABLE pago (
     monto                   DECIMAL(10,2)   NOT NULL   COMMENT 'Monto efectivamente pagado',
     metodo_pago             VARCHAR(50)     NULL       COMMENT 'Método usado en pasarela Libélula',
     referencia_transaccion  VARCHAR(150)    NULL       COMMENT 'ID de transacción devuelto por Libélula',
+    identificador_deuda     VARCHAR(100)    NULL       COMMENT 'Identificador propio de la deuda, usado para volver a consultar el pago en Libélula',
     estado                  ENUM('PENDIENTE','APROBADO','RECHAZADO') NOT NULL DEFAULT 'PENDIENTE',
     fecha_pago              DATETIME        NULL       COMMENT 'Momento de confirmación del pago',
     fecha_registro          DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (id_inscripcion) REFERENCES inscripcion(id_inscripcion) ON DELETE CASCADE,
 
+    UNIQUE KEY uk_identificador_deuda (identificador_deuda),
     INDEX idx_inscripcion  (id_inscripcion),
     INDEX idx_estado       (estado),
     INDEX idx_referencia   (referencia_transaccion)
@@ -672,7 +676,7 @@ AFTER INSERT ON c_anulacion
 FOR EACH ROW
 BEGIN
     UPDATE certificado
-    SET estado_emision = 'ANULADO'
+    SET estado_emision = IF(NEW.id_certificado_reemplazo IS NULL, 'ANULADO', 'REEMITIDO')
     WHERE id_certificado = NEW.id_certificado;
 END//
 

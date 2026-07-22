@@ -42,14 +42,17 @@ public class Curso {
     @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
 
-    @Column(name = "lugar", length = 255)
-    private String lugar;
-
     @Column(name = "imagen", length = 255)
     private String imagen;
 
     @Column(name = "carga_horaria", nullable = false)
     private Integer cargaHoraria;
+
+    @Column(name = "duracion")
+    private Integer duracion;
+
+    @Column(name = "unidad", length = 10)
+    private String unidad;
 
     @Column(name = "fecha_inicio", nullable = false)
     private LocalDate fechaInicio;

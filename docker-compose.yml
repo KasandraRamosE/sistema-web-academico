@@ -1,51 +1,119 @@
+# ============================================================
+# docker-compose.yml — Sistema Cursos FHCE
+# Ubicación: sistema-cursos-fhce/docker-compose.yml
+# Levanta: MySQL + Spring Boot + Vue/Nginx
+#
+# Uso:
+#   Levantar:  docker compose up -d --build
+#   Detener:   docker compose down
+#   Logs:      docker compose logs -f
+#   Solo BD:   docker compose up -d mysql
+# ============================================================
+
 services:
 
-  db:
+  # ─────────────────────────────────────────
+  # 1. BASE DE DATOS — MySQL 8.0
+  # ─────────────────────────────────────────
+  mysql:
     image: mysql:8.0
     container_name: fhce_mysql
-    restart: unless-stopped
-    env_file: .env
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: sistema_cursos_fhce
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "3306:3306"
+      # Solo expuesto en localhost para que no sea accesible desde internet
+      - "127.0.0.1:3307:3306"
     volumes:
-      - fhce_data:/var/lib/mysql
-      - ./db/init:/docker-entrypoint-initdb.d
+      # Persistencia de datos — sobrevive a reinicios y recreaciones del contenedor
+      - mysql_data:/var/lib/mysql
+      # Script SQL inicial — solo se ejecuta si la BD está vacía (primera vez)
+      
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
-             "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 30s
+    networks:
+      - fhce_network
+    restart: unless-stopped
 
+  # ─────────────────────────────────────────
+  # 2. BACKEND — Spring Boot
+  # ─────────────────────────────────────────
   backend:
-    build: ./backend/sistema-cursos
+    build:
+      context: ./backend/sistema-cursos
+      dockerfile: Dockerfile
     container_name: fhce_backend
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/sistema_cursos_fhce?useSSL=false&serverTimezone=America/La_Paz&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
-      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      # Variables que lee application-prod.yml con ${...}
+      DB_URL: jdbc:mysql://mysql:3306/sistema_cursos_fhce?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/La_Paz
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      # true solo cuando el servidor tenga HTTPS configurado (ver nota en
+      # application-prod.yml) — hasta entonces, dejar sin definir.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # Email
+      SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
+      # URL base para links en emails (dominio o IP del servidor)
+      APP_BASE_URL: ${APP_BASE_URL}
+      # Dominio(s) del frontend permitidos por CORS, separados por coma.
+      # Sin valor por defecto a propósito — configurar antes de desplegar.
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      # Pasarela de pagos Libélula — vacíos hasta recibir el appkey real.
+      # LIBELULA_CALLBACK_BASE_URL debe ser la URL pública del backend
+      # (ej. https://cursos.fhce.umsa.bo/api) para que Libélula pueda avisar pagos.
+      LIBELULA_APPKEY: ${LIBELULA_APPKEY:-}
+      LIBELULA_CALLBACK_BASE_URL: ${LIBELULA_CALLBACK_BASE_URL:-}
+    volumes:
+      # Certificados y uploads persisten fuera del contenedor
+      - ./data/certificados:/app/certificados
+      - ./data/uploads:/app/uploads
     depends_on:
-      db:
-        condition: service_healthy
-
-  frontend:
-    build: ./frontend
-    container_name: fhce_frontend
+      mysql:
+        condition: service_healthy   # espera a que MySQL esté listo
+    networks:
+      - fhce_network
     restart: unless-stopped
+    # No exponemos el puerto al exterior — Nginx es el único que habla con él
+
+  # ─────────────────────────────────────────
+  # 3. FRONTEND — Vue 3 + Nginx
+  # ─────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Con el proxy de Nginx, /api es suficiente (relativo al mismo servidor)
+        VITE_API_BASE_URL: /api
+    container_name: fhce_frontend
     ports:
-      - "5173:80"
+      # Puerto 80 expuesto al mundo — punto de entrada único
+      - "80:80"
     depends_on:
       - backend
+    networks:
+      - fhce_network
+    restart: unless-stopped
 
+# ─────────────────────────────────────────
+# VOLÚMENES Y REDES
+# ─────────────────────────────────────────
 volumes:
-  fhce_data:
+  mysql_data:
+    # Volumen gestionado por Docker — los datos viven en el host de Ubuntu
+
+networks:
+  fhce_network:
+    # Red interna — los contenedores se comunican por nombre (mysql, backend, frontend)
+    # Desde afuera solo es accesible el puerto 80 del frontend

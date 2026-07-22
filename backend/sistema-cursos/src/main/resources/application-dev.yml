@@ -1,18 +1,20 @@
-# src/main/resources/application-dev.yml
-# Se activa cuando spring.profiles.active=dev
-
 spring:
   datasource:
-    # Puerto 3307 porque así lo configuramos en docker-compose.yml
     url: jdbc:mysql://localhost:3307/sistema_cursos_fhce?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/La_Paz
-    username: fhce_user
-    password: fhce_pass
+    # Por defecto coincide con backend/sistema-cursos/docker-compose.yml (MySQL local
+    # de desarrollo). Si tu contenedor usa otras credenciales, seteá DEV_DB_USERNAME/
+    # DEV_DB_PASSWORD en tu entorno en vez de hardcodear un valor real acá.
+    username: ${DEV_DB_USERNAME:fhce_user}
+    password: ${DEV_DB_PASSWORD:fhce_pass}
     driver-class-name: com.mysql.cj.jdbc.Driver
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ramos.e.kasandra@gmail.com          # ← tu cuenta Gmail
-    password: uieo ejtb udjp zyhc          # ← contraseña de aplicación (sin espacios)
+    # Sin credenciales reales committeadas: para probar envío de emails en
+    # dev, setear DEV_MAIL_USERNAME/DEV_MAIL_PASSWORD en tu entorno local
+    # (ej. en un .env sin trackear, nunca en este archivo).
+    username: ${DEV_MAIL_USERNAME:}
+    password: ${DEV_MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -34,7 +36,6 @@ logging:
 app:
   mocks:
     umsa-auth: true     # UmsaAuthClient usará implementación mock
-    libelula-pay: true  # LilaPayClient usará implementación mock
   email:
     # URL base para links en emails (en prod cambiar al dominio real)
     base-url: "http://localhost:5173"

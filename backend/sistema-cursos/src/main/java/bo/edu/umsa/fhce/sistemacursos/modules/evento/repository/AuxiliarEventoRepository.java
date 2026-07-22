@@ -14,10 +14,21 @@ import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.AuxiliarEventoId;
 public interface AuxiliarEventoRepository
         extends JpaRepository<AuxiliarEvento, AuxiliarEventoId> {
 
-    @Query("SELECT ae FROM AuxiliarEvento ae WHERE ae.evento.idEvento = :idEvento")
+    // Fetch auxiliar when listing by evento to avoid N+1 when reading usuario fields
+    @Query("SELECT ae FROM AuxiliarEvento ae JOIN FETCH ae.auxiliar WHERE ae.evento.idEvento = :idEvento")
     List<AuxiliarEvento> findByIdEvento(@Param("idEvento") Long idEvento);
 
-    @Query("SELECT ae FROM AuxiliarEvento ae WHERE ae.auxiliar.idUsuario = :idAuxiliar")
+    // When listing eventos asignados a un auxiliar, fetch the evento and some of its
+    // associations to avoid multiple subsequent lazy loads when mapping to DTOs.
+    @Query("""
+        SELECT ae FROM AuxiliarEvento ae
+        JOIN FETCH ae.evento e
+        LEFT JOIN FETCH e.carrera
+        LEFT JOIN FETCH e.organizador
+        LEFT JOIN FETCH e.disenador
+        WHERE ae.auxiliar.idUsuario = :idAuxiliar
+        ORDER BY e.fechaHora ASC
+        """)
     List<AuxiliarEvento> findByIdAuxiliar(@Param("idAuxiliar") Long idAuxiliar);
 
     // Verifica si un auxiliar está asignado a un evento específico

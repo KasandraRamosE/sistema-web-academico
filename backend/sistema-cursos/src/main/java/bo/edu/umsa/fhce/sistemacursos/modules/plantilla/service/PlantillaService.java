@@ -5,7 +5,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Map;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Set;
 import java.util.UUID;
 import java.io.InputStream;
 import java.text.Normalizer;
@@ -24,6 +27,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.Evento;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.EventoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.AprobacionDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.AprobacionRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.PlantillaEstadoResumenDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.PlantillaDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.entity.Aprobacion;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.entity.PlantillaCertificado;
@@ -65,6 +69,8 @@ public class PlantillaService {
         Usuario disenador = getUsuarioActual();
 
         Actividad actividad = obtenerActividad(idCurso, idEvento);
+
+        archivarPlantillasPendientes(actividad);
 
         // Calcular versión — es la siguiente a la última existente
         int nuevaVersion = calcularSiguienteVersion(idCurso, idEvento);
@@ -155,10 +161,25 @@ public class PlantillaService {
     // ── Listar plantillas pendientes (bandeja coordinador) ───────────────────
     @Transactional(readOnly = true)
     public List<PlantillaDto> listarPendientes() {
-        return plantillaRepository
+        Usuario actual = getUsuarioActual();
+        Set<Long> carrerasPermitidas = coordinadorCarreraRepository
+            .findByIdCoordinador(actual.getIdUsuario())
+            .stream()
+            .map(cc -> cc.getCarrera().getIdCarrera())
+            .collect(java.util.stream.Collectors.toSet());
+
+        Map<String, PlantillaCertificado> ultimasPendientes = new LinkedHashMap<>();
+
+        plantillaRepository
             .findByEstadoOrderByFechaSubidaAsc(
                 PlantillaCertificado.EstadoPlantilla.PENDIENTE)
             .stream()
+            .filter(plantilla -> perteneceACarrerasDelCoordinador(plantilla, carrerasPermitidas))
+            .forEach(plantilla -> ultimasPendientes.put(
+                actividadKey(plantilla),
+                plantilla));
+
+        return ultimasPendientes.values().stream()
             .map(this::toPlantillaDto)
             .toList();
     }
@@ -182,6 +203,38 @@ public class PlantillaService {
             : plantillaRepository.findByEvento_IdEventoOrderByVersionDesc(idEvento);
 
         return plantillas.stream().map(this::toPlantillaDto).toList();
+    }
+
+    // ── Resumen del estado más reciente de plantillas por actividad ─────────
+    @Transactional(readOnly = true)
+    public List<PlantillaEstadoResumenDto> estadosPorActividad() {
+        Map<String, PlantillaCertificado> ultimasPorActividad = new LinkedHashMap<>();
+
+        plantillaRepository.findAll().forEach(plantilla -> {
+            String key = plantilla.getCurso() != null
+                ? "CURSO-" + plantilla.getCurso().getIdCurso()
+                : "EVENTO-" + plantilla.getEvento().getIdEvento();
+
+            PlantillaCertificado actual = ultimasPorActividad.get(key);
+            if (actual == null || plantilla.getVersion() > actual.getVersion()) {
+                ultimasPorActividad.put(key, plantilla);
+            }
+        });
+
+        return ultimasPorActividad.values().stream()
+            .map(plantilla -> {
+                PlantillaEstadoResumenDto dto = new PlantillaEstadoResumenDto();
+                if (plantilla.getCurso() != null) {
+                    dto.setIdCurso(plantilla.getCurso().getIdCurso());
+                }
+                if (plantilla.getEvento() != null) {
+                    dto.setIdEvento(plantilla.getEvento().getIdEvento());
+                }
+                dto.setEstado(plantilla.getEstado().name());
+                dto.setVersion(plantilla.getVersion());
+                return dto;
+            })
+            .toList();
     }
 
     // ── Historial de revisiones de una plantilla ────────────────────────────
@@ -240,6 +293,22 @@ public class PlantillaService {
         return new Actividad(null, evento, null, idEvento);
     }
 
+    private boolean perteneceACarrerasDelCoordinador(PlantillaCertificado plantilla, Set<Long> carrerasPermitidas) {
+        if (carrerasPermitidas.isEmpty()) {
+            return false;
+        }
+
+        if (plantilla.getCurso() != null && plantilla.getCurso().getCarrera() != null) {
+            return carrerasPermitidas.contains(plantilla.getCurso().getCarrera().getIdCarrera());
+        }
+
+        if (plantilla.getEvento() != null && plantilla.getEvento().getCarrera() != null) {
+            return carrerasPermitidas.contains(plantilla.getEvento().getCarrera().getIdCarrera());
+        }
+
+        return false;
+    }
+
     private void validarPlantillaPendiente(PlantillaCertificado plantilla) {
         if (plantilla.getEstado() != PlantillaCertificado.EstadoPlantilla.PENDIENTE) {
             throw new BusinessException(
@@ -278,6 +347,7 @@ public class PlantillaService {
             return;
         }
 
+        plantilla.setEstado(PlantillaCertificado.EstadoPlantilla.HISTORICA);
         log.info("Plantilla {} rechazada — observaciones: {}",
             idPlantilla, request.getObservaciones());
     }
@@ -291,6 +361,23 @@ public class PlantillaService {
 
         plantillaRepository.archivarVigentesDeEvento(
             plantilla.getEvento().getIdEvento());
+    }
+
+    private void archivarPlantillasPendientes(Actividad actividad) {
+        if (actividad.idCurso() != null) {
+            plantillaRepository.archivarPendientesDeCurso(actividad.idCurso());
+            return;
+        }
+
+        plantillaRepository.archivarPendientesDeEvento(actividad.idEvento());
+    }
+
+    private String actividadKey(PlantillaCertificado plantilla) {
+        if (plantilla.getCurso() != null) {
+            return "CURSO-" + plantilla.getCurso().getIdCurso();
+        }
+
+        return "EVENTO-" + plantilla.getEvento().getIdEvento();
     }
 
     private boolean tieneFirmaPdf(MultipartFile archivo) {

@@ -18,9 +18,7 @@ import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LoginRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LoginResponse;
-import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.LogoutRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.MensajeResponse;
-import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RefreshTokenRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RefreshTokenResponse;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.RegistroRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.auth.dto.VerificarEmailRequest;
@@ -108,6 +106,7 @@ public class AuthService {
         // 3. Crear y guardar el usuario
         Usuario usuario = Usuario.builder()
             .username(request.getUsername())
+            .ci(request.getCi().trim())
             .nombres(request.getNombres())
             .apellidos(request.getApellidos())
             .email(request.getEmail())
@@ -366,9 +365,13 @@ public class AuthService {
 
     // ── Refresh token ───────────────────────────────────────────────────────
     @Transactional
-    public RefreshTokenResponse refreshToken(RefreshTokenRequest request) {
+    public RefreshTokenResponse refreshToken(String refreshTokenValue) {
+        if (refreshTokenValue == null || refreshTokenValue.isBlank()) {
+            throw new BusinessException("Refresh token no encontrado", 401);
+        }
+
         RefreshToken refreshToken = refreshTokenRepository
-            .findByTokenAndRevocadoFalse(request.getRefreshToken())
+            .findByTokenAndRevocadoFalse(refreshTokenValue)
             .orElseThrow(() -> new BusinessException("Refresh token inválido", 401));
 
         if (refreshToken.estaExpirado()) {
@@ -400,10 +403,18 @@ public class AuthService {
         return new RefreshTokenResponse(jwt, "Bearer", nuevoRefresh.getToken());
     }
 
+    // ── Limpieza de refresh tokens revocados/expirados (scheduler) ──────────
+    @Transactional
+    public int limpiarRefreshTokensVencidos() {
+        return refreshTokenRepository.eliminarRevocadosOExpirados(LocalDateTime.now());
+    }
+
     // ── Logout ─────────────────────────────────────────────────────────────
     @Transactional
-    public MensajeResponse logout(LogoutRequest request) {
-        refreshTokenRepository.revocarPorToken(request.getRefreshToken());
+    public MensajeResponse logout(String refreshTokenValue) {
+        if (refreshTokenValue != null && !refreshTokenValue.isBlank()) {
+            refreshTokenRepository.revocarPorToken(refreshTokenValue);
+        }
         return new MensajeResponse("Sesión cerrada correctamente");
     }
 
@@ -524,13 +535,6 @@ public class AuthService {
         log.info("Contraseña cambiada para usuario: {}", username);
 
         return new MensajeResponse("Contraseña cambiada exitosamente. Ya puedes iniciar sesión.");
-    }
-
-    // ── Logout ─────────────────────────────────────────────────────────────
-    @Transactional
-    public MensajeResponse logout(LogoutRequest request) {
-        refreshTokenRepository.revocarPorToken(request.getRefreshToken());
-        return new MensajeResponse("Sesión cerrada correctamente");
     }
 
     // ── Utilidad: genera código numérico de 6 dígitos ───────────────────────

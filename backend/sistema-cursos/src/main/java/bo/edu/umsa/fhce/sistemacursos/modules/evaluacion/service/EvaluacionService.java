@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Curso;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Paralelo;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.ParaleloId;
@@ -56,6 +57,7 @@ public class EvaluacionService {
     private final CertificadoService        certificadoService;
     private final EventoRepository          eventoRepository;
     private final UsuarioRepository         usuarioRepository;
+    private final CoordinadorCarreraRepository coordinadorCarreraRepository;
     
 
     // ── Registrar nota a un inscrito ─────────────────────────────────────────
@@ -77,16 +79,12 @@ public class EvaluacionService {
         verificarDocenteDelParalelo(docente, inscripcion);
 
         // Verificar que el paralelo no haya sido confirmado ya
-        // (si ya existe una SolicitudEmision COMPLETADA, las notas están bloqueadas)
+        // (si ya existe una SolicitudEmision para este paralelo, las notas quedan bloqueadas)
         if (inscripcion.getCodigoParalelo() != null) {
             boolean paraleoConfirmado = solicitudRepository
-                .findByDocente_IdUsuario(docente.getIdUsuario())
-                .stream()
-                .anyMatch(s ->
-                    s.getCurso() != null
-                    && s.getCurso().getIdCurso().equals(inscripcion.getCurso().getIdCurso())
-                    && inscripcion.getCodigoParalelo().equals(s.getCodigoParalelo())
-                    && s.getEstado() == SolicitudEmision.EstadoSolicitud.COMPLETADO
+                .existsByCurso_IdCursoAndCodigoParalelo(
+                    inscripcion.getCurso().getIdCurso(),
+                    inscripcion.getCodigoParalelo()
                 );
             if (paraleoConfirmado) {
                 throw new BusinessException(
@@ -129,10 +127,27 @@ public class EvaluacionService {
     // ── Ver notas de un paralelo ─────────────────────────────────────────────
     @Transactional(readOnly = true)
     public List<EvaluacionDto> notasDeParalelo(Long idCurso, String codigo) {
+        Paralelo paralelo = paraleloRepository.findById(new ParaleloId(idCurso, codigo))
+            .orElseThrow(() -> new BusinessException("Paralelo no encontrado", 404));
+        verificarAccesoParalelo(paralelo);
+
         return evaluacionRepository.findByParalelo(idCurso, codigo)
             .stream()
             .map(this::toEvaluacionDto)
             .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public boolean paraleloConfirmado(Long idCurso, String codigo) {
+        Paralelo paralelo = paraleloRepository.findById(new ParaleloId(idCurso, codigo))
+            .orElseThrow(() -> new BusinessException("Paralelo no encontrado", 404));
+        verificarAccesoParalelo(paralelo);
+
+        return solicitudRepository
+            .existsByCurso_IdCursoAndCodigoParalelo(
+                idCurso,
+                codigo
+            );
     }
 
     // ── Modificar nota (solo administrador) ──────────────────────────────────
@@ -162,6 +177,8 @@ public class EvaluacionService {
                 : EvaluacionEstudiante.EstadoEvaluacion.REPROBADO;
 
         EvaluacionEstudiante.EstadoEvaluacion estadoAnterior = evaluacion.getEstado();
+        boolean notaCambio = evaluacion.getNotaFinal() == null
+            || evaluacion.getNotaFinal().compareTo(request.getNotaNueva()) != 0;
 
         evaluacion.setNotaFinal(request.getNotaNueva());
         evaluacion.setEstado(nuevoEstado);
@@ -169,17 +186,17 @@ public class EvaluacionService {
 
         if (estadoAnterior == EvaluacionEstudiante.EstadoEvaluacion.APROBADO
                 && nuevoEstado == EvaluacionEstudiante.EstadoEvaluacion.REPROBADO) {
-            certificadoRepository.findByInscripcion_IdInscripcion(
-                evaluacion.getInscripcion().getIdInscripcion())
-                .ifPresent(certificado -> {
-                    if (certificado.getEstadoEmision() == Certificado.EstadoEmision.GENERADO) {
-                        AnularCertificadoRequest anularRequest = new AnularCertificadoRequest();
-                        anularRequest.setMotivo(
-                            "Anulado por cambio de nota: " + request.getMotivo());
-                        anularRequest.setReemitir(false);
-                        certificadoService.anular(certificado.getIdCertificado(), anularRequest);
-                    }
-                });
+            // Ya no aprueba: se anula el certificado, sin reemitir.
+            anularCertificadoSiExiste(evaluacion,
+                "Anulado por cambio de nota: " + request.getMotivo(), false);
+        } else if (estadoAnterior == EvaluacionEstudiante.EstadoEvaluacion.APROBADO
+                && nuevoEstado == EvaluacionEstudiante.EstadoEvaluacion.APROBADO
+                && notaCambio) {
+            // RF-21B: sigue aprobado, pero cambió el valor de la nota — el PDF ya
+            // emitido quedaría con el dato viejo. Se anula y se reemite con la
+            // nota corregida (no basta con anular: la nota sigue siendo válida).
+            anularCertificadoSiExiste(evaluacion,
+                "Reemitido por corrección de nota: " + request.getMotivo(), true);
         }
 
         if (estadoAnterior == EvaluacionEstudiante.EstadoEvaluacion.REPROBADO
@@ -197,9 +214,10 @@ public class EvaluacionService {
 
                 if (loteEmitido) {
                     boolean yaGenerado = certificadoRepository
-                        .findByInscripcion_IdInscripcion(inscripcion.getIdInscripcion())
-                        .map(c -> c.getEstadoEmision() == Certificado.EstadoEmision.GENERADO)
-                        .orElse(false);
+                        .findFirstByInscripcion_IdInscripcionAndEstadoEmisionOrderByVersionDescIdCertificadoDesc(
+                            inscripcion.getIdInscripcion(),
+                            Certificado.EstadoEmision.GENERADO)
+                        .isPresent();
 
                     if (!yaGenerado) {
                         EmitirCertificadoRequest emitirRequest = new EmitirCertificadoRequest();
@@ -281,6 +299,15 @@ public class EvaluacionService {
             .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<SolicitudEmisionDto> solicitudesTodas() {
+        return solicitudRepository
+            .findAllByOrderByFechaSolicitudDesc()
+            .stream()
+            .map(this::toSolicitudDto)
+            .toList();
+    }
+
     // ── Cambiar estado de solicitud (coordinador) ────────────────────────────
     @Transactional
     public SolicitudEmisionDto procesarSolicitud(Long idSolicitud, String nuevoEstado) {
@@ -354,6 +381,19 @@ public class EvaluacionService {
 
     // ── Helpers privados ─────────────────────────────────────────────────────
 
+    private void anularCertificadoSiExiste(EvaluacionEstudiante evaluacion, String motivo, boolean reemitir) {
+        certificadoRepository
+            .findFirstByInscripcion_IdInscripcionAndEstadoEmisionOrderByVersionDescIdCertificadoDesc(
+                evaluacion.getInscripcion().getIdInscripcion(),
+                Certificado.EstadoEmision.GENERADO)
+            .ifPresent(certificado -> {
+                AnularCertificadoRequest anularRequest = new AnularCertificadoRequest();
+                anularRequest.setMotivo(motivo);
+                anularRequest.setReemitir(reemitir);
+                certificadoService.anular(certificado.getIdCertificado(), anularRequest);
+            });
+    }
+
     private void verificarDocenteDelParalelo(Usuario docente, Inscripcion inscripcion) {
         if (inscripcion.getCodigoParalelo() == null) return;
 
@@ -391,6 +431,35 @@ public class EvaluacionService {
                 "Usuario", userDetails.getIdUsuario()));
     }
 
+    private void verificarAccesoParalelo(Paralelo paralelo) {
+        Usuario usuario = getUsuarioActual();
+        if (tieneRol(usuario, "ADMINISTRADOR")) return;
+
+        if (tieneRol(usuario, "COORDINADOR")
+                && coordinadorCarreraRepository.existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                    usuario.getIdUsuario(), paralelo.getCurso().getCarrera().getIdCarrera())) {
+            return;
+        }
+
+        if (tieneRol(usuario, "DOCENTE")
+                && paralelo.getDocente() != null
+                && paralelo.getDocente().getIdUsuario().equals(usuario.getIdUsuario())) {
+            return;
+        }
+
+        throw new BusinessException("No tienes permisos para ver las evaluaciones de este paralelo", 403);
+    }
+
+    private boolean tieneRol(Usuario usuario, String rol) {
+        return usuario.getRoles().stream()
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals(rol));
+    }
+
+    private String normalizeRolName(String nombreRol) {
+        if (nombreRol == null) return "";
+        return nombreRol.replace("ROLE_", "").replace("Ñ", "N").replace("ñ", "n").toUpperCase();
+    }
+
     private void emitirCertificadosEvento(Long idEvento) {
         List<Asistencia> asistencias = asistenciaRepository.findByIdEvento(idEvento);
 
@@ -398,9 +467,10 @@ public class EvaluacionService {
             Long idInscripcion = asistencia.getInscripcion().getIdInscripcion();
 
             boolean yaGenerado = certificadoRepository
-                .findByInscripcion_IdInscripcion(idInscripcion)
-                .map(c -> c.getEstadoEmision() == Certificado.EstadoEmision.GENERADO)
-                .orElse(false);
+                .findFirstByInscripcion_IdInscripcionAndEstadoEmisionOrderByVersionDescIdCertificadoDesc(
+                    idInscripcion,
+                    Certificado.EstadoEmision.GENERADO)
+                .isPresent();
 
             if (yaGenerado) {
                 continue;

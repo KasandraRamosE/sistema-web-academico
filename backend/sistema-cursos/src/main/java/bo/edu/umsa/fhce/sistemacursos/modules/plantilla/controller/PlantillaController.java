@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.AprobacionDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.AprobacionRequest;
+import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.PlantillaEstadoResumenDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto.PlantillaDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.service.PlantillaService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,6 +59,14 @@ public class PlantillaController {
     @Operation(summary = "Ver plantillas pendientes de revisión")
     public ResponseEntity<List<PlantillaDto>> pendientes() {
         return ResponseEntity.ok(plantillaService.listarPendientes());
+    }
+
+    // GET /api/plantillas/estados-por-actividad
+    @GetMapping("/estados-por-actividad")
+    @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
+    @Operation(summary = "Estado más reciente de plantillas por actividad")
+    public ResponseEntity<List<PlantillaEstadoResumenDto>> estadosVigentes() {
+        return ResponseEntity.ok(plantillaService.estadosPorActividad());
     }
 
     // GET /api/plantillas/mis-plantillas

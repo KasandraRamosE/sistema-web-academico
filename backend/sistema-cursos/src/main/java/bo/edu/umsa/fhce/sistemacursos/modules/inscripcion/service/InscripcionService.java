@@ -2,12 +2,14 @@ package bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.service;
 
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
+import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Curso;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Paralelo;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.ParaleloId;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.repository.CursoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.repository.ParaleloRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.entity.Evento;
+import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.AuxiliarEventoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.EventoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.dto.*;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.entity.Inscripcion;
@@ -26,9 +28,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -40,9 +46,16 @@ public class InscripcionService {
     private final CursoRepository        cursoRepository;
     private final ParaleloRepository     paraleloRepository;
     private final EventoRepository       eventoRepository;
+    private final CoordinadorCarreraRepository coordinadorCarreraRepository;
+    private final AuxiliarEventoRepository auxiliarEventoRepository;
     private final UsuarioRepository      usuarioRepository;
     private final ParticipanteRepository participanteRepository;
     private final LibelulaClient         libelulaClient;
+
+    // URL pública del backend a la que Libélula avisa cuando se completa un pago.
+    // En prod DEBE apuntar al dominio real (ej. https://cursos.fhce.umsa.bo/api).
+    @Value("${app.libelula.callback-base-url:http://localhost:8080/api}")
+    private String callbackBaseUrl;
 
     // ── Inscribirse a un curso o evento ──────────────────────────────────────
     @Transactional
@@ -136,38 +149,117 @@ public class InscripcionService {
                 }
             });
 
-        // Llamar a la pasarela (mock en dev, real en prod)
+        // Descripción y datos del cliente para registrar la deuda en Libélula
         String descripcion = inscripcion.getCurso() != null
             ? "Inscripción a curso: " + inscripcion.getCurso().getNombre()
             : "Inscripción a evento: " + inscripcion.getEvento().getNombre();
 
-        LibelulaClient.PagoResultado resultado =
-            libelulaClient.iniciarPago(inscripcion.getSaldo(), descripcion);
+        Usuario titular = inscripcion.getParticipante();
 
-        // Registrar el pago
+        // Identificador único de ESTA deuda en nuestro sistema (no el de Libélula).
+        // Se usa después para volver a consultar el estado real del pago.
+        String identificadorDeuda = "FHCE-" + inscripcion.getIdInscripcion()
+            + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+
+        LibelulaClient.RegistrarDeudaParams params = new LibelulaClient.RegistrarDeudaParams(
+            identificadorDeuda,
+            inscripcion.getSaldo(),
+            descripcion,
+            titular.getEmail(),
+            titular.getNombres(),
+            titular.getApellidos(),
+            titular.getCi(),
+            callbackBaseUrl + "/payments/libelula/callback"
+        );
+
+        LibelulaClient.DeudaRegistrada deuda = libelulaClient.registrarDeuda(params);
+
+        // El pago queda PENDIENTE. Nunca se confirma aquí — solo se confirma
+        // cuando /payments/libelula/callback verifica el pago contra Libélula.
         Pago pago = Pago.builder()
             .inscripcion(inscripcion)
             .monto(inscripcion.getSaldo())
-            .metodoPago(resultado.metodoPago())
-            .referenciaTransaccion(resultado.referenciaTransaccion())
-            .estado(resultado.aprobado()
-                ? Pago.EstadoPago.APROBADO
-                : Pago.EstadoPago.PENDIENTE)
+            .metodoPago("LIBELULA")
+            .referenciaTransaccion(deuda.idTransaccionLibelula())
+            .identificadorDeuda(identificadorDeuda)
+            .estado(Pago.EstadoPago.PENDIENTE)
             .build();
 
-        // Si el mock aprobó inmediatamente, confirmar la inscripción
-        if (resultado.aprobado()) {
-            pago.setFechaPago(LocalDateTime.now());
-            inscripcion.setEstado(Inscripcion.EstadoInscripcion.CONFIRMADA);
-            inscripcionRepository.save(inscripcion);
-            log.info("Pago aprobado — inscripción {} confirmada",
-                inscripcion.getIdInscripcion());
+        pago = pagoRepository.save(pago);
 
-            // Verificar y actualizar cupo de la actividad
-            verificarYActualizarCupo(inscripcion);
+        PagoDto dto = toPagoDto(pago);
+        dto.setUrlPasarelaPagos(deuda.urlPasarelaPagos());
+        return dto;
+    }
+
+    // ── Confirmar pago tras verificarlo contra Libélula (llamado desde el
+    //    callback público). Es la ÚNICA vía normal de confirmación: nunca se
+    //    confía en el aviso de Libélula sin volver a consultarle el estado real. ──
+    @Transactional
+    public void confirmarPagoLibelula(String idTransaccionLibelula) {
+        Pago pago = pagoRepository.findByReferenciaTransaccion(idTransaccionLibelula)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Pago con referencia de transacción", idTransaccionLibelula));
+
+        // Idempotencia: Libélula puede reintentar el callback
+        if (pago.getEstado() == Pago.EstadoPago.APROBADO) {
+            log.info("Callback de Libélula para un pago ya aprobado: {}", pago.getIdPago());
+            return;
         }
 
+        LibelulaClient.ConsultaDeuda consulta =
+            libelulaClient.consultarDeuda(pago.getIdentificadorDeuda());
+
+        if (!consulta.pagado()) {
+            log.warn("Callback de Libélula recibido pero la deuda no figura pagada: {}",
+                pago.getIdentificadorDeuda());
+            return;
+        }
+
+        if (consulta.valorTotal() != null
+                && consulta.valorTotal().compareTo(pago.getMonto()) != 0) {
+            log.error("Monto pagado ({}) no coincide con el monto esperado ({}) — pago {} NO se confirma",
+                consulta.valorTotal(), pago.getMonto(), pago.getIdPago());
+            return;
+        }
+
+        pago.setEstado(Pago.EstadoPago.APROBADO);
+        pago.setFechaPago(LocalDateTime.now());
+        pago.setMetodoPago(consulta.formaPago() != null ? consulta.formaPago() : pago.getMetodoPago());
+        pagoRepository.save(pago);
+
+        Inscripcion inscripcion = pago.getInscripcion();
+        inscripcion.setEstado(Inscripcion.EstadoInscripcion.CONFIRMADA);
+        inscripcionRepository.save(inscripcion);
+
+        verificarYActualizarCupo(inscripcion);
+
+        log.info("Pago verificado y confirmado vía Libélula — pago: {} inscripción: {}",
+            pago.getIdPago(), inscripcion.getIdInscripcion());
+    }
+
+    // ── Confirmación manual (solo ADMINISTRADOR) — soporte/pruebas cuando no
+    //    hay forma de esperar el callback real (ej. pago verificado por otro medio) ──
+    @Transactional
+    public PagoDto confirmarPago(PagoConfirmarRequest request) {
+        Pago pago = pagoRepository.findByInscripcion_IdInscripcion(request.getIdInscripcion())
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Pago para inscripcion", request.getIdInscripcion()));
+
+        if (pago.getEstado() == Pago.EstadoPago.APROBADO) {
+            throw new BusinessException("El pago ya fue aprobado", 400);
+        }
+
+        pago.setEstado(Pago.EstadoPago.APROBADO);
+        pago.setFechaPago(LocalDateTime.now());
         pago = pagoRepository.save(pago);
+
+        Inscripcion inscripcion = pago.getInscripcion();
+        inscripcion.setEstado(Inscripcion.EstadoInscripcion.CONFIRMADA);
+        inscripcionRepository.save(inscripcion);
+
+        verificarYActualizarCupo(inscripcion);
+
         return toPagoDto(pago);
     }
 
@@ -212,6 +304,10 @@ public class InscripcionService {
     // ── Ver inscripciones de un curso (coordinador/docente) ──────────────────
     @Transactional(readOnly = true)
     public List<InscripcionDto> inscripcionesDeCurso(Long idCurso) {
+        Curso curso = cursoRepository.findById(idCurso)
+            .orElseThrow(() -> new ResourceNotFoundException("Curso", idCurso));
+        verificarAccesoCurso(curso);
+
         return inscripcionRepository.findByCurso_IdCurso(idCurso)
             .stream()
             .map(this::toInscripcionDto)
@@ -221,6 +317,10 @@ public class InscripcionService {
     // ── Ver inscripciones de un evento (coordinador/auxiliar) ────────────────
     @Transactional(readOnly = true)
     public List<InscripcionDto> inscripcionesDeEvento(Long idEvento) {
+        Evento evento = eventoRepository.findById(idEvento)
+            .orElseThrow(() -> new ResourceNotFoundException("Evento", idEvento));
+        verificarAccesoEvento(evento);
+
         return inscripcionRepository.findByEvento_IdEvento(idEvento)
             .stream()
             .map(this::toInscripcionDto)
@@ -234,6 +334,16 @@ public class InscripcionService {
         Curso curso = cursoRepository.findById(request.getIdCurso())
             .orElseThrow(() -> new ResourceNotFoundException(
                 "Curso", request.getIdCurso()));
+
+        // Si la fecha de inicio ya pasó, marcar como FINALIZADO y rechazar
+        if (curso.getFechaInicio() != null && curso.getFechaInicio().isBefore(LocalDate.now())) {
+            if (curso.getEstado() != Curso.EstadoCurso.FINALIZADO) {
+                curso.setEstado(Curso.EstadoCurso.FINALIZADO);
+                cursoRepository.save(curso);
+            }
+            throw new BusinessException(
+                "El curso ya finalizó y no admite inscripciones", 400);
+        }
 
         // Verificar estado del curso
         if (curso.getEstado() != Curso.EstadoCurso.ABIERTO) {
@@ -292,6 +402,15 @@ public class InscripcionService {
         Evento evento = eventoRepository.findById(request.getIdEvento())
             .orElseThrow(() -> new ResourceNotFoundException(
                 "Evento", request.getIdEvento()));
+
+        if (evento.getFechaHora() != null && evento.getFechaHora().isBefore(LocalDateTime.now())) {
+            if (evento.getEstado() != Evento.EstadoEvento.FINALIZADO) {
+                evento.setEstado(Evento.EstadoEvento.FINALIZADO);
+                eventoRepository.save(evento);
+            }
+            throw new BusinessException(
+                "El evento ya finalizó y no admite inscripciones", 400);
+        }
 
         if (evento.getEstado() != Evento.EstadoEvento.ABIERTO) {
             throw new BusinessException(
@@ -358,6 +477,55 @@ public class InscripcionService {
         return usuarioRepository.findById(userDetails.getIdUsuario())
             .orElseThrow(() -> new ResourceNotFoundException(
                 "Usuario", userDetails.getIdUsuario()));
+    }
+
+    private void verificarAccesoCurso(Curso curso) {
+        Usuario usuario = getUsuarioActual();
+        if (tieneRol(usuario, "ADMINISTRADOR")) return;
+
+        if (tieneRol(usuario, "COORDINADOR")
+                && coordinadorCarreraRepository.existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                    usuario.getIdUsuario(), curso.getCarrera().getIdCarrera())) {
+            return;
+        }
+
+        if (tieneRol(usuario, "DOCENTE")) {
+            boolean esDocenteDelCurso = curso.getParalelos().stream()
+                .anyMatch(paralelo -> paralelo.getDocente() != null
+                    && paralelo.getDocente().getIdUsuario().equals(usuario.getIdUsuario()));
+            if (esDocenteDelCurso) return;
+        }
+
+        throw new BusinessException("No tienes permisos para ver las inscripciones de este curso", 403);
+    }
+
+    private void verificarAccesoEvento(Evento evento) {
+        Usuario usuario = getUsuarioActual();
+        if (tieneRol(usuario, "ADMINISTRADOR")) return;
+
+        if (tieneRol(usuario, "COORDINADOR")
+                && coordinadorCarreraRepository.existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                    usuario.getIdUsuario(), evento.getCarrera().getIdCarrera())) {
+            return;
+        }
+
+        if (tieneRol(usuario, "AUXILIAR")
+                && auxiliarEventoRepository.existsByAuxiliar_IdUsuarioAndEvento_IdEvento(
+                    usuario.getIdUsuario(), evento.getIdEvento())) {
+            return;
+        }
+
+        throw new BusinessException("No tienes permisos para ver las inscripciones de este evento", 403);
+    }
+
+    private boolean tieneRol(Usuario usuario, String rol) {
+        return usuario.getRoles().stream()
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals(rol));
+    }
+
+    private String normalizeRolName(String nombreRol) {
+        if (nombreRol == null) return "";
+        return nombreRol.replace("ROLE_", "").replace("Ñ", "N").replace("ñ", "n").toUpperCase();
     }
 
     private InscripcionDto toInscripcionDto(Inscripcion i) {

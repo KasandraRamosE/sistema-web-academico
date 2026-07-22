@@ -31,9 +31,15 @@ public class Pago {
     @Column(name = "metodo_pago", length = 50)
     private String metodoPago;
 
-    // ID de transacción devuelto por Libélula
+    // ID de transacción devuelto por Libélula (id_transaccion)
     @Column(name = "referencia_transaccion", length = 150)
     private String referenciaTransaccion;
+
+    // Nuestro identificador único de la deuda, generado antes de registrarla
+    // en Libélula. Es la clave que usamos para volver a consultar el estado
+    // real del pago server-to-server (nunca confiamos en el callback solo).
+    @Column(name = "identificador_deuda", length = 100, unique = true)
+    private String identificadorDeuda;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 10)
