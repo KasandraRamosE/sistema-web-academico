@@ -14,3 +14,14 @@ frontend/dist/
 .idea/
 *.iml
 .vscode/
+
+# Herramientas locales (Claude Code / tooling de sesión, no es parte del proyecto)
+.claude/
+
+# Datos y archivos subidos en runtime (imágenes de actividades, certificados, etc.)
+backend/sistema-cursos/uploads/
+data/
+
+# Logs y config local con rutas absolutas de una máquina específica
+*.log
+backend/sistema-cursos/src/main/resources/application.properties
