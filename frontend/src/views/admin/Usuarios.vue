@@ -17,9 +17,6 @@
           </svg>
           Crear Usuario Externo
         </Button>
-        <p class="text-xs text-gray-500 mt-1 text-right">
-          Solo se pueden crear usuarios externos. Los usuarios UMSA se sincronizan automáticamente.
-        </p>
       </div>
     </div>
 
@@ -91,7 +88,7 @@
             <option value="DOCENTE">Docente</option>
             <option value="PARTICIPANTE">Participante</option>
             <option value="AUXILIAR">Auxiliar</option>
-            <option value="DISEÑADOR">Diseñador</option>
+            <option value="DISENADOR">Diseñador</option>
           </select>
         </div>
       </div>
@@ -312,6 +309,14 @@
           </Button>
 
           <Button
+            v-if="canAssignDesigners"
+            variant="ghost"
+            @click="irAAsignacionDisenador"
+          >
+            Asignar diseñador a cursos/eventos
+          </Button>
+
+          <Button
             v-if="usuarioSeleccionado.tipoUsuario === 'EXTERNO'"
             variant="ghost"
             @click="ejecutarAccionUsuario(openPasswordModal)"
@@ -335,14 +340,30 @@
         <!-- Info según tipo -->
         <div v-if="!modoEdicion" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p class="text-sm text-blue-800">
-            <strong>Nota:</strong> Los usuarios UMSA se sincronizan automáticamente desde el SIA.
+            <strong>Nota:</strong> Los usuarios UMSA se sincronizan automáticamente desde el sistema de Usuarios Umsa.
           </p>
         </div>
         
         <div v-else-if="modoEdicion && formUsuario.tipoUsuario === 'INTERNO'" class="bg-amber-50 border border-amber-200 rounded-lg p-3">
           <p class="text-sm text-amber-800">
-            <strong>Usuario UMSA:</strong> Solo puedes editar nombres y apellidos. Los demás datos provienen del SIA.
+            <strong>Usuario UMSA:</strong> Solo puedes editar nombres y apellidos. Los demás datos provienen de Usuarios Umsa.
           </p>
+        </div>
+
+        <!-- CI -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">
+            CI <span class="text-red-600">*</span>
+          </label>
+          <input
+            v-model="formUsuario.ci"
+            type="text"
+            required
+            :readonly="modoEdicion && formUsuario.tipoUsuario === 'INTERNO'"
+            placeholder="Ej: 1234567 LP"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            :class="{ 'bg-gray-100': modoEdicion && formUsuario.tipoUsuario === 'INTERNO' }"
+          />
         </div>
 
         <!-- Username -->
@@ -454,7 +475,7 @@
           </p>
           <div class="flex gap-2 mt-2">
             <Badge
-              v-for="rol in usuarioSeleccionado.roles.filter(r => ['COORDINADOR', 'DOCENTE'].includes(r))"
+              v-for="rol in usuarioSeleccionado.roles.filter(r => ['COORDINADOR', 'DOCENTE', 'DISENADOR'].includes(r))"
               :key="rol"
               :variant="getRolBadgeVariant(rol)"
               size="sm"
@@ -601,6 +622,9 @@
                 </p>
                 <div class="flex gap-2 mt-1">
                   <Badge variant="primary" size="sm">CURSO</Badge>
+                  <Badge :variant="paralelo.estadoCurso === 'ABIERTO' ? 'success' : 'gray'" size="sm">
+                    {{ paralelo.estadoCurso }}
+                  </Badge>
                   <Badge variant="info" size="sm">{{ paralelo.carreraNombre }}</Badge>
                 </div>
               </div>
@@ -635,10 +659,13 @@
                 <p class="font-medium text-gray-800">{{ actividad.nombre }}</p>
                 <div class="flex gap-2 mt-1">
                   <Badge variant="secondary" size="sm">{{ actividad.tipo }}</Badge>
+                  <Badge :variant="actividad.estado === 'ABIERTO' ? 'success' : 'gray'" size="sm">
+                    {{ actividad.estado }}
+                  </Badge>
                   <Badge variant="info" size="sm">{{ actividad.carreraNombre }}</Badge>
                 </div>
                 <p class="text-xs text-gray-500 mt-1">
-                  {{ formatDate(actividad.fechaInicio) }} - {{ formatDate(actividad.fechaFin) }}
+                  {{ formatDateTime(actividad.fechaHora) }}
                 </p>
               </div>
             </label>
@@ -776,7 +803,7 @@
               <input
                 type="checkbox"
                 v-model="rolesSeleccionados"
-                value="DISEÑADOR"
+                value="DISENADOR"
                 class="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
               />
               <div class="ml-3 flex-1">
@@ -809,7 +836,7 @@
 
         <!-- Botones -->
         <div class="flex justify-end space-x-3 pt-4 border-t">
-          <Button type="button" variant="outline" @click="closeRolesModal">
+          <Button type="button" variant="outline" @click="closeRolesModal()">
             Cancelar
           </Button>
           <Button @click="guardarRoles" :disabled="saving">
@@ -885,6 +912,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
@@ -892,7 +920,9 @@ import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue' // ← NUEVO: Importar componente de paginación
 import { usePagination } from '@/composables/usePagination' // ← NUEVO: Importar composable
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil } from '@/utils/dateFormatter'
 import { useAlertStore } from '@/stores/alert.store'
+import { useAuthStore } from '@/stores/auth.store'
 
 // ============================================
 // TIPOS CORREGIDOS
@@ -909,9 +939,9 @@ interface Actividad {
   tipo: 'CURSO' | 'EVENTO'
   idCarrera: number | null
   carreraNombre: string
+  estado: 'ABIERTO' | 'LLENO' | 'FINALIZADO'
   modalidad: 'PRESENCIAL' | 'VIRTUAL' | 'MIXTO'
-  fechaInicio: string
-  fechaFin: string
+  fechaHora: string
 }
 
 interface Paralelo {
@@ -919,6 +949,7 @@ interface Paralelo {
   codigo: string
   idCurso: number
   idCarrera: number | null
+  estadoCurso: 'ABIERTO' | 'LLENO' | 'FINALIZADO'
   actividadNombre: string
   actividadTipo: 'CURSO' | 'EVENTO'
   carreraNombre: string
@@ -927,6 +958,7 @@ interface Paralelo {
 interface Usuario {
   idUsuario: number
   username: string
+  ci?: string
   nombres: string
   apellidos: string
   email: string
@@ -941,6 +973,7 @@ interface Usuario {
 interface UsuarioApi {
   idUsuario: number
   username: string
+  ci?: string
   nombres: string
   apellidos: string
   email: string
@@ -963,6 +996,7 @@ interface EventoApi {
   nombreCarrera: string
   nombre: string
   modalidad: 'PRESENCIAL' | 'VIRTUAL' | 'MIXTO'
+  estado: 'ABIERTO' | 'LLENO' | 'FINALIZADO'
   fechaHora: string
 }
 
@@ -971,6 +1005,7 @@ interface CursoApi {
   idCarrera: number
   nombreCarrera: string
   nombre: string
+  estado: 'ABIERTO' | 'LLENO' | 'FINALIZADO'
   paralelos?: ParaleloApi[]
 }
 
@@ -981,6 +1016,7 @@ interface ParaleloApi {
 
 interface FormUsuario {
   username: string
+  ci: string
   nombres: string
   apellidos: string
   email: string
@@ -1005,6 +1041,8 @@ interface FormEventos {
 const loading = ref(false)
 const saving = ref(false)
 const alertStore = useAlertStore()
+const authStore = useAuthStore()
+const router = useRouter()
 
 // Datos
 const usuarios = ref<Usuario[]>([])
@@ -1042,6 +1080,7 @@ const usuarioSeleccionado = ref<Usuario | null>(null)
 // Formularios
 const formUsuario = ref<FormUsuario>({
   username: '',
+  ci: '',
   nombres: '',
   apellidos: '',
   email: '',
@@ -1063,6 +1102,10 @@ const filtroBusquedaActividades = ref('')              // ← NUEVO
 const nuevaPassword = ref('')
 const confirmarPassword = ref('')
 const tituloDocente = ref('')
+
+const canAssignDesigners = computed(() => {
+  return authStore.hasRole('ADMINISTRADOR') || authStore.hasRole('COORDINADOR')
+})
 
 // ============================================
 // COMPUTED
@@ -1127,20 +1170,21 @@ const cargarUsuarios = async () => {
     const [usuariosResponse, carrerasResponse, eventosResponse, cursosResponse] = await Promise.all([
       api.get('/usuarios') as Promise<UsuarioApi[]>,
       api.get('/carreras/todas') as Promise<CarreraApi[]>,
-      api.get('/eventos/todos') as Promise<EventoApi[]>,
-      api.get('/cursos/todos') as Promise<CursoApi[]>
+      api.get('/eventos') as Promise<EventoApi[]>,
+      api.get('/cursos') as Promise<CursoApi[]>
     ])
 
     usuarios.value = usuariosResponse.map((u) => ({
       idUsuario: u.idUsuario,
       username: u.username,
+      ci: u.ci ?? '',
       nombres: u.nombres,
       apellidos: u.apellidos,
       email: u.email,
       tipoUsuario: u.tipoUsuario || 'EXTERNO',
       emailVerificado: u.emailVerificado,
       estado: u.estado,
-      roles: u.roles,
+      roles: normalizarRoles(u.roles),
       carreras: [],
       fechaRegistro: u.fechaRegistro
     }))
@@ -1156,19 +1200,21 @@ const cargarUsuarios = async () => {
       tipo: 'EVENTO',
       idCarrera: e.idCarrera,
       carreraNombre: e.nombreCarrera,
+      estado: e.estado,
       modalidad: e.modalidad,
-      fechaInicio: e.fechaHora,
-      fechaFin: e.fechaHora
+      fechaHora: e.fechaHora
     }))
 
     const paralelos: Paralelo[] = []
     for (const curso of cursosResponse) {
+      if (curso.estado !== 'ABIERTO') continue
       for (const paralelo of curso.paralelos || []) {
         paralelos.push({
           idParalelo: buildParaleloKey(paralelo.idCurso, paralelo.codigo),
           codigo: paralelo.codigo,
           idCurso: paralelo.idCurso,
           idCarrera: curso.idCarrera,
+          estadoCurso: curso.estado,
           actividadNombre: curso.nombre,
           actividadTipo: 'CURSO',
           carreraNombre: curso.nombreCarrera
@@ -1206,6 +1252,7 @@ const submitUsuario = async () => {
       }
 
       const payload: Record<string, string> = {
+        ci: formUsuario.value.ci,
         nombres: formUsuario.value.nombres,
         apellidos: formUsuario.value.apellidos
       }
@@ -1221,6 +1268,7 @@ const submitUsuario = async () => {
       // Solo se pueden crear usuarios EXTERNOS
       await api.post('/auth/registro', {
         username: formUsuario.value.username,
+        ci: formUsuario.value.ci,
         nombres: formUsuario.value.nombres,
         apellidos: formUsuario.value.apellidos,
         email: formUsuario.value.email,
@@ -1264,6 +1312,8 @@ const toggleEstadoUsuario = async (usuario: Usuario) => {
 const guardarRoles = async () => {
   if (!usuarioSeleccionado.value) return
 
+  const usuarioId = usuarioSeleccionado.value.idUsuario
+
   saving.value = true
   try {
     const currentRoles = usuarioSeleccionado.value.roles.filter((rol) => rol !== 'PARTICIPANTE')
@@ -1277,46 +1327,44 @@ const guardarRoles = async () => {
         return
       }
 
-      await api.post(`/usuarios/${usuarioSeleccionado.value.idUsuario}/roles`, {
+      await api.post(`/usuarios/${usuarioId}/roles`, {
         nombreRol: rol,
         titulo: rol === 'DOCENTE' ? tituloDocente.value.trim() : undefined
       })
     }
 
     for (const rol of rolesToRemove) {
-      await api.delete(`/usuarios/${usuarioSeleccionado.value.idUsuario}/roles/${rol}`)
+      await api.delete(`/usuarios/${usuarioId}/roles/${rol}`)
     }
 
-    alertStore.push({ type: 'success', message: 'Roles actualizados correctamente.' })
     await cargarUsuarios()
-    
-    // Si es COORDINADOR → Asignar carreras
-    if (rolesSeleccionados.value.includes('COORDINADOR')) {
-      if (confirm('¿Deseas asignar carreras al coordinador ahora?')) {
-        closeRolesModal()
-        openCarrerasModal(usuarioSeleccionado.value)
-        return
-      }
+
+    const usuarioActualizado = usuarios.value.find((u) => u.idUsuario === usuarioId) || usuarioSeleccionado.value
+
+    if (rolesToAdd.includes('COORDINADOR') && usuarioActualizado) {
+      closeRolesModal({ keepSelected: true })
+      openCarrerasModal(usuarioActualizado)
+      return
     }
-    
-    // Si es DOCENTE → Asignar paralelos de cursos
-    if (rolesSeleccionados.value.includes('DOCENTE')) {
-      if (confirm('¿Deseas asignar cursos/paralelos al docente ahora?')) {
-        closeRolesModal()
-        openActividadesModal(usuarioSeleccionado.value, 'DOCENTE')
-        return
-      }
+
+    if (rolesToAdd.includes('DOCENTE') && usuarioActualizado) {
+      closeRolesModal({ keepSelected: true })
+      openActividadesModal(usuarioActualizado, 'DOCENTE')
+      return
     }
-    
-    // Si es AUXILIAR → Asignar eventos
-    if (rolesSeleccionados.value.includes('AUXILIAR')) {
-      if (confirm('¿Deseas asignar eventos al auxiliar ahora?')) {
-        closeRolesModal()
-        openActividadesModal(usuarioSeleccionado.value, 'AUXILIAR')
-        return
-      }
+
+    if (rolesToAdd.includes('AUXILIAR') && usuarioActualizado) {
+      closeRolesModal({ keepSelected: true })
+      openActividadesModal(usuarioActualizado, 'AUXILIAR')
+      return
     }
-    
+
+    if (rolesToAdd.includes('DISENADOR')) {
+      alertStore.push({ type: 'success', message: 'Rol de diseñador asignado correctamente.' })
+    } else {
+      alertStore.push({ type: 'success', message: 'Roles actualizados correctamente.' })
+    }
+
     closeRolesModal()
   } catch (error) {
     console.error('Error al guardar roles:', error)
@@ -1331,7 +1379,7 @@ const guardarRoles = async () => {
 // ============================================
 
 const openCarrerasModal = (usuario: Usuario) => {
-  if (!usuario.roles.includes('COORDINADOR')) {
+  if (!hasRole(usuario.roles, 'COORDINADOR')) {
     alert('Solo los coordinadores tienen carreras asignadas')
     return
   }
@@ -1447,6 +1495,8 @@ const actividadesFiltradas = computed(() => {
     )
   }
 
+  resultado = resultado.filter(a => a.estado === 'ABIERTO')
+
   // Si estamos gestionando AUXILIAR, mostrar solo EVENTOS
   if (tipoGestionActividades.value === 'AUXILIAR') {
     resultado = resultado.filter(a => a.tipo === 'EVENTO')
@@ -1474,6 +1524,8 @@ const paralelosFiltrados = computed(() => {
       p.codigo.toLowerCase().includes(busqueda)
     )
   }
+
+  resultado = resultado.filter(p => p.estadoCurso === 'ABIERTO')
 
   return resultado
 })
@@ -1510,7 +1562,7 @@ const guardarActividades = async () => {
 
 const openPasswordModal = (usuario: Usuario) => {
   if (usuario.tipoUsuario === 'INTERNO') {
-    alert('No se puede cambiar la contraseña de usuarios UMSA. La autenticación es mediante el SIA.')
+    alert('No se puede cambiar la contraseña de usuarios UMSA. La autenticación es mediante el sistema de Usuarios Umsa.')
     return
   }
   
@@ -1565,6 +1617,7 @@ const openCreateModal = () => {
   modoEdicion.value = false
   formUsuario.value = {
     username: '',
+    ci: '',
     nombres: '',
     apellidos: '',
     email: '',
@@ -1583,6 +1636,7 @@ const openEditModal = (usuario: Usuario) => {
   // USUARIOS EXTERNOS: Editar todo excepto username
   formUsuario.value = {
     username: usuario.username,
+    ci: usuario.ci ?? '',
     nombres: usuario.nombres,
     apellidos: usuario.apellidos,
     email: usuario.email,
@@ -1607,9 +1661,11 @@ const openRolesModal = (usuario: Usuario) => {
   showRolesModal.value = true
 }
 
-const closeRolesModal = () => {
+const closeRolesModal = (options?: { keepSelected?: boolean }) => {
   showRolesModal.value = false
-  usuarioSeleccionado.value = null
+  if (!options?.keepSelected) {
+    usuarioSeleccionado.value = null
+  }
   rolesSeleccionados.value = []
   tituloDocente.value = ''
 }
@@ -1647,6 +1703,12 @@ const getInitials = (nombres: string, apellidos: string) => {
   return `${nombres.charAt(0)}${apellidos.charAt(0)}`.toUpperCase()
 }
 
+const normalizarRol = (rol: string) => rol.replace(/Ñ/g, 'N').replace(/ñ/g, 'n').toUpperCase()
+
+const normalizarRoles = (roles: string[]) => roles.map(normalizarRol)
+
+const hasRole = (roles: string[], rol: string) => normalizarRoles(roles).includes(normalizarRol(rol))
+
 const getRolBadgeVariant = (rol: string): 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'gray' => {
   const variants: Record<string, 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'gray'> = {
     'ADMINISTRADOR': 'danger',
@@ -1654,9 +1716,9 @@ const getRolBadgeVariant = (rol: string): 'primary' | 'secondary' | 'success' | 
     'DOCENTE': 'info',
     'PARTICIPANTE': 'gray',
     'AUXILIAR': 'secondary',
-    'DISEÑADOR': 'warning'
+    'DISENADOR': 'warning'
   }
-  return variants[rol] || 'gray'
+  return variants[normalizarRol(rol)] || 'gray'
 }
 
 const formatRolName = (rol: string) => {
@@ -1666,17 +1728,22 @@ const formatRolName = (rol: string) => {
     'DOCENTE': 'Docente',
     'PARTICIPANTE': 'Part.',
     'AUXILIAR': 'Aux.',
-    'DISEÑADOR': 'Dis.'
+    'DISENADOR': 'Diseñador'
   }
-  return nombres[rol] || rol
+  return nombres[normalizarRol(rol)] || rol
 }
 
 const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
+  return formatDateUtil(date, 'es-BO')
+}
+
+const formatDateTime = (date: string) => {
+  return formatDateTimeUtil(date, 'es-BO')
+}
+
+const irAAsignacionDisenador = () => {
+  showAccionesModal.value = false
+  router.push({ name: 'coordinator-designers' })
 }
 
 const buildParaleloKey = (idCurso: number, codigo: string) => {

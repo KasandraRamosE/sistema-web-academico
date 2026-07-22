@@ -1,10 +1,15 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center px-4 py-12">
-    <div class="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
-      <!-- Header -->
-      <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Recuperar Contraseña</h1>
-        <p class="text-gray-600">Restablece tu contraseña en 3 pasos</p>
+  <div class="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
+      <!-- Logo/Titulo -->
+      <div class="flex items-center gap-4 mb-6">
+        <div class="w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-amber-300/50 bg-white shadow-lg">
+          <img :src="logoUrl" alt="Logo FHCE" class="w-full h-full object-cover" />
+        </div>
+        <div>
+          <p class="text-xs uppercase tracking-[0.2em] text-amber-600">FHCE Cursos</p>
+          <h2 class="text-2xl font-bold text-slate-900">Recuperar Contraseña</h2>
+          <p class="text-sm text-slate-500">Restablece tu contraseña en 3 pasos</p>
+        </div>
       </div>
 
       <!-- Error/Success Messages -->
@@ -30,7 +35,8 @@
             id="username"
             v-model="username"
             type="text"
-            placeholder="tu_usuario"
+            maxlength="50"
+            placeholder="tu usuario"
             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             :disabled="loading"
           />
@@ -39,7 +45,7 @@
         <button
           @click="handleSolicitarCodigo"
           :disabled="loading || !username.trim()"
-          class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 rounded-lg transition"
+          class="w-full bg-blue-400 hover:bg-blue-300 text-white font-semibold py-2 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {{ loading ? 'Enviando...' : 'Enviar código' }}
         </button>
@@ -78,7 +84,7 @@
         <button
           @click="handleVerificarCodigo"
           :disabled="loading || codigo.length !== 6"
-          class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 rounded-lg transition"
+          class="w-full bg-blue-400 hover:bg-blue-300 text-white font-semibold py-2 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {{ loading ? 'Verificando...' : 'Verificar código' }}
         </button>
@@ -106,6 +112,8 @@
             id="newPassword"
             v-model="newPassword"
             :type="showPassword ? 'text' : 'password'"
+            minlength="8"
+            maxlength="72"
             placeholder="Mínimo 8 caracteres"
             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             :disabled="loading"
@@ -120,6 +128,8 @@
             id="confirmPassword"
             v-model="confirmPassword"
             :type="showPassword ? 'text' : 'password'"
+            minlength="8"
+            maxlength="72"
             placeholder="Repite tu contraseña"
             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             :disabled="loading"
@@ -139,7 +149,7 @@
         <button
           @click="handleCambiarPassword"
           :disabled="loading || !isPasswordValid"
-          class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 rounded-lg transition"
+          class="w-full bg-blue-400 hover:bg-blue-300 text-white font-semibold py-2 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {{ loading ? 'Cambiando...' : 'Cambiar contraseña' }}
         </button>
@@ -176,13 +186,13 @@
 
         <RouterLink
           to="/auth/login"
-          class="inline-block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition text-center"
+          class="inline-block w-full bg-blue-400 hover:bg-blue-300 text-white font-semibold py-2 rounded-lg transition text-center"
         >
           Ir al login
         </RouterLink>
       </div>
-    </div>
   </div>
+  
 </template>
 
 <script setup lang="ts">
@@ -190,6 +200,9 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { RouterLink } from 'vue-router'
+import logo from '@/assets/images/logo.jpg'
+
+const logoUrl: string = logo
 
 const router = useRouter()
 const authStore = useAuthStore()

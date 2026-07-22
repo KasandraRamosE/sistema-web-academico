@@ -11,13 +11,7 @@
     </div>
 
     <!-- Estadísticas -->
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-      <Card>
-        <div class="text-center">
-          <p class="text-2xl font-bold text-orange-600">{{ estadisticas.solicitudesPendientes }}</p>
-          <p class="text-sm text-gray-600">Solicitudes Pendientes</p>
-        </div>
-      </Card>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <Card>
         <div class="text-center">
           <p class="text-2xl font-bold text-green-600">{{ estadisticas.certificadosEmitidos }}</p>
@@ -43,329 +37,164 @@
         </div>
       </Card>
     </div>
-
-    <!-- Tabs de Navegación -->
     <Card>
-      <div class="border-b border-gray-200">
-        <nav class="-mb-px flex space-x-8">
-          <button
-            @click="tabActiva = 'solicitudes'"
-            :class="[
-              'py-4 px-1 border-b-2 font-medium text-sm',
-              tabActiva === 'solicitudes'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            ]"
-          >
-            Solicitudes Pendientes
-            <Badge v-if="estadisticas.solicitudesPendientes > 0" variant="warning" size="sm" class="ml-2">
-              {{ estadisticas.solicitudesPendientes }}
-            </Badge>
-          </button>
-          <button
-            @click="tabActiva = 'certificados'"
-            :class="[
-              'py-4 px-1 border-b-2 font-medium text-sm',
-              tabActiva === 'certificados'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            ]"
-          >
-            Todos los Certificados
-          </button>
-        </nav>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-gray-800">Certificados emitidos</h3>
+        </div>
+
+        <!-- Filtros -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
+            <input
+              v-model="filtrosCertificados.busqueda"
+              type="text"
+              placeholder="Nombre de usuario o actividad..."
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+            <select
+              v-model="filtrosCertificados.estado"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Todos</option>
+              <option value="GENERADO">Generados</option>
+              <option value="ANULADO">Anulados</option>
+              <option value="REEMITIDO">Reemitidos</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+            <select
+              v-model="filtrosCertificados.tipo"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Todos</option>
+              <option value="APROBACION">Aprobación</option>
+              <option value="PARTICIPACION">Participación</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <Button variant="outline" class="w-full" @click="limpiarFiltrosCertificados">
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Limpiar
+            </Button>
+          </div>
+        </div>
+
+        <!-- Tabla de certificados -->
+        <div v-if="certificadosPaginados.length > 0" class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">ID</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Usuario</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Actividad</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tipo</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Versión</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Estado</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Emisión</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Acciones</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr v-for="certificado in certificadosPaginados" :key="certificado.idCertificado" class="hover:bg-gray-50">
+                <td class="px-4 py-3 text-sm font-mono text-gray-600">
+                  #{{ certificado.idCertificado }}
+                </td>
+                <td class="px-4 py-3">
+                  <div>
+                    <p class="text-sm font-medium text-gray-800">
+                      {{ certificado.usuario.nombres }} {{ certificado.usuario.apellidos }}
+                    </p>
+                    <p class="text-xs text-gray-500">{{ certificado.usuario.email }}</p>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <div>
+                    <p class="text-sm font-medium text-gray-800">{{ certificado.actividad.nombre }}</p>
+                    <p class="text-xs text-gray-500">{{ certificado.actividad.cargaHoraria }} horas</p>
+                  </div>
+                </td>
+                <td class="px-4 py-3">
+                  <Badge :variant="certificado.tipo === 'APROBACION' ? 'success' : 'info'" size="sm">
+                    {{ certificado.tipo }}
+                  </Badge>
+                </td>
+                <td class="px-4 py-3 text-center text-sm">
+                  <span v-if="certificado.version > 1" class="text-blue-600 font-medium">
+                    v{{ certificado.version }}
+                  </span>
+                  <span v-else class="text-gray-500">v1</span>
+                </td>
+                <td class="px-4 py-3">
+                  <Badge :variant="getEstadoCertificadoBadge(certificado.estadoEmision)">
+                    {{ certificado.estadoEmision }}
+                  </Badge>
+                </td>
+                <td class="px-4 py-3 text-xs text-gray-600">
+                  {{ formatDate(certificado.fechaEmision) }}
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center space-x-2">
+                    <Button variant="ghost" size="sm" @click="verCertificado(certificado)">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </Button>
+                    <Button
+                      v-if="certificado.estadoEmision === 'GENERADO'"
+                      variant="ghost"
+                      size="sm"
+                      class="text-red-600 hover:text-red-800"
+                      @click="anularCertificado(certificado)"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                    </Button>
+                    <Button
+                      v-if="certificado.estadoEmision === 'ANULADO'"
+                      variant="ghost"
+                      size="sm"
+                      class="text-blue-600 hover:text-blue-800"
+                      @click="reemitirCertificado(certificado)"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <Pagination
+          v-if="totalItems > 0"
+          :current-page="currentPage"
+          :total-items="totalItems"
+          :page-size="pageSize"
+          :show-page-size-selector="true"
+          @update:current-page="goToPage"
+          @update:page-size="setPageSize"
+        />
+        <!-- Sin certificados -->
+        <div v-else class="text-center py-12">
+          <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+          </svg>
+          <p class="text-gray-600">No se encontraron certificados</p>
+        </div>
       </div>
     </Card>
-
-    <!-- Tab: Solicitudes Pendientes -->
-    <div v-if="tabActiva === 'solicitudes'">
-      <Card>
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-800">Solicitudes de Emisión Pendientes</h3>
-          </div>
-
-          <!-- Estado de carga -->
-          <div v-if="loading" class="text-center py-12">
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p class="mt-4 text-gray-600">Cargando solicitudes...</p>
-          </div>
-
-          <!-- Tabla de solicitudes -->
-          <div v-else-if="solicitudesPendientes.length > 0" class="overflow-x-auto">
-            <table class="w-full">
-              <thead class="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">ID</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Actividad</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tipo</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Docente</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Aprobados</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Fecha Solicitud</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Acciones</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-200">
-                <tr v-for="solicitud in solicitudesPendientes" :key="solicitud.idSolicitud" class="hover:bg-gray-50">
-                  <td class="px-4 py-3 text-sm font-mono text-gray-600">
-                    #{{ solicitud.idSolicitud }}
-                  </td>
-                  <td class="px-4 py-3">
-                    <div>
-                      <p class="text-sm font-medium text-gray-800">{{ solicitud.actividad.nombre }}</p>
-                      <p class="text-xs text-gray-500">{{ solicitud.actividad.carrera }}</p>
-                    </div>
-                  </td>
-                  <td class="px-4 py-3">
-                    <Badge :variant="solicitud.actividad.tipo === 'CURSO' ? 'primary' : 'secondary'" size="sm">
-                      {{ solicitud.actividad.tipo }}
-                    </Badge>
-                  </td>
-                  <td class="px-4 py-3 text-sm text-gray-600">
-                    {{ solicitud.docente }}
-                  </td>
-                  <td class="px-4 py-3 text-center">
-                    <span class="text-lg font-bold text-green-600">{{ solicitud.cantidadAprobados }}</span>
-                  </td>
-                  <td class="px-4 py-3 text-xs text-gray-600">
-                    {{ formatDatetime(solicitud.fechaSolicitud) }}
-                  </td>
-                  <td class="px-4 py-3">
-                    <div class="flex items-center space-x-2">
-                      <Button variant="primary" size="sm" @click="verSolicitud(solicitud)">
-                        Procesar
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Sin solicitudes -->
-          <div v-else class="text-center py-12">
-            <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-            </svg>
-            <p class="text-gray-600">¡Genial! No hay solicitudes pendientes</p>
-          </div>
-        </div>
-      </Card>
-    </div>
-
-    <!-- Tab: Todos los Certificados -->
-    <div v-if="tabActiva === 'certificados'">
-      <Card>
-        <div class="space-y-4">
-          <!-- Filtros -->
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
-              <input
-                v-model="filtrosCertificados.busqueda"
-                type="text"
-                placeholder="Nombre de usuario o actividad..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-              <select
-                v-model="filtrosCertificados.estado"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Todos</option>
-                <option value="GENERADO">Generados</option>
-                <option value="ANULADO">Anulados</option>
-                <option value="REEMITIDO">Reemitidos</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-              <select
-                v-model="filtrosCertificados.tipo"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Todos</option>
-                <option value="APROBACION">Aprobación</option>
-                <option value="PARTICIPACION">Participación</option>
-              </select>
-            </div>
-            <div class="flex items-end">
-              <Button variant="outline" class="w-full" @click="limpiarFiltrosCertificados">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Limpiar
-              </Button>
-            </div>
-          </div>
-
-          <!-- Tabla de certificados -->
-          <div v-if="certificadosPaginados.length > 0" class="overflow-x-auto">
-            <table class="w-full">
-              <thead class="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">ID</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Usuario</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Actividad</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tipo</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Versión</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Estado</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Emisión</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Acciones</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-gray-200">
-                <tr v-for="certificado in certificadosPaginados" :key="certificado.idCertificado" class="hover:bg-gray-50">
-                  <td class="px-4 py-3 text-sm font-mono text-gray-600">
-                    #{{ certificado.idCertificado }}
-                  </td>
-                  <td class="px-4 py-3">
-                    <div>
-                      <p class="text-sm font-medium text-gray-800">
-                        {{ certificado.usuario.nombres }} {{ certificado.usuario.apellidos }}
-                      </p>
-                      <p class="text-xs text-gray-500">{{ certificado.usuario.email }}</p>
-                    </div>
-                  </td>
-                  <td class="px-4 py-3">
-                    <div>
-                      <p class="text-sm font-medium text-gray-800">{{ certificado.actividad.nombre }}</p>
-                      <p class="text-xs text-gray-500">{{ certificado.actividad.cargaHoraria }} horas</p>
-                    </div>
-                  </td>
-                  <td class="px-4 py-3">
-                    <Badge :variant="certificado.tipo === 'APROBACION' ? 'success' : 'info'" size="sm">
-                      {{ certificado.tipo }}
-                    </Badge>
-                  </td>
-                  <td class="px-4 py-3 text-center text-sm">
-                    <span v-if="certificado.version > 1" class="text-blue-600 font-medium">
-                      v{{ certificado.version }}
-                    </span>
-                    <span v-else class="text-gray-500">v1</span>
-                  </td>
-                  <td class="px-4 py-3">
-                    <Badge :variant="getEstadoCertificadoBadge(certificado.estadoEmision)">
-                      {{ certificado.estadoEmision }}
-                    </Badge>
-                  </td>
-                  <td class="px-4 py-3 text-xs text-gray-600">
-                    {{ formatDate(certificado.fechaEmision) }}
-                  </td>
-                  <td class="px-4 py-3">
-                    <div class="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm" @click="verCertificado(certificado)">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </Button>
-                      <Button
-                        v-if="certificado.estadoEmision === 'GENERADO'"
-                        variant="ghost"
-                        size="sm"
-                        class="text-red-600 hover:text-red-800"
-                        @click="anularCertificado(certificado)"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                        </svg>
-                      </Button>
-                      <Button
-                        v-if="certificado.estadoEmision === 'ANULADO'"
-                        variant="ghost"
-                        size="sm"
-                        class="text-blue-600 hover:text-blue-800"
-                        @click="reemitirCertificado(certificado)"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <Pagination
-            v-if="totalItems > 0"
-            :current-page="currentPage"
-            :total-items="totalItems"
-            :page-size="pageSize"
-            :show-page-size-selector="true"
-            @update:current-page="goToPage"
-            @update:page-size="setPageSize"
-          />
-          <!-- Sin certificados -->
-          <div v-else class="text-center py-12">
-            <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-            </svg>
-            <p class="text-gray-600">No se encontraron certificados</p>
-          </div>
-        </div>
-      </Card>
-    </div>
-
-    <!-- Modal Procesar Solicitud -->
-    <Modal
-      :modelValue="showSolicitudModal"
-      @close="closeSolicitudModal"
-      title="Procesar Solicitud de Certificados"
-      size="xl"
-    >
-      <div v-if="solicitudSeleccionada" class="space-y-6">
-        <!-- Info de la solicitud -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <p class="text-xs text-blue-600">Actividad</p>
-              <p class="font-medium text-gray-800">{{ solicitudSeleccionada.actividad.nombre }}</p>
-            </div>
-            <div>
-              <p class="text-xs text-blue-600">Tipo</p>
-              <Badge :variant="solicitudSeleccionada.actividad.tipo === 'CURSO' ? 'primary' : 'secondary'">
-                {{ solicitudSeleccionada.actividad.tipo }}
-              </Badge>
-            </div>
-            <div>
-              <p class="text-xs text-blue-600">Docente Solicitante</p>
-              <p class="font-medium text-gray-800">{{ solicitudSeleccionada.docente }}</p>
-            </div>
-            <div>
-              <p class="text-xs text-blue-600">Aprobados/Asistentes</p>
-              <p class="text-2xl font-bold text-green-600">{{ solicitudSeleccionada.cantidadAprobados }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Botones de acción -->
-        <div class="flex justify-between items-center pt-4 border-t">
-          <Button variant="outline" @click="closeSolicitudModal">
-            Cancelar
-          </Button>
-          <div class="flex space-x-3">
-            <Button
-              variant="outline"
-              @click="actualizarEstadoSolicitud('EN_PROCESO')"
-              :disabled="procesando"
-            >
-              {{ procesando ? 'Actualizando...' : 'Marcar en proceso' }}
-            </Button>
-            <Button
-              @click="actualizarEstadoSolicitud('COMPLETADO')"
-              :disabled="procesando"
-            >
-              {{ procesando ? 'Actualizando...' : 'Marcar completado' }}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </Modal>
 
     <!-- Modal Anular Certificado -->
     <Modal
@@ -426,15 +255,10 @@ import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil } from '@/utils/dateFormatter'
 // ============================================
 // TIPOS
 // ============================================
-
-interface Usuario {
-  nombres: string
-  apellidos: string
-  email: string
-}
 
 interface Actividad {
   nombre: string
@@ -443,18 +267,13 @@ interface Actividad {
   cargaHoraria: number
 }
 
-interface SolicitudEmision {
-  idSolicitud: number
-  actividad: Actividad
-  docente: string
-  cantidadAprobados: number
-  estado?: string
-  fechaSolicitud: string
-}
-
 interface Certificado {
   idCertificado: number
-  usuario: Usuario
+  usuario: {
+    nombres: string
+    apellidos: string
+    email: string
+  }
   actividad: Actividad
   tipo: 'APROBACION' | 'PARTICIPACION'
   version: number
@@ -469,13 +288,9 @@ interface Certificado {
 const loading = ref(false)
 const procesando = ref(false)
 
-const tabActiva = ref<'solicitudes' | 'certificados'>('solicitudes')
-
-const solicitudesPendientes = ref<SolicitudEmision[]>([])
 const certificados = ref<Certificado[]>([])
 
 const estadisticas = ref({
-  solicitudesPendientes: 0,
   certificadosEmitidos: 0,
   certificadosAnulados: 0,
   certificadosReemitidos: 0,
@@ -489,9 +304,7 @@ const filtrosCertificados = ref({
 })
 
 // Modales
-const showSolicitudModal = ref(false)
 const showAnularModal = ref(false)
-const solicitudSeleccionada = ref<SolicitudEmision | null>(null)
 const certificadoSeleccionado = ref<Certificado | null>(null)
 
 // Anulación
@@ -502,7 +315,19 @@ const motivoAnulacion = ref('')
 // ============================================
 
 const certificadosFiltrados = computed(() => {
-  let resultado = [...certificados.value]
+  const certificadosOrdenados = [...certificados.value].sort((a, b) => {
+    const fechaA = new Date(a.fechaEmision).getTime()
+    const fechaB = new Date(b.fechaEmision).getTime()
+
+    if (Number.isNaN(fechaA) && Number.isNaN(fechaB)) return b.idCertificado - a.idCertificado
+    if (Number.isNaN(fechaA)) return 1
+    if (Number.isNaN(fechaB)) return -1
+
+    const diferencia = fechaB - fechaA
+    return diferencia !== 0 ? diferencia : b.idCertificado - a.idCertificado
+  })
+
+  let resultado = [...certificadosOrdenados]
 
   if (filtrosCertificados.value.busqueda) {
     const busqueda = filtrosCertificados.value.busqueda.toLowerCase()
@@ -541,35 +366,13 @@ const {
 const cargarDatos = async () => {
   loading.value = true
   try {
-    await Promise.all([
-      cargarSolicitudes(),
-      cargarCertificados()
-    ])
+    await cargarCertificados()
     calcularEstadisticas()
   } catch (error) {
     console.error('Error al cargar datos:', error)
   } finally {
     loading.value = false
   }
-}
-
-const cargarSolicitudes = async () => {
-  const response = await api.get('/evaluaciones/solicitudes')
-  const items = response as Array<Record<string, unknown>>
-
-  solicitudesPendientes.value = items.map(item => ({
-    idSolicitud: Number(item.idSolicitud),
-    actividad: {
-      nombre: String(item.nombreActividad ?? ''),
-      tipo: 'CURSO',
-      carrera: '-',
-      cargaHoraria: 0
-    },
-    docente: String(item.nombreDocente ?? ''),
-    cantidadAprobados: Number(item.cantidadAprobados ?? 0),
-    estado: String(item.estado ?? 'PENDIENTE'),
-    fechaSolicitud: String(item.fechaSolicitud ?? '')
-  }))
 }
 
 const cargarCertificados = async () => {
@@ -607,35 +410,10 @@ const cargarCertificados = async () => {
 
 const calcularEstadisticas = () => {
   estadisticas.value = {
-    solicitudesPendientes: solicitudesPendientes.value.length,
     certificadosEmitidos: certificados.value.filter(c => c.estadoEmision === 'GENERADO').length,
     certificadosAnulados: certificados.value.filter(c => c.estadoEmision === 'ANULADO').length,
     certificadosReemitidos: certificados.value.filter(c => c.estadoEmision === 'REEMITIDO').length,
     totalCertificados: certificados.value.length
-  }
-}
-
-// ============================================
-// MÉTODOS - SOLICITUDES
-// ============================================
-
-const verSolicitud = async (solicitud: SolicitudEmision) => {
-  solicitudSeleccionada.value = solicitud
-  showSolicitudModal.value = true
-}
-
-const actualizarEstadoSolicitud = async (estado: 'EN_PROCESO' | 'COMPLETADO') => {
-  if (!solicitudSeleccionada.value) return
-
-  procesando.value = true
-  try {
-    await api.patch(`/evaluaciones/solicitudes/${solicitudSeleccionada.value.idSolicitud}?estado=${estado}`)
-    await cargarDatos()
-    closeSolicitudModal()
-  } catch (error) {
-    console.error('Error al actualizar solicitud:', error)
-  } finally {
-    procesando.value = false
   }
 }
 
@@ -709,11 +487,6 @@ const reemitirCertificado = async (certificado: Certificado) => {
 // MÉTODOS - MODALES
 // ============================================
 
-const closeSolicitudModal = () => {
-  showSolicitudModal.value = false
-  solicitudSeleccionada.value = null
-}
-
 const closeAnularModal = () => {
   showAnularModal.value = false
   certificadoSeleccionado.value = null
@@ -734,22 +507,7 @@ const limpiarFiltrosCertificados = () => {
 
 const formatDate = (date: string) => {
   if (!date) return '-'
-  return new Date(date).toLocaleDateString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
-}
-
-const formatDatetime = (datetime: string) => {
-  if (!datetime) return '-'
-  return new Date(datetime).toLocaleString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  return formatDateUtil(date, 'es-BO')
 }
 
 const getEstadoCertificadoBadge = (estado: string): 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'gray' => {

@@ -164,6 +164,7 @@ import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil } from '@/utils/dateFormatter'
 
 // ============================================
 // ESTADO
@@ -178,6 +179,8 @@ interface CertificadoItem {
   fecha_emision: string
   codigo_verificacion: string
   actividad_tipo: 'CURSO' | 'EVENTO'
+  version: number
+  actividad_id: string
 }
 
 const certificados = ref<CertificadoItem[]>([])
@@ -200,12 +203,7 @@ const certificadosEventos = computed(() =>
 // ============================================
 
 const formatDate = (dateString: string): string => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('es-ES', { 
-    day: 'numeric', 
-    month: 'long', 
-    year: 'numeric' 
-  })
+  return formatDateUtil(dateString, 'es-ES')
 }
 
 const descargarCertificado = (certificadoId: number) => {
@@ -236,31 +234,85 @@ const verificarCertificado = (codigo: string) => {
   window.open(`/verificar/${codigo}`, '_blank')
 }
 
+const getActividadId = (item: Record<string, unknown>): string => {
+  return String(
+    item.idActividad ??
+    item.actividadId ??
+    item.id_actividad ??
+    item.actividad_id ??
+    item.nombreActividad ??
+    ''
+  )
+}
+
+const getTimestamp = (dateString: string): number => {
+  const timestamp = new Date(dateString).getTime()
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+const esCertificadoMasReciente = (actual: CertificadoItem, candidato: CertificadoItem): boolean => {
+  if (candidato.version !== actual.version) {
+    return candidato.version > actual.version
+  }
+
+  const fechaActual = getTimestamp(actual.fecha_emision)
+  const fechaCandidato = getTimestamp(candidato.fecha_emision)
+
+  if (fechaCandidato !== fechaActual) {
+    return fechaCandidato > fechaActual
+  }
+
+  return candidato.id > actual.id
+}
+
+const obtenerUltimasVersiones = (items: CertificadoItem[]): CertificadoItem[] => {
+  const certificadosPorActividad = new Map<string, CertificadoItem>()
+
+  for (const item of items) {
+    const key = `${item.actividad_tipo}:${item.tipo}:${item.actividad_id}`
+    const actual = certificadosPorActividad.get(key)
+
+    if (!actual || esCertificadoMasReciente(actual, item)) {
+      certificadosPorActividad.set(key, item)
+    }
+  }
+
+  return Array.from(certificadosPorActividad.values()).sort((a, b) => {
+    const diferenciaFecha = getTimestamp(b.fecha_emision) - getTimestamp(a.fecha_emision)
+    return diferenciaFecha !== 0 ? diferenciaFecha : b.id - a.id
+  })
+}
+
 const cargarCertificados = async () => {
   loading.value = true
   try {
     const response = await api.get('/certificados/mis-certificados')
     const items = response as Array<Record<string, unknown>>
 
-    certificados.value = items
+    const certificadosNormalizados: CertificadoItem[] = items
       .filter(item => String(item.estadoEmision ?? '') !== 'ANULADO')
-      .map(item => {
+      .map((item): CertificadoItem => {
         const tipoActividad = String(item.tipoActividad ?? 'EVENTO') as 'CURSO' | 'EVENTO'
+        const tipoCertificado: CertificadoItem['tipo'] = tipoActividad === 'CURSO' ? 'APROBACION' : 'PARTICIPACION'
         const notaFinal = item.notaFinal !== undefined && item.notaFinal !== null
           ? Number(item.notaFinal)
           : null
 
         return {
           id: Number(item.idCertificado),
-          tipo: tipoActividad === 'CURSO' ? 'APROBACION' : 'PARTICIPACION',
+          tipo: tipoCertificado,
           nombre_actividad: String(item.nombreActividad ?? ''),
           carga_horaria: Number(item.cargaHoraria ?? 0),
           nota: notaFinal,
           fecha_emision: String(item.fechaEmision ?? ''),
           codigo_verificacion: String(item.codigoVerificacion ?? ''),
-          actividad_tipo: tipoActividad
+          actividad_tipo: tipoActividad,
+          version: Number(item.version ?? 1),
+          actividad_id: getActividadId(item)
         }
       })
+
+    certificados.value = obtenerUltimasVersiones(certificadosNormalizados)
   } catch (error) {
     console.error('Error al cargar certificados:', error)
     certificados.value = []

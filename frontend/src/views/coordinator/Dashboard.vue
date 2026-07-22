@@ -200,6 +200,7 @@ interface CursoDto {
   estado: string
   idDisenador?: number | null
   nombreDisenador?: string | null
+  duracion?: number | null
 }
 
 interface EventoDto {

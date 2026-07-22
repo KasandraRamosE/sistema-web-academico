@@ -69,6 +69,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil } from '@/utils/dateFormatter'
 
 interface VerificacionDto {
   estado: string
@@ -88,11 +89,7 @@ const data = ref<VerificacionDto | null>(null)
 
 const formatDate = (date?: string) => {
   if (!date) return '-'
-  return new Date(date).toLocaleDateString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
+  return formatDateUtil(date, 'es-BO')
 }
 
 const cargar = async () => {

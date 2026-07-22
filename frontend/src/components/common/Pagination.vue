@@ -1,10 +1,5 @@
 <template>
-  <!--
-    Componente de Paginación Reutilizable
-    Maneja la navegación entre páginas de datos
-  -->
   <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
-    <!-- Información de resultados (móvil) -->
     <div class="flex flex-1 justify-between sm:hidden">
       <button
         @click="goToPreviousPage"
@@ -32,9 +27,7 @@
       </button>
     </div>
 
-    <!-- Información de resultados y navegación (desktop) -->
     <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-      <!-- Info de resultados -->
       <div>
         <p class="text-sm text-gray-700">
           Mostrando
@@ -47,10 +40,8 @@
         </p>
       </div>
 
-      <!-- Navegación de páginas -->
       <div>
         <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-          <!-- Botón Anterior -->
           <button
             @click="goToPreviousPage"
             :disabled="currentPage === 1"
@@ -65,9 +56,7 @@
             </svg>
           </button>
 
-          <!-- Números de página -->
           <template v-for="page in visiblePages" :key="page">
-            <!-- Elipsis -->
             <span
               v-if="page === '...'"
               class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300"
@@ -75,7 +64,6 @@
               ...
             </span>
 
-            <!-- Número de página -->
             <button
               v-else
               @click="goToPage(page as number)"
@@ -90,7 +78,6 @@
             </button>
           </template>
 
-          <!-- Botón Siguiente -->
           <button
             @click="goToNextPage"
             :disabled="currentPage === totalPages"
@@ -108,7 +95,6 @@
       </div>
     </div>
 
-    <!-- Selector de items por página (opcional) -->
     <div v-if="showPageSizeSelector" class="ml-4">
       <select
         :value="pageSize"
@@ -126,10 +112,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-// ============================================
-// PROPS
-// ============================================
-
 interface Props {
   currentPage: number
   totalItems: number
@@ -146,46 +128,26 @@ const props = withDefaults(defineProps<Props>(), {
   pageSizeOptions: () => [10, 25, 50, 100]
 })
 
-// ============================================
-// EMITS
-// ============================================
-
 const emit = defineEmits<{
   'update:currentPage': [page: number]
   'update:pageSize': [size: number]
 }>()
 
-// ============================================
-// COMPUTED
-// ============================================
-
-/**
- * Calcula el número total de páginas
- */
 const totalPages = computed(() => {
   return Math.ceil(props.totalItems / props.pageSize)
 })
 
-/**
- * Calcula el índice del primer item en la página actual
- */
 const startItem = computed(() => {
   if (props.totalItems === 0) return 0
   return (props.currentPage - 1) * props.pageSize + 1
 })
 
-/**
- * Calcula el índice del último item en la página actual
- */
 const endItem = computed(() => {
   const end = props.currentPage * props.pageSize
   return end > props.totalItems ? props.totalItems : end
 })
 
-/**
- * Calcula qué páginas deben ser visibles en la paginación
- * Ejemplo: [1, 2, 3, '...', 10, 11, 12]
- */
+// Arma la lista de páginas a mostrar con elipsis, ej: [1, 2, 3, '...', 10, 11, 12]
 const visiblePages = computed(() => {
   const pages: (number | string)[] = []
   const total = totalPages.value
@@ -193,54 +155,38 @@ const visiblePages = computed(() => {
   const max = props.maxVisiblePages
 
   if (total <= max) {
-    // Si hay pocas páginas, mostrar todas
     for (let i = 1; i <= total; i++) {
       pages.push(i)
     }
   } else {
-    // Siempre mostrar la primera página
     pages.push(1)
 
-    // Calcular el rango de páginas alrededor de la actual
     const halfMax = Math.floor(max / 2)
     let start = Math.max(2, current - halfMax)
     let end = Math.min(total - 1, current + halfMax)
 
-    // Ajustar si estamos cerca del inicio
     if (current <= halfMax) {
       end = max - 1
     }
-
-    // Ajustar si estamos cerca del final
     if (current >= total - halfMax) {
       start = total - max + 2
     }
 
-    // Agregar elipsis al inicio si es necesario
     if (start > 2) {
       pages.push('...')
     }
-
-    // Agregar páginas del medio
     for (let i = start; i <= end; i++) {
       pages.push(i)
     }
-
-    // Agregar elipsis al final si es necesario
     if (end < total - 1) {
       pages.push('...')
     }
 
-    // Siempre mostrar la última página
     pages.push(total)
   }
 
   return pages
 })
-
-// ============================================
-// MÉTODOS
-// ============================================
 
 const goToPage = (page: number) => {
   if (page >= 1 && page <= totalPages.value && page !== props.currentPage) {
@@ -263,11 +209,6 @@ const goToNextPage = () => {
 const handlePageSizeChange = (event: Event) => {
   const newSize = parseInt((event.target as HTMLSelectElement).value)
   emit('update:pageSize', newSize)
-  // Resetear a la primera página cuando cambia el tamaño
   emit('update:currentPage', 1)
 }
 </script>
-
-<style scoped>
-/* Estilos adicionales si son necesarios */
-</style>

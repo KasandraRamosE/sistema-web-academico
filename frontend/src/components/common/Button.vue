@@ -1,15 +1,10 @@
 <template>
-  <!--
-    Componente Button reutilizable
-    Diferentes variantes, tamaños y estados
-  -->
   <button
     :type="type"
     :disabled="disabled || loading"
     :class="buttonClasses"
     @click="handleClick"
   >
-    <!-- Spinner de carga -->
     <span v-if="loading" class="mr-2">
       <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -17,17 +12,14 @@
       </svg>
     </span>
 
-    <!-- Icono izquierdo (opcional) -->
     <span v-if="iconLeft && !loading" class="mr-2">
       <slot name="icon-left"></slot>
     </span>
 
-    <!-- Texto del botón -->
     <span>
       <slot></slot>
     </span>
 
-    <!-- Icono derecho (opcional) -->
     <span v-if="iconRight && !loading" class="ml-2">
       <slot name="icon-right"></slot>
     </span>
@@ -37,9 +29,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-/**
- * Props del componente Button
- */
 interface ButtonProps {
   /** Variante visual del botón */
   variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'outline' | 'ghost'
@@ -59,7 +48,6 @@ interface ButtonProps {
   iconRight?: boolean
 }
 
-// Definir props con valores por defecto
 const props = withDefaults(defineProps<ButtonProps>(), {
   variant: 'primary',
   size: 'md',
@@ -71,40 +59,25 @@ const props = withDefaults(defineProps<ButtonProps>(), {
   iconRight: false
 })
 
-/**
- * Emits del componente
- */
 const emit = defineEmits<{
   click: [event: MouseEvent]
 }>()
 
-/**
- * Maneja el click del botón
- */
 const handleClick = (event: MouseEvent) => {
   if (!props.disabled && !props.loading) {
     emit('click', event)
   }
 }
 
-/**
- * Clases CSS computadas según las props
- */
 const buttonClasses = computed(() => {
   const classes = [
-    // Clases base
     'inline-flex items-center justify-center',
     'font-medium rounded-lg transition-all duration-200',
     'focus:outline-none focus:ring-2 focus:ring-offset-2',
-    
-    // Ancho completo
     props.fullWidth ? 'w-full' : '',
-    
-    // Estado deshabilitado o cargando
     (props.disabled || props.loading) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer',
   ]
 
-  // Tamaños
   const sizeClasses = {
     sm: 'px-3 py-1.5 text-sm',
     md: 'px-4 py-2 text-base',
@@ -112,7 +85,6 @@ const buttonClasses = computed(() => {
   }
   classes.push(sizeClasses[props.size])
 
-  // Variantes
   const variantClasses = {
     primary: [
       'bg-slate-900',
@@ -156,7 +128,3 @@ const buttonClasses = computed(() => {
   return classes.join(' ')
 })
 </script>
-
-<style scoped>
-/* Estilos adicionales si son necesarios */
-</style>

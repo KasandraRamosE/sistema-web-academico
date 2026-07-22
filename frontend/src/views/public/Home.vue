@@ -1,10 +1,5 @@
 <template>
-  <!--
-    Vista Home - Catálogo Público de Cursos y Eventos
-    Muestra todas las actividades disponibles con filtros
-  -->
   <div class="min-h-screen bg-gray-50">
-    <!-- Hero Section -->
     <section class="relative overflow-hidden text-white">
       <div class="absolute inset-0">
         <div
@@ -31,26 +26,20 @@
       </div>
     </section>
 
-    <!-- Contenido principal -->
     <section class="container mx-auto px-4 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
-        <!-- Sidebar con filtros (Desktop) -->
         <aside class="hidden lg:block lg:col-span-1">
           <div class="sticky top-24">
-            <ActivityFilters 
-              v-model="filters" 
+            <ActivityFilters
+              v-model="filters"
               :careers="careers"
             />
           </div>
         </aside>
 
-        <!-- Contenido principal -->
         <main class="lg:col-span-3">
-          
-          <!-- Botón de filtros (Mobile) -->
           <div class="lg:hidden mb-4">
-            <Button 
+            <Button
               variant="outline" 
               @click="showMobileFilters = true"
               class="w-full"
@@ -65,16 +54,14 @@
             </Button>
           </div>
 
-          <!-- Estadísticas -->
           <div class="mb-6 flex items-center justify-between">
             <div>
               <p class="text-sm text-gray-600">
-                Mostrando <span class="font-semibold text-gray-800">{{ filteredActivities.length }}</span> 
+                Mostrando <span class="font-semibold text-gray-800">{{ filteredActivities.length }}</span>
                 {{ filteredActivities.length === 1 ? 'actividad' : 'actividades' }}
               </p>
             </div>
-            
-            <!-- Ordenamiento -->
+
             <div class="flex items-center space-x-2">
               <label class="text-sm text-gray-600">Ordenar por:</label>
               <select
@@ -89,7 +76,6 @@
             </div>
           </div>
 
-          <!-- Grid de actividades -->
           <div v-if="sortedActivities.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <ActivityCard
               v-for="activity in sortedActivities"
@@ -99,7 +85,6 @@
             />
           </div>
 
-          <!-- Estado vacío -->
           <div v-else class="text-center py-16">
             <svg class="w-24 h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -118,17 +103,16 @@
       </div>
     </section>
 
-    <!-- Modal de filtros (Mobile) -->
-    <Modal 
-      v-model="showMobileFilters" 
+    <Modal
+      v-model="showMobileFilters"
       title="Filtros"
       size="md"
     >
-      <ActivityFilters 
-        v-model="filters" 
+      <ActivityFilters
+        v-model="filters"
         :careers="careers"
       />
-      
+
       <template #footer>
         <div class="flex space-x-2">
           <Button variant="outline" @click="showMobileFilters = false" class="flex-1">
@@ -154,31 +138,20 @@ import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
 import { filterActivities } from '@/utils/mockData'
 import { api } from '@/utils/api'
+import { parseLocalDate } from '@/utils/dateFormatter'
 import type { Actividad, FiltrosActividad } from '@/types'
 import bannerImage from '@/assets/images/banner.jpg'
 import defaultActivityImage from '@/assets/images/defecto.jpg'
 
-// ============================================
-// COMPOSABLES
-// ============================================
-
 const router = useRouter()
 
-// ============================================
-// ESTADO
-// ============================================
-
-/** Actividades disponibles */
 const activities = ref<Actividad[]>([])
 
 type Carrera = NonNullable<Actividad['carrera']>
 
-/** Carreras disponibles */
 const careers = ref<Carrera[]>([])
-
 const loading = ref(false)
 
-/** Filtros activos */
 const filters = ref<FiltrosActividad>({
   tipo: undefined,
   modalidad: undefined,
@@ -188,27 +161,13 @@ const filters = ref<FiltrosActividad>({
   solo_disponibles: false
 })
 
-/** Ordenamiento seleccionado */
 const sortBy = ref<'fecha_inicio' | 'nombre' | 'precio' | 'cupos'>('fecha_inicio')
-
-/** Control del modal mobile de filtros */
 const showMobileFilters = ref(false)
 
-
-// ============================================
-// COMPUTED
-// ============================================
-
-/**
- * Actividades filtradas según los filtros activos
- */
 const filteredActivities = computed(() => {
   return filterActivities(activities.value, filters.value)
 })
 
-/**
- * Actividades filtradas y ordenadas
- */
 const sortedActivities = computed(() => {
   const filtered = [...filteredActivities.value]
   
@@ -231,7 +190,7 @@ const sortedActivities = computed(() => {
     case 'fecha_inicio':
     default:
       return filtered.sort((a, b) => {
-        return new Date(a.fecha_inicio).getTime() - new Date(b.fecha_inicio).getTime()
+        return parseLocalDate(a.fecha_inicio).getTime() - parseLocalDate(b.fecha_inicio).getTime()
       })
   }
 })
@@ -240,9 +199,6 @@ const activityNames = computed(() =>
   activities.value.map(activity => activity.nombre).filter(Boolean)
 )
 
-/**
- * Verifica si hay filtros activos
- */
 const hasActiveFilters = computed(() => {
   return (
     filters.value.tipo !== undefined ||
@@ -254,9 +210,6 @@ const hasActiveFilters = computed(() => {
   )
 })
 
-/**
- * Cuenta los filtros activos
- */
 const activeFiltersCount = computed(() => {
   let count = 0
   if (filters.value.tipo) count++
@@ -268,13 +221,6 @@ const activeFiltersCount = computed(() => {
   return count
 })
 
-// ============================================
-// MÉTODOS
-// ============================================
-
-/**
- * Maneja el click en "Ver detalle"
- */
 const handleViewDetail = (activityId: number, tipo: 'CURSO' | 'EVENTO') => {
   router.push({
     name: 'activity-detail',
@@ -283,10 +229,6 @@ const handleViewDetail = (activityId: number, tipo: 'CURSO' | 'EVENTO') => {
   })
 }
 
-
-/**
- * Limpia todos los filtros
- */
 const clearFilters = () => {
   filters.value = {
     tipo: undefined,
@@ -298,16 +240,9 @@ const clearFilters = () => {
   }
 }
 
-/**
- * Aplica filtros y cierra modal mobile
- */
 const applyMobileFilters = () => {
   showMobileFilters.value = false
 }
-
-// ============================================
-// LIFECYCLE
-// ============================================
 
 const buildCarrera = (idCarrera: number, nombreCarrera: string) => {
   const encontrada = careers.value.find((c): c is Carrera => !!c && c.id_carrera === idCarrera)
@@ -379,7 +314,9 @@ const loadActivities = async () => {
         id_actividad: Number(curso.idCurso),
         tipo: 'CURSO' as const,
         nombre: String(curso.nombre ?? ''),
-        descripcion: String(curso.descripcion ?? ''),
+          descripcion: String(curso.descripcion ?? ''),
+          duracion: curso.duracion !== undefined && curso.duracion !== null ? Number(curso.duracion) : null,
+          unidad: curso.unidad ? (String(curso.unidad) as Actividad['unidad']) : null,
         carga_horaria: Number(curso.cargaHoraria ?? 0),
         modalidad: modalidad as Actividad['modalidad'],
         fecha_inicio: String(curso.fechaInicio ?? ''),
@@ -411,7 +348,9 @@ const loadActivities = async () => {
         id_actividad: Number(evento.idEvento),
         tipo: 'EVENTO' as const,
         nombre: String(evento.nombre ?? ''),
-        descripcion: String(evento.descripcion ?? ''),
+          descripcion: String(evento.descripcion ?? ''),
+          duracion: evento.duracion !== undefined && evento.duracion !== null ? Number(evento.duracion) : null,
+          unidad: evento.unidad ? (String(evento.unidad) as Actividad['unidad']) : null,
         carga_horaria: Number(evento.cargaHoraria ?? 0),
         modalidad: String(evento.modalidad ?? 'PRESENCIAL') as Actividad['modalidad'],
         fecha_inicio: fechaHora,
@@ -434,7 +373,7 @@ const loadActivities = async () => {
 
     const isFechaValida = (value: string) => {
       if (!value) return false
-      const date = new Date(value)
+      const date = parseLocalDate(value)
       date.setHours(0, 0, 0, 0)
       return date >= today
     }
@@ -466,7 +405,3 @@ onMounted(() => {
   loadActivities()
 })
 </script>
-
-<style scoped>
-/* Estilos adicionales si son necesarios */
-</style>

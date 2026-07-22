@@ -1,12 +1,7 @@
 <template>
-        <!-- 
-    Vista de Login
-    Permite login con diferentes roles (MOCK para desarrollo)
-  -->
   <div class="relative">
     <div class="absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-300/30 via-transparent to-emerald-300/30 blur-2xl"></div>
     <div class="relative bg-white/95 border border-white/60 rounded-3xl shadow-2xl p-8 backdrop-blur">
-      <!-- Logo/Titulo -->
       <div class="flex items-center gap-4 mb-6">
         <div class="w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-amber-300/50 bg-white shadow-lg">
           <img :src="logo" alt="Logo FHCE" class="w-full h-full object-cover" />
@@ -17,19 +12,23 @@
           <p class="text-sm text-slate-500">Accede a tu espacio de cursos</p>
         </div>
       </div>
+      <div class="mb-4">
+        <p class="text-sm text-slate-500">Si eres usuario UMSA, puedes acceder con tus credenciales UMSA.</p>
+      </div>
 
-      <!-- Formulario -->
       <form class="space-y-4" @submit.prevent="handleLogin">
         <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Usuario (o RU)</label>
           <input
             v-model="username"
             type="text"
             autocomplete="username"
-            placeholder="Tu usuario"
+            placeholder="Tu usuario o RU"
+            maxlength="50"
             :disabled="isSubmitting"
             class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
           />
+          
         </div>
 
         <div>
@@ -40,6 +39,7 @@
               :type="showPassword ? 'text' : 'password'"
               autocomplete="current-password"
               placeholder="Tu contrasena"
+              maxlength="72"
               :disabled="isSubmitting"
               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-amber-400 focus:border-transparent transition pr-10"
             />
@@ -65,7 +65,7 @@
         <button
           type="submit"
           :disabled="isSubmitting"
-          class="w-full bg-slate-900 text-white py-2.5 rounded-xl font-semibold shadow-lg shadow-slate-900/20 transition flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          class="w-full bg-blue-400 hover:bg-blue-300 text-white py-2.5 rounded-xl font-semibold shadow-md transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <svg v-if="isSubmitting" class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4" />
@@ -104,10 +104,6 @@ import { useRouter } from 'vue-router'
 import type { Rol } from '@/types'
 import logo from '@/assets/images/logo.jpg'
 
-// ============================================
-// ESTADO
-// ============================================
-
 const auth = useAuthStore()
 const router = useRouter()
 
@@ -117,13 +113,6 @@ const errorMessage = ref('')
 const showPassword = ref(false)
 const isSubmitting = ref(false)
 
-// ============================================
-// MÉTODOS
-// ============================================
-
-/**
- * Maneja el login con credenciales
- */
 const handleLogin = async () => {
   if (isSubmitting.value) return
   errorMessage.value = ''
@@ -151,9 +140,6 @@ const handleLogin = async () => {
   isSubmitting.value = false
 }
 
-/**
- * Redirige al dashboard según el rol
- */
 const redirectToDashboard = () => {
   const currentRole = auth.currentRole
   
@@ -164,6 +150,13 @@ const redirectToDashboard = () => {
     'PARTICIPANTE': '/participante',
     'AUXILIAR': '/auxiliar',
     'DISENADOR': '/disenador'
+  }
+
+  if (currentRole === 'AUXILIAR') {
+    router.push(auth.hasRole('PARTICIPANTE')
+      ? { name: 'participant-home' }
+      : { name: 'auxiliary-events' })
+    return
   }
   
   const route = currentRole ? routes[currentRole] : '/'

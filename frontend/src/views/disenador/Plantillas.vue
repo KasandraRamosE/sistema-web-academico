@@ -226,7 +226,7 @@
           <div v-else-if="actividadDetalle" class="mt-3 grid gap-3 md:grid-cols-2 text-sm text-slate-700">
             <div class="md:col-span-2">
               <p class="text-xs uppercase tracking-wide text-slate-500">Descripcion</p>
-              <p class="text-sm text-slate-700">{{ actividadDetalle.descripcion || '-' }}</p>
+              <p class="text-sm text-slate-700 whitespace-pre-line">{{ actividadDetalle.descripcion || '-' }}</p>
             </div>
             <div>
               <p class="text-xs uppercase tracking-wide text-slate-500">Modalidad</p>
@@ -271,6 +271,7 @@ import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
 import { api } from '@/utils/api'
+import { formatDateTime as formatDateTimeUtil } from '@/utils/dateFormatter'
 import { useAlertStore } from '@/stores/alert.store'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -708,13 +709,7 @@ const estadoRevisionHint = (estado: string) => {
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return '-'
-  return new Date(value).toLocaleString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  return formatDateTimeUtil(value, 'es-BO')
 }
 
 const buildActividadAsignada = (tipo: 'CURSO' | 'EVENTO', item: ActividadItem): ActividadAsignada => {

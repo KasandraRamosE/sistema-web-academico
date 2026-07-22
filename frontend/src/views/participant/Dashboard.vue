@@ -1,10 +1,5 @@
 <template>
-  <!--
-    Dashboard del Participante
-    Resumen general de inscripciones, certificados y actividad reciente
-  -->
   <div class="space-y-8">
-    <!-- Encabezado de bienvenida -->
     <div class="bg-gradient-to-r from-purple-600 to-blue-500 rounded-lg p-8 text-white">
       <h1 class="text-3xl font-bold mb-2">
         ¡Bienvenido, {{ authStore.user?.nombres }}!
@@ -14,9 +9,7 @@
       </p>
     </div>
 
-    <!-- Tarjetas de estadísticas -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-      <!-- Inscripciones activas -->
       <Card>
         <div class="text-center">
           <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -29,7 +22,6 @@
         </div>
       </Card>
 
-      <!-- Cursos completados -->
       <Card>
         <div class="text-center">
           <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -42,7 +34,6 @@
         </div>
       </Card>
 
-      <!-- Certificados obtenidos -->
       <Card>
         <div class="text-center">
           <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -55,7 +46,6 @@
         </div>
       </Card>
 
-      <!-- Horas acumuladas -->
       <Card>
         <div class="text-center">
           <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -69,7 +59,6 @@
       </Card>
     </div>
 
-    <!-- Mis inscripciones activas -->
     <div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-2xl font-bold text-gray-800">Mis Inscripciones Activas</h2>
@@ -87,7 +76,6 @@
           :hoverable="true"
         >
           <div class="space-y-3">
-            <!-- Header -->
             <div class="flex items-start justify-between">
               <div class="flex-1">
                 <Badge :variant="inscripcion.tipo === 'CURSO' ? 'primary' : 'secondary'" size="sm">
@@ -99,7 +87,6 @@
               </div>
             </div>
 
-            <!-- Información -->
             <div class="space-y-2 text-sm text-gray-600">
               <div class="flex items-center space-x-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -115,7 +102,6 @@
               </div>
             </div>
 
-            <!-- Progreso (solo para cursos) -->
             <div v-if="inscripcion.tipo === 'CURSO'" class="pt-3 border-t border-gray-200">
               <div class="flex items-center justify-between text-sm mb-2">
                 <span class="text-gray-600">Progreso</span>
@@ -132,7 +118,6 @@
         </Card>
       </div>
 
-      <!-- Estado vacío -->
       <Card v-else>
         <div class="text-center py-8">
           <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,7 +133,6 @@
       </Card>
     </div>
 
-    <!-- Certificados recientes -->
     <div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-2xl font-bold text-gray-800">Certificados Recientes</h2>
@@ -184,7 +168,6 @@
         </Card>
       </div>
 
-      <!-- Estado vacío -->
       <Card v-else>
         <div class="text-center py-8">
           <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,10 +186,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
-
-// ============================================
-// COMPOSABLES
-// ============================================
+import { formatDate as formatDateUtil } from '@/utils/dateFormatter'
 
 const authStore = useAuthStore()
 
@@ -214,7 +194,6 @@ const authStore = useAuthStore()
 // ESTADO
 // ============================================
 
-/** Estadísticas del participante */
 const stats = ref({
   inscripcionesActivas: 3,
   cursosCompletados: 5,
@@ -272,25 +251,9 @@ const certificadosRecientes = ref([
   }
 ])
 
-// ============================================
-// MÉTODOS
-// ============================================
-
-/**
- * Formatea una fecha
- */
 const formatDate = (dateString: string): string => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('es-ES', { 
-    day: 'numeric', 
-    month: 'short', 
-    year: 'numeric' 
-  })
+  return formatDateUtil(dateString, 'es-ES')
 }
-
-// ============================================
-// LIFECYCLE
-// ============================================
 
 onMounted(() => {
   console.log('✅ Dashboard de participante cargado')

@@ -1,16 +1,10 @@
-// ============================================
-// TIPOS DE ENUMS Y CONSTANTES
-// ============================================
-
 /**
- * Tipo de usuario en el sistema
  * INTERNO: Usuarios de la UMSA (autenticación con SIA)
  * EXTERNO: Usuarios externos que se registran en el sistema
  */
 export type TipoUsuario = 'INTERNO' | 'EXTERNO';
 
 /**
- * Roles disponibles en el sistema
  * - ADMINISTRADOR: Acceso total al sistema
  * - COORDINADOR: Gestión de cursos de su carrera
  * - DOCENTE: Registro de calificaciones y confirmación
@@ -27,34 +21,19 @@ export type Rol =
   | 'DISENADOR';
 
 /**
- * Tipo de actividad académica
  * CURSO: Curso complementario con calificaciones
  * EVENTO: Evento facultativo con asistencia
  */
 export type TipoActividad = 'CURSO' | 'EVENTO';
 
-/**
- * Modalidad de la actividad
- */
 export type Modalidad = 'PRESENCIAL' | 'VIRTUAL' | 'MIXTO';
 
-/**
- * Estado de la actividad
- */
 export type EstadoActividad = 'ABIERTO' | 'LLENO' | 'FINALIZADO';
 
-/**
- * Estado de inscripción
- */
+export type UnidadDuracion = 'días' | 'semanas' | 'meses';
+
 export type EstadoInscripcion = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA';
 
-// ============================================
-// INTERFACES DE USUARIO Y AUTENTICACIÓN
-// ============================================
-
-/**
- * Interface del usuario en el sistema
- */
 export interface Usuario {
   id_usuario: number;
   username: string; // RU para UMSA, username para externos
@@ -68,17 +47,11 @@ export interface Usuario {
   fecha_registro: string;
 }
 
-/**
- * Interface para el login
- */
 export interface LoginCredentials {
   username: string;
   password: string;
 }
 
-/**
- * Interface para registro de usuarios externos
- */
 export interface RegisterData {
   username: string;
   nombres: string;
@@ -88,21 +61,11 @@ export interface RegisterData {
   password_confirmacion: string;
 }
 
-/**
- * Interface para la respuesta de autenticación
- */
 export interface AuthResponse {
   token: string;
   usuario: Usuario;
 }
 
-// ============================================
-// INTERFACES DE ACTIVIDADES (CURSOS/EVENTOS)
-// ============================================
-
-/**
- * Interface de Carrera
- */
 export interface Carrera {
   id_carrera: number;
   nombre: string;
@@ -111,7 +74,6 @@ export interface Carrera {
 }
 
 /**
- * Interface de Actividad (Curso o Evento)
  * Esta es la información que se mostrará en el catálogo público
  */
 export interface Actividad {
@@ -119,33 +81,29 @@ export interface Actividad {
   tipo: TipoActividad;
   nombre: string;
   descripcion: string;
-  carga_horaria: number; // Horas académicas
+  carga_horaria: number;
+  duracion?: number | null;
+  unidad?: UnidadDuracion | null;
   modalidad: Modalidad;
   fecha_inicio: string; // Formato ISO: "2024-01-15"
   fecha_fin: string;
   cupo_maximo: number;
   cupos_disponibles: number; // Calculado: cupo_maximo - inscritos
   
-  // Precios diferenciados
-  costo_externo: number; // Precio para usuarios externos
-  costo_umsa: number; // Precio preferencial para UMSA
+  costo_externo: number;
+  costo_umsa: number;
   es_gratuito: boolean;
   
   nota_minima_aprobacion?: number; // Solo para cursos
   estado: EstadoActividad;
-  carrera?: Carrera; // Información de la carrera
+  carrera?: Carrera;
   
-  // Imagen y ubicación
   imagen?: string; // URL de la imagen (por defecto si no está disponible)
-  lugar?: string | null; // Ubicación del curso/evento
+  lugar?: string | null;
   
   fecha_creacion: string;
 }
 
-/**
- * Interface para mostrar el precio según el tipo de usuario
- * Útil para el frontend
- */
 export interface PrecioActividad {
   actividad_id: number;
   precio_a_pagar: number; // El precio que le corresponde al usuario actual
@@ -153,13 +111,6 @@ export interface PrecioActividad {
   es_gratuito: boolean;
 }
 
-// ============================================
-// INTERFACES DE INSCRIPCIÓN
-// ============================================
-
-/**
- * Interface de Inscripción
- */
 export interface Inscripcion {
   id_inscripcion: number;
   usuario: Usuario;
@@ -170,39 +121,22 @@ export interface Inscripcion {
   estado: EstadoInscripcion;
 }
 
-// ============================================
-// INTERFACES PARA FILTROS Y BÚSQUEDA
-// ============================================
-
-/**
- * Interface para filtros del catálogo
- */
 export interface FiltrosActividad {
   tipo?: TipoActividad;
   modalidad?: Modalidad;
   carrera_id?: number;
-  busqueda?: string; // Búsqueda por nombre
+  busqueda?: string;
   solo_gratuitos?: boolean;
-  solo_disponibles?: boolean; // Solo con cupos disponibles
+  solo_disponibles?: boolean;
 }
 
-// ============================================
-// INTERFACES DE ESTADO DE LA APLICACIÓN
-// ============================================
-
-/**
- * Interface para el estado de autenticación
- */
 export interface AuthState {
   isAuthenticated: boolean;
   user: Usuario | null;
   token: string | null;
-  currentRole: Rol | null; // Rol activo actual (para cambio de rol)
+  currentRole: Rol | null;
 }
 
-/**
- * Interface para mensajes de alerta/notificación
- */
 export interface AlertMessage {
   type: 'success' | 'error' | 'warning' | 'info';
   message: string;

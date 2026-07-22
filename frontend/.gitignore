@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Defensa por si vue-tsc vuelve a emitir en el lugar (ver noEmit en tsconfig.json):
+# .js/.js.map compilados al lado de cada .ts/.vue fuente nunca deben versionarse.
+src/**/*.vue.js
+src/**/*.vue.js.map
+src/**/*.js.map
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

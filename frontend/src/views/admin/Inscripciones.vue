@@ -402,7 +402,9 @@
               </div>
               <div>
                 <p class="text-xs text-gray-600">Estado de Pago</p>
-                <Badge variant="success">APROBADO</Badge>
+                <Badge :variant="inscripcionSeleccionada.estadoPago === 'APROBADO' ? 'success' : 'warning'">
+                  {{ inscripcionSeleccionada.estadoPago || (inscripcionSeleccionada.estado === 'CONFIRMADA' ? 'APROBADO' : 'PENDIENTE') }}
+                </Badge>
               </div>
               <div>
                 <p class="text-xs text-gray-600">Fecha de Inscripción</p>
@@ -457,6 +459,7 @@ import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil } from '@/utils/dateFormatter'
 
 // ============================================
 // TIPOS CORREGIDOS
@@ -492,6 +495,7 @@ interface Inscripcion {
   montoPagado: number
   fechaInscripcion: string
   estado: 'CONFIRMADA' | 'PENDIENTE' | 'CANCELADA'
+  estadoPago?: string
 }
 
 interface Carrera {
@@ -685,7 +689,8 @@ const cargarDatos = async () => {
         tipoPrecio,
         montoPagado: saldo,
         fechaInscripcion: String(item.fechaInscripcion ?? ''),
-        estado: String(item.estado ?? 'PENDIENTE') as Inscripcion['estado']
+        estado: String(item.estado ?? 'PENDIENTE') as Inscripcion['estado'],
+        estadoPago: String(item.estadoPago ?? '') || undefined
       }
       
     }
@@ -796,22 +801,12 @@ const limpiarFiltros = () => {
 
 const formatDate = (date: string) => {
   if (!date) return '-'
-  return new Date(date).toLocaleDateString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
+  return formatDateUtil(date, 'es-BO')
 }
 
 const formatDatetime = (datetime: string) => {
   if (!datetime) return '-'
-  return new Date(datetime).toLocaleString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  return formatDateTimeUtil(datetime, 'es-BO')
 }
 
 const getEstadoBadge = (estado: string): 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'gray' => {

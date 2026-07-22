@@ -9,6 +9,7 @@ plantillas/
 # Node
 frontend/node_modules/
 frontend/dist/
+frontend/tsconfig.tsbuildinfo
 
 # IDEs
 .idea/

@@ -70,8 +70,8 @@
               <td class="px-4 py-3 text-slate-600">{{ evento.nombreCarrera }}</td>
               <td class="px-4 py-3 text-slate-600">{{ formatFecha(evento.fechaHora) }}</td>
               <td class="px-4 py-3">
-                <Badge :variant="evento.estado === 'ABIERTO' ? 'success' : 'gray'" size="sm">
-                  {{ evento.estado }}
+                <Badge :variant="getEstadoMostrado(evento) === 'ABIERTO' ? 'success' : 'gray'" size="sm">
+                  {{ getEstadoMostrado(evento) }}
                 </Badge>
               </td>
               <td class="px-4 py-3 text-right">
@@ -274,15 +274,24 @@
               :key="auxiliar.idUsuario"
               class="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm"
             >
-              <span class="font-medium text-slate-900">
-                {{ auxiliar.nombres }} {{ auxiliar.apellidos }}
-              </span>
-              <span class="text-xs text-slate-500">{{ auxiliar.username }}</span>
+              <div>
+                <span class="font-medium text-slate-900">
+                  {{ auxiliar.nombres }} {{ auxiliar.apellidos }}
+                </span>
+                <span class="ml-2 text-xs text-slate-500">{{ auxiliar.username }}</span>
+              </div>
+              <button
+                type="button"
+                class="rounded-md px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50"
+                @click="removeAuxiliar(auxiliar)"
+              >
+                Quitar
+              </button>
             </div>
           </div>
         </div>
         <div>
-          <label class="mb-1 block text-sm font-medium text-slate-700">Buscar auxiliar</label>
+          <label class="mb-1 block text-sm font-medium text-slate-700">Buscar auxiliares</label>
           <input
             v-model="auxiliarSearch"
             type="text"
@@ -295,15 +304,24 @@
               :key="persona.idUsuario"
               type="button"
               class="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition"
-              :class="selectedAuxiliar?.idUsuario === persona.idUsuario
+              :class="selectedAuxiliarIds.includes(persona.idUsuario)
                 ? 'border-emerald-400 bg-emerald-50'
                 : 'border-transparent hover:bg-slate-50'"
               @click="selectAuxiliar(persona)"
             >
-              <span>
+              <div class="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  :checked="selectedAuxiliarIds.includes(persona.idUsuario)"
+                  @change="toggleAuxiliarSelection(persona)"
+                  @click.stop
+                />
+                <span>
                 <span class="font-medium text-slate-900">{{ persona.nombres }} {{ persona.apellidos }}</span>
                 <span class="ml-2 text-xs text-slate-500">{{ persona.username }}</span>
-              </span>
+                </span>
+              </div>
               <span class="text-xs text-slate-500">
                 {{ persona.roles.includes('AUXILIAR') ? 'Auxiliar' : 'Participante' }}
               </span>
@@ -318,10 +336,14 @@
           <p class="mt-1 text-xs text-slate-500">
             Si seleccionas a un participante, se le asignara el rol AUXILIAR.
           </p>
+          <p v-if="selectedAuxiliarIds.length > 0" class="mt-1 text-xs font-medium text-emerald-700">
+            {{ selectedAuxiliarIds.length }} auxiliar(es) seleccionados.
+          </p>
         </div>
         <div class="flex justify-end gap-2">
           <Button variant="outline" @click="closeAuxiliaresModal">Cancelar</Button>
-          <Button :loading="savingAuxiliar" @click="assignAuxiliar">Asignar</Button>
+          <Button variant="outline" :loading="savingAuxiliar" @click="clearAuxiliarSelection">Limpiar</Button>
+          <Button :loading="savingAuxiliar" @click="assignAuxiliar">Asignar seleccionados</Button>
         </div>
       </div>
     </Modal>
@@ -352,6 +374,7 @@ import Badge from '@/components/common/Badge.vue'
 import Button from '@/components/common/Button.vue'
 import Modal from '@/components/common/Modal.vue'
 import { api } from '@/utils/api'
+import { formatDateTime, parseLocalDate } from '@/utils/dateFormatter'
 import { useAlertStore } from '@/stores/alert.store'
 
 interface CarreraDto {
@@ -430,18 +453,27 @@ const formEvento = ref({
 const showAuxiliaresModal = ref(false)
 const selectedEvento = ref<EventoDto | null>(null)
 const auxiliarSearch = ref('')
-const selectedAuxiliar = ref<ParticipanteDto | null>(null)
+const selectedAuxiliarIds = ref<number[]>([])
 const savingAuxiliar = ref(false)
 const loadingAuxiliaresAsignados = ref(false)
+const loadingAuxiliaresData = ref(false)
+const auxiliaresDataReady = ref(false)
 const showDeleteModal = ref(false)
 const deleting = ref(false)
 const eventoToDelete = ref<EventoDto | null>(null)
+
+const getEstadoMostrado = (evento: EventoDto) => {
+  if (evento.fechaHora && parseLocalDate(evento.fechaHora).getTime() < Date.now()) {
+    return 'FINALIZADO'
+  }
+  return evento.estado
+}
 
 const eventosFiltrados = computed(() => {
   const term = searchTerm.value.trim().toLowerCase()
   return eventos.value.filter(evento => {
     if (selectedCarreraId.value && evento.idCarrera !== selectedCarreraId.value) return false
-    if (estadoFiltro.value && evento.estado !== estadoFiltro.value) return false
+    if (estadoFiltro.value && getEstadoMostrado(evento) !== estadoFiltro.value) return false
     if (term && !evento.nombre.toLowerCase().includes(term)) return false
     return true
   })
@@ -450,6 +482,8 @@ const eventosFiltrados = computed(() => {
 const auxiliaresFiltrados = computed(() => {
   const term = auxiliarSearch.value.trim().toLowerCase()
   if (!term) return []
+
+  const assignedIds = new Set(auxiliaresAsignados.value.map(auxiliar => auxiliar.idUsuario))
 
   const merged = new Map<number, ParticipanteDto>()
   auxiliares.value.forEach(auxiliar => merged.set(auxiliar.idUsuario, auxiliar))
@@ -460,6 +494,7 @@ const auxiliaresFiltrados = computed(() => {
   })
 
   return Array.from(merged.values()).filter(persona => {
+    if (assignedIds.has(persona.idUsuario)) return false
     const fullName = `${persona.nombres} ${persona.apellidos}`.toLowerCase()
     return fullName.includes(term) || persona.username.toLowerCase().includes(term)
   })
@@ -548,8 +583,20 @@ const loadParticipantes = async () => {
   participantes.value = response
 }
 
+const ensureAuxiliaresData = async () => {
+  if (auxiliaresDataReady.value || loadingAuxiliaresData.value) return
+
+  loadingAuxiliaresData.value = true
+  try {
+    await Promise.all([loadAuxiliares(), loadParticipantes()])
+    auxiliaresDataReady.value = true
+  } finally {
+    loadingAuxiliaresData.value = false
+  }
+}
+
 const loadAll = async () => {
-  await Promise.all([loadCarreras(), loadEventos(), loadAuxiliares(), loadParticipantes()])
+  await Promise.all([loadCarreras(), loadEventos()])
 }
 
 const openCreateEvento = () => {
@@ -707,12 +754,21 @@ const uploadEventoImagen = async () => {
   return String(data?.url ?? '')
 }
 
-const openAuxiliares = (evento: EventoDto) => {
-  selectedEvento.value = evento
-  auxiliarSearch.value = ''
-  selectedAuxiliar.value = null
-  loadAuxiliaresAsignados()
-  showAuxiliaresModal.value = true
+const openAuxiliares = async (evento: EventoDto) => {
+  try {
+    await ensureAuxiliaresData()
+
+    selectedEvento.value = evento
+    auxiliarSearch.value = ''
+    selectedAuxiliarIds.value = []
+    await loadAuxiliaresAsignados()
+    showAuxiliaresModal.value = true
+  } catch (error) {
+    alertStore.push({
+      type: 'error',
+      message: (error as Error).message || 'No se pudo cargar la lista de auxiliares.'
+    })
+  }
 }
 
 const confirmDeleteEvento = (evento: EventoDto) => {
@@ -728,33 +784,140 @@ const closeDeleteModal = () => {
 const closeAuxiliaresModal = () => {
   showAuxiliaresModal.value = false
   selectedEvento.value = null
-  selectedAuxiliar.value = null
+  selectedAuxiliarIds.value = []
   auxiliarSearch.value = ''
   auxiliaresAsignados.value = []
 }
 
 const selectAuxiliar = (persona: ParticipanteDto) => {
-  selectedAuxiliar.value = persona
+  toggleAuxiliarSelection(persona)
 }
 
-const assignAuxiliar = async () => {
-  if (!selectedEvento.value || !selectedAuxiliar.value) return
+const toggleAuxiliarSelection = (persona: ParticipanteDto) => {
+  if (selectedAuxiliarIds.value.includes(persona.idUsuario)) {
+    selectedAuxiliarIds.value = selectedAuxiliarIds.value.filter(id => id !== persona.idUsuario)
+  } else {
+    selectedAuxiliarIds.value = [...selectedAuxiliarIds.value, persona.idUsuario]
+  }
+}
+
+const clearAuxiliarSelection = () => {
+  selectedAuxiliarIds.value = []
+}
+
+const removeAuxiliar = async (auxiliar: AuxiliarDto) => {
+  if (!selectedEvento.value) return
 
   savingAuxiliar.value = true
   try {
-    if (!selectedAuxiliar.value.roles.includes('AUXILIAR')) {
-      await api.post(`/usuarios/${selectedAuxiliar.value.idUsuario}/roles`, {
-        nombreRol: 'AUXILIAR'
+    await api.delete(`/eventos/${selectedEvento.value.idEvento}/auxiliares/${auxiliar.idUsuario}`)
+    alertStore.push({ type: 'success', message: 'Auxiliar removido del evento.' })
+    // remove from local list immediately
+    auxiliaresAsignados.value = auxiliaresAsignados.value.filter(a => a.idUsuario !== auxiliar.idUsuario)
+    await loadAuxiliaresAsignados()
+  } catch (error) {
+    const err = error as any
+    if (err?.status === 404) {
+      // already removed; sync list
+      auxiliaresAsignados.value = auxiliaresAsignados.value.filter(a => a.idUsuario !== auxiliar.idUsuario)
+      alertStore.push({ type: 'warning', message: 'El auxiliar ya no estaba asignado.' })
+      await loadAuxiliaresAsignados()
+    } else {
+      alertStore.push({ type: 'error', message: (error as Error).message || 'No se pudo quitar el auxiliar.' })
+    }
+  } finally {
+    savingAuxiliar.value = false
+  }
+}
+
+const assignAuxiliar = async () => {
+  if (!selectedEvento.value || selectedAuxiliarIds.value.length === 0) return
+
+  savingAuxiliar.value = true
+  try {
+    const eventoId = selectedEvento.value.idEvento
+    const selectedPersonas = [...selectedAuxiliarIds.value]
+    const auxiliarIds = new Set(auxiliares.value.map((auxiliar) => auxiliar.idUsuario))
+    const personasParaAsignar: AuxiliarDto[] = selectedPersonas
+      .map((idAuxiliar) => {
+        const auxiliarExistente = auxiliares.value.find((auxiliar) => auxiliar.idUsuario === idAuxiliar)
+        if (auxiliarExistente) return auxiliarExistente
+
+        const participante = participantes.value.find((persona) => persona.idUsuario === idAuxiliar)
+        if (!participante) return null
+
+        return {
+          idUsuario: participante.idUsuario,
+          username: participante.username,
+          nombres: participante.nombres,
+          apellidos: participante.apellidos,
+          roles: participante.roles.includes('AUXILIAR') ? participante.roles : [...participante.roles, 'AUXILIAR']
+        }
       })
+      .filter((persona): persona is AuxiliarDto => persona !== null)
+
+    const participantesNuevos = participantes.value.filter(
+      (persona) => selectedPersonas.includes(persona.idUsuario)
+        && !persona.roles.includes('AUXILIAR')
+        && !auxiliarIds.has(persona.idUsuario)
+    )
+
+    if (participantesNuevos.length > 0) {
+      await Promise.all(participantesNuevos.map(async (persona) => {
+        try {
+          await api.post(`/usuarios/${persona.idUsuario}/roles`, {
+            nombreRol: 'AUXILIAR'
+          })
+        } catch (error) {
+          if ((error as any).status !== 409) throw error
+        }
+      }))
       await Promise.all([loadAuxiliares(), loadParticipantes()])
     }
 
-    await api.post(`/eventos/${selectedEvento.value.idEvento}/auxiliares`, {
-      idAuxiliar: selectedAuxiliar.value.idUsuario
-    })
+    // Filter out ids that are already assigned locally to avoid sending duplicates
+    const toAssign = selectedPersonas.filter(id =>
+      !auxiliaresAsignados.value.some(a => a.idUsuario === id)
+    )
 
-    alertStore.push({ type: 'success', message: 'Auxiliar asignado.' })
-    closeAuxiliaresModal()
+    // Send requests per-id and collect results so we can show which failed
+    const results = await Promise.all(toAssign.map(async (idAuxiliar) => {
+      try {
+        await api.post(`/eventos/${eventoId}/auxiliares`, { idAuxiliar })
+        return { id: idAuxiliar, ok: true }
+      } catch (err) {
+        return { id: idAuxiliar, ok: false, status: (err as any).status, message: (err as Error).message }
+      }
+    }))
+
+    const succeededIds = results.filter(r => r.ok).map(r => r.id)
+    const failed = results.filter(r => !r.ok)
+
+    // Optimistic update: add successfully assigned personas to the local list
+    const currentAssigned = new Map<number, AuxiliarDto>()
+    auxiliaresAsignados.value.forEach((auxiliar) => {
+      currentAssigned.set(auxiliar.idUsuario, auxiliar)
+    })
+    personasParaAsignar.forEach((persona) => {
+      if (succeededIds.includes(persona.idUsuario)) {
+        currentAssigned.set(persona.idUsuario, persona)
+      }
+    })
+    auxiliaresAsignados.value = Array.from(currentAssigned.values())
+
+    // Feedback: show success or partial failure
+    if (failed.length === 0) {
+      alertStore.push({ type: 'success', message: 'Auxiliar(es) asignado(s).' })
+    } else if (succeededIds.length > 0) {
+      alertStore.push({ type: 'warning', message: `${succeededIds.length} asignados, ${failed.length} fallaron.` })
+    } else {
+      alertStore.push({ type: 'error', message: 'No se pudo asignar ninguno de los auxiliares seleccionados.' })
+    }
+
+    // Clear selections and refresh assigned list to be safe
+    selectedAuxiliarIds.value = []
+    auxiliarSearch.value = ''
+    await loadAuxiliaresAsignados()
   } catch (error) {
     alertStore.push({ type: 'error', message: (error as Error).message || 'No se pudo asignar el auxiliar.' })
   } finally {
@@ -780,10 +943,17 @@ const deleteEvento = async () => {
 
 const formatFecha = (value: string) => {
   if (!value) return '-'
-  return new Date(value).toLocaleString()
+  return formatDateTime(value)
 }
 
-onMounted(() => {
-  loadAll()
+onMounted(async () => {
+  try {
+    await loadAll()
+  } catch (error) {
+    alertStore.push({
+      type: 'error',
+      message: (error as Error).message || 'No se pudo cargar la pantalla de eventos.'
+    })
+  }
 })
 </script>

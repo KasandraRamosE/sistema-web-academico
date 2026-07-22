@@ -1,14 +1,4 @@
-
-/**
- * Datos mock para desarrollo
- * Simulan cursos y eventos de la base de datos
- */
-
 import type { Actividad, Carrera } from '@/types'
-
-// ============================================
-// CARRERAS MOCK
-// ============================================
 
 export const mockCareers: Carrera[] = [
   {
@@ -43,12 +33,7 @@ export const mockCareers: Carrera[] = [
   }
 ]
 
-// ============================================
-// ACTIVIDADES MOCK (CURSOS Y EVENTOS)
-// ============================================
-
 export const mockActivities: Actividad[] = [
-  // CURSOS COMPLEMENTARIOS
   {
     id_actividad: 1,
     tipo: 'CURSO',
@@ -144,8 +129,6 @@ export const mockActivities: Actividad[] = [
     carrera: mockCareers[4],
     fecha_creacion: '2025-01-25T15:45:00'
   },
-
-  // EVENTOS FACULTATIVOS
   {
     id_actividad: 6,
     tipo: 'EVENTO',
@@ -237,9 +220,6 @@ export const mockActivities: Actividad[] = [
   }
 ]
 
-/**
- * Función helper para filtrar actividades
- */
 export const filterActivities = (
   activities: Actividad[],
   filters: {
@@ -252,28 +232,19 @@ export const filterActivities = (
   }
 ): Actividad[] => {
   return activities.filter(activity => {
-    // Filtrar por tipo
     if (filters.tipo && activity.tipo !== filters.tipo) return false
-
-    // Filtrar por modalidad
     if (filters.modalidad && activity.modalidad !== filters.modalidad) return false
-
-    // Filtrar por carrera
     if (filters.carrera_id && activity.carrera?.id_carrera !== filters.carrera_id) return false
 
-    // Filtrar por búsqueda (nombre o descripción)
     if (filters.busqueda) {
       const searchLower = filters.busqueda.toLowerCase()
-      const matchesSearch = 
+      const matchesSearch =
         activity.nombre.toLowerCase().includes(searchLower) ||
         activity.descripcion.toLowerCase().includes(searchLower)
       if (!matchesSearch) return false
     }
 
-    // Filtrar solo gratuitos
     if (filters.solo_gratuitos && !activity.es_gratuito) return false
-
-    // Filtrar solo con cupos disponibles
     if (filters.solo_disponibles && activity.cupos_disponibles === 0) return false
 
     return true

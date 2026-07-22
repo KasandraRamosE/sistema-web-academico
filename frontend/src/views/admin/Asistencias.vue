@@ -312,6 +312,7 @@ import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil } from '@/utils/dateFormatter'
 
 // ============================================
 // TIPOS
@@ -559,22 +560,12 @@ const closeEditModal = () => {
 
 const formatDate = (date: string) => {
   if (!date) return '-'
-  return new Date(date).toLocaleDateString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
+  return formatDateUtil(date, 'es-BO')
 }
 
 const formatDatetime = (datetime: string) => {
   if (!datetime) return '-'
-  return new Date(datetime).toLocaleString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  return formatDateTimeUtil(datetime, 'es-BO')
 }
 
 // ============================================

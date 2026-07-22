@@ -11,8 +11,10 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-// Inicializar autenticación
+// Inicializar autenticación — se espera antes de montar para que los
+// guards del router ya tengan el estado final (logueado o no) en la
+// primera navegación, en vez de decidir con datos a medio cargar.
 const authStore = useAuthStore()
-authStore.initializeAuth()
-
-app.mount('#app')
+authStore.initializeAuth().finally(() => {
+  app.mount('#app')
+})

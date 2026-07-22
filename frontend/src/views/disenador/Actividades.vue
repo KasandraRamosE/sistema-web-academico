@@ -67,6 +67,7 @@
 import { computed, onMounted, ref } from 'vue'
 import Card from '@/components/common/Card.vue'
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil } from '@/utils/dateFormatter'
 import { useAuthStore } from '@/stores/auth.store'
 
 interface ActividadItem {
@@ -127,11 +128,7 @@ const cargarActividades = async () => {
 
 const formatDate = (date: string) => {
   if (!date) return '-'
-  return new Date(date).toLocaleDateString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
+  return formatDateUtil(date, 'es-BO')
 }
 
 onMounted(() => {

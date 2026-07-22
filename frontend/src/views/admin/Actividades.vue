@@ -191,8 +191,15 @@
               <!-- Fechas -->
               <td class="px-4 py-3 text-sm text-gray-600">
                 <div class="text-xs">
-                  <p>{{ formatDate(actividad.fechaInicio) }}</p>
-                  <p class="text-gray-500">{{ formatDate(actividad.fechaFin) }}</p>
+                  <template v-if="actividad.tipo === 'EVENTO'">
+                    <p>{{ formatDateTime(actividad.fechaInicio) }}</p>
+                  </template>
+                  <template v-else>
+                    <p>{{ formatDate(actividad.fechaInicio) }}</p>
+                    <p v-if="actividad.fechaFin && actividad.fechaFin !== actividad.fechaInicio" class="text-gray-500">
+                      {{ formatDate(actividad.fechaFin) }}
+                    </p>
+                  </template>
                 </div>
               </td>
 
@@ -231,8 +238,8 @@
 
               <!-- Estado -->
               <td class="px-4 py-3">
-                <Badge :variant="getEstadoBadge(actividad.estado)" size="sm">
-                  {{ actividad.estado }}
+                <Badge :variant="getEstadoBadge(getEstadoMostrado(actividad))" size="sm">
+                  {{ getEstadoMostrado(actividad) }}
                 </Badge>
               </td>
 
@@ -603,6 +610,7 @@ import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil, parseLocalDate } from '@/utils/dateFormatter'
 import { useAlertStore } from '@/stores/alert.store'
 // ============================================
 // TIPOS
@@ -716,7 +724,7 @@ const actividadesFiltradas = computed(() => {
   }
 
   if (filtros.value.estado) {
-    resultado = resultado.filter(a => a.estado === filtros.value.estado)
+    resultado = resultado.filter(a => getEstadoMostrado(a) === filtros.value.estado)
   }
 
   if (filtros.value.carrera) {
@@ -832,12 +840,13 @@ const cargarDatos = async () => {
 }
 
 const calcularEstadisticas = () => {
+  const estadosMostrados = actividades.value.map(actividad => getEstadoMostrado(actividad))
   estadisticas.value = {
     total: actividades.value.length,
     cursos: actividades.value.filter(a => a.tipo === 'CURSO').length,
     eventos: actividades.value.filter(a => a.tipo === 'EVENTO').length,
-    abiertos: actividades.value.filter(a => a.estado === 'ABIERTO').length,
-    finalizados: actividades.value.filter(a => a.estado === 'FINALIZADO').length
+    abiertos: estadosMostrados.filter(estado => estado === 'ABIERTO').length,
+    finalizados: estadosMostrados.filter(estado => estado === 'FINALIZADO').length
   }
 }
 
@@ -1021,11 +1030,22 @@ const limpiarFiltros = () => {
 
 const formatDate = (date: string) => {
   if (!date) return '-'
-  return new Date(date).toLocaleDateString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
+  return formatDateUtil(date, 'es-BO')
+}
+
+const formatDateTime = (date: string) => {
+  if (!date) return '-'
+  return formatDateTimeUtil(date, 'es-BO')
+}
+
+const isEventoFinalizadoPorFecha = (actividad: Actividad) => {
+  if (actividad.tipo !== 'EVENTO' || !actividad.fechaInicio) return false
+  return parseLocalDate(actividad.fechaInicio).getTime() < Date.now()
+}
+
+const getEstadoMostrado = (actividad: Actividad): Actividad['estado'] => {
+  if (isEventoFinalizadoPorFecha(actividad)) return 'FINALIZADO'
+  return actividad.estado
 }
 
 const toDateInput = (value: string) => {

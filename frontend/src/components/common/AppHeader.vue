@@ -1,15 +1,8 @@
 <template>
-  <!-- 
-    Header principal del sistema
-    - Responsive: En mobile se convierte en menú hamburguesa
-    - Muestra diferentes opciones según el estado de autenticación
-    - Permite cambiar de rol si el usuario tiene múltiples roles (excepto DISENADOR)
-  -->
+  <!-- El selector de rol no aparece para DISENADOR aunque tenga varios roles -->
   <header class="bg-white shadow-md sticky top-0 z-50">
     <nav class="container mx-auto px-4 py-4">
       <div class="flex items-center justify-between">
-        
-        <!-- Logo y nombre del sistema -->
         <router-link to="/" class="flex items-center space-x-3 hover:opacity-80 transition">
           <div class="w-11 h-11 rounded-lg overflow-hidden ring-2 ring-emerald-500/30 bg-white">
             <img :src="logo" alt="Logo FHCE" class="w-full h-full object-cover" />
@@ -24,19 +17,16 @@
           </div>
         </router-link>
 
-        <!-- Navegación Desktop -->
         <div class="hidden md:flex items-center space-x-6">
-          <!-- Links públicos (solo si NO está autenticado) -->
           <template v-if="!authStore.isAuthenticated">
-            <router-link 
-              to="/" 
+            <router-link
+              to="/"
               class="text-gray-700 hover:text-purple-600 transition-colors font-medium"
             >
               Inicio
             </router-link>
           </template>
 
-          <!-- Links para PARTICIPANTE (o cualquier usuario autenticado que quiera navegar como participante) -->
           <template v-if="authStore.isAuthenticated && authStore.currentRole === 'PARTICIPANTE'">
             <router-link 
               to="/participante" 
@@ -58,7 +48,6 @@
             </router-link>
           </template>
           
-          <!-- Si el usuario NO está autenticado -->
           <div v-if="!authStore.isAuthenticated" class="flex items-center space-x-3">
             <router-link 
               to="/auth/login" 
@@ -74,11 +63,8 @@
             </router-link>
           </div>
 
-          <!-- Si el usuario SÍ está autenticado -->
           <div v-else class="flex items-center space-x-4">
-            
-            <!-- Selector de Rol (solo si tiene más de un rol y no es DISENADOR) -->
-            <div 
+            <div
               v-if="canChangeRole" 
               class="relative"
               ref="roleMenuRef"
@@ -98,8 +84,7 @@
                 </svg>
               </button>
 
-              <!-- Menú desplegable de roles -->
-              <div 
+              <div
                 v-if="showRoleMenu" 
                 class="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2"
               >
@@ -128,14 +113,12 @@
               </div>
             </div>
 
-            <!-- Nombre del usuario -->
             <div class="text-right">
               <p class="text-sm font-semibold text-gray-800">
                 {{ authStore.fullName }}
               </p>
             </div>
 
-            <!-- Botón de perfil (solo para participante) -->
             <router-link
               v-if="authStore.currentRole === 'PARTICIPANTE'"
               to="/participante/perfil"
@@ -147,7 +130,6 @@
               </svg>
             </router-link>
 
-            <!-- Botón de cerrar sesión -->
             <button
               @click="handleLogout"
               class="text-gray-600 hover:text-red-600 transition-colors"
@@ -160,8 +142,7 @@
           </div>
         </div>
 
-        <!-- Botón hamburguesa (Mobile) -->
-        <button 
+        <button
           @click="toggleMobileMenu"
           class="md:hidden text-gray-700 focus:outline-none"
         >
@@ -184,15 +165,13 @@
         </button>
       </div>
 
-      <!-- Menú Mobile -->
-      <div 
+      <div
         v-if="showMobileMenu" 
         class="md:hidden mt-4 pb-4 border-t border-gray-200 pt-4 space-y-3"
       >
-        <!-- Links de navegación (si NO está autenticado) -->
         <template v-if="!authStore.isAuthenticated">
-          <router-link 
-            to="/" 
+          <router-link
+            to="/"
             class="block text-gray-700 hover:text-purple-600 transition-colors font-medium py-2"
             @click="closeMobileMenu"
           >
@@ -200,7 +179,6 @@
           </router-link>
         </template>
 
-        <!-- Links para PARTICIPANTE -->
         <template v-if="authStore.isAuthenticated && authStore.currentRole === 'PARTICIPANTE'">
           <router-link 
             to="/participante" 
@@ -231,8 +209,7 @@
             Mi Perfil
           </router-link>
         </template>
-        
-        <!-- Si NO está autenticado -->
+
         <div v-if="!authStore.isAuthenticated" class="space-y-2 pt-2">
           <router-link 
             to="/auth/login" 
@@ -250,16 +227,13 @@
           </router-link>
         </div>
 
-        <!-- Si SÍ está autenticado -->
         <div v-else class="space-y-3 pt-2 border-t border-gray-200">
-          <!-- Info del usuario -->
           <div class="text-sm">
             <p class="font-semibold text-gray-800">
               {{ authStore.fullName }}
             </p>
           </div>
-          
-          <!-- Selector de rol en mobile -->
+
           <div v-if="canChangeRole" class="space-y-2">
             <p class="text-xs text-gray-500 font-semibold uppercase">Cambiar Rol</p>
             <button
@@ -277,7 +251,6 @@
             </button>
           </div>
 
-          <!-- Botón cerrar sesión -->
           <button
             @click="handleLogout"
             class="w-full text-center bg-red-50 text-red-600 px-4 py-2 rounded-lg hover:bg-red-100 transition-colors font-medium"
@@ -297,50 +270,19 @@ import { useAuthStore } from '@/stores/auth.store'
 import logo from '@/assets/images/logo.jpg'
 import type { Rol } from '@/types'
 
-// ============================================
-// COMPOSABLES
-// ============================================
-
 const router = useRouter()
 const authStore = useAuthStore()
 
-// ============================================
-// ESTADO LOCAL
-// ============================================
-
-/** Control del menú mobile */
 const showMobileMenu = ref(false)
-
-/** Control del menú de roles */
 const showRoleMenu = ref(false)
-
-/** Referencia al menú de roles para cerrar al hacer click fuera */
+// Para detectar clicks fuera del menú y cerrarlo (ver handleClickOutside)
 const roleMenuRef = ref<HTMLElement | null>(null)
 
-// ============================================
-// COMPUTED
-// ============================================
-
-/**
- * Verifica si el usuario puede cambiar de rol
- * Solo si tiene más de un rol
- */
 const canChangeRole = computed(() => {
   if (!authStore.user) return false
-  
-  const roles = authStore.availableRoles
-  
-  // Solo puede cambiar si tiene más de un rol
-  return roles.length > 1
+  return authStore.availableRoles.length > 1
 })
 
-// ============================================
-// MÉTODOS
-// ============================================
-
-/**
- * Abre/cierra el menú mobile
- */
 const toggleMobileMenu = () => {
   showMobileMenu.value = !showMobileMenu.value
   if (showMobileMenu.value) {
@@ -348,61 +290,41 @@ const toggleMobileMenu = () => {
   }
 }
 
-/**
- * Cierra el menú mobile
- */
 const closeMobileMenu = () => {
   showMobileMenu.value = false
 }
 
-/**
- * Abre/cierra el menú de selección de roles
- */
 const toggleRoleMenu = () => {
   showRoleMenu.value = !showRoleMenu.value
 }
 
-/**
- * Cambia el rol activo del usuario
- */
 const handleChangeRole = (role: Rol) => {
   const success = authStore.changeRole(role)
-  
+
   if (success) {
     showRoleMenu.value = false
     showMobileMenu.value = false
-    
-    // Redirigir al dashboard correspondiente
     redirectToDashboard(role)
   }
 }
 
-/**
- * Redirige al dashboard según el rol
- */
 const redirectToDashboard = (role: Rol) => {
   const routes: Record<Rol, string> = {
     'ADMINISTRADOR': '/admin',
     'COORDINADOR': '/coordinador',
     'DOCENTE': '/docente',
     'PARTICIPANTE': '/participante',
-    'AUXILIAR': '/auxiliar',
+    'AUXILIAR': '/auxiliar/eventos',
     'DISENADOR': '/disenador'
   }
   
   router.push(routes[role] || '/')
 }
 
-/**
- * Obtiene el nombre legible del rol actual
- */
 const getCurrentRoleName = (): string => {
   return getRoleName(authStore.currentRole)
 }
 
-/**
- * Obtiene el nombre legible de un rol
- */
 const getRoleName = (role: Rol | null): string => {
   if (!role) return ''
   
@@ -418,42 +340,24 @@ const getRoleName = (role: Rol | null): string => {
   return roleNames[role] || role
 }
 
-/**
- * Cierra sesión del usuario
- */
 const handleLogout = () => {
   authStore.logout()
   showMobileMenu.value = false
   showRoleMenu.value = false
-  
-  // Redirigir al home
   router.push('/')
 }
 
-/**
- * Cierra el menú de roles al hacer click fuera
- */
 const handleClickOutside = (event: MouseEvent) => {
   if (roleMenuRef.value && !roleMenuRef.value.contains(event.target as Node)) {
     showRoleMenu.value = false
   }
 }
 
-// ============================================
-// LIFECYCLE
-// ============================================
-
 onMounted(() => {
-  // Escuchar clicks fuera del menú de roles
   document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
-  // Limpiar event listener
   document.removeEventListener('click', handleClickOutside)
 })
 </script>
-
-<style scoped>
-/* Estilos adicionales si son necesarios */
-</style>

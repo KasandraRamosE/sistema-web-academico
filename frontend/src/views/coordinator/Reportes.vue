@@ -108,6 +108,9 @@
           <h3 class="text-lg font-semibold text-slate-900">Actividades academicas</h3>
           <p class="text-sm text-slate-500">Cursos y eventos con inscritos confirmados.</p>
         </div>
+            <div>
+              <Button size="sm" variant="outline" :loading="downloadingAcademicos" @click="downloadAcademicosPdf">Descargar PDF</Button>
+            </div>
       </div>
       <div v-if="loading" class="py-8 text-center text-sm text-slate-500">Cargando reportes...</div>
       <div v-else-if="academicosFiltrados.length === 0" class="py-8 text-center text-sm text-slate-500">Sin datos.</div>
@@ -219,6 +222,9 @@
           <h3 class="text-lg font-semibold text-slate-900">Ingresos por actividad</h3>
           <p class="text-sm text-slate-500">Desglose UMSA y externo.</p>
         </div>
+        <div>
+          <Button size="sm" variant="outline" :loading="downloadingFinancieros" @click="downloadFinancierosPdf">Descargar PDF</Button>
+        </div>
       </div>
       <div v-if="loading" class="py-8 text-center text-sm text-slate-500">Cargando reportes...</div>
       <div v-else-if="finanzasFiltradas.length === 0" class="py-8 text-center text-sm text-slate-500">Sin datos.</div>
@@ -271,6 +277,7 @@ import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil } from '@/utils/dateFormatter'
 
 interface CarreraDto {
   idCarrera: number
@@ -392,7 +399,66 @@ const buildQueryParams = () => {
   if (filters.value.desde) params.set('desde', filters.value.desde)
   if (filters.value.hasta) params.set('hasta', filters.value.hasta)
   if (filters.value.carreraId) params.set('idCarrera', String(filters.value.carreraId))
+  if (filters.value.tipo) params.set('tipo', String(filters.value.tipo))
+  if (filters.value.buscar) params.set('buscar', String(filters.value.buscar))
   return params
+}
+
+const downloadingAcademicos = ref(false)
+const downloadingFinancieros = ref(false)
+
+const downloadBlob = async (url: string, fileName: string, setLoading: (v: boolean) => void) => {
+  setLoading(true)
+  try {
+    const token = localStorage.getItem('token')
+    const res = await fetch(url, { method: 'GET', headers: token ? { Authorization: `Bearer ${token}` } : undefined })
+    if (!res.ok) throw new Error(res.statusText || 'Error al generar PDF')
+    const contentType = res.headers.get('content-type') || ''
+    const arrayBuffer = await res.arrayBuffer()
+    const signature = new TextDecoder().decode(arrayBuffer.slice(0, 5))
+    if (!contentType.toLowerCase().includes('application/pdf') || signature !== '%PDF-') {
+      const preview = new TextDecoder().decode(arrayBuffer.slice(0, 300)).trim()
+      throw new Error(
+        `La respuesta no es un PDF válido. ${contentType ? `Content-Type: ${contentType}.` : ''} `
+        + `${preview ? `Respuesta: ${preview}` : 'Verifica tu sesión o la configuración del endpoint.'}`
+      )
+    }
+    const pdfBlob = new Blob([arrayBuffer], { type: 'application/pdf' })
+    if (pdfBlob.size === 0) throw new Error('El PDF generado está vacío.')
+    const blobUrl = URL.createObjectURL(pdfBlob)
+    const win = window.open(blobUrl, '_blank')
+    if (!win) {
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = fileName
+      a.click()
+    }
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
+  } catch (err) {
+    errorMessage.value = (err as Error).message || 'No se pudo descargar el PDF.'
+  } finally {
+    setLoading(false)
+  }
+}
+
+const downloadAcademicosPdf = async () => {
+  const params = buildQueryParams().toString()
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+  const resolvedBaseUrl = baseUrl.startsWith('http')
+    ? baseUrl
+    : `http://localhost:8080${baseUrl.startsWith('/') ? '' : '/'}${baseUrl}`
+  const url = `${resolvedBaseUrl}/reportes/academicos/pdf${params ? `?${params}` : ''}`
+  await downloadBlob(url, `reporte-academico.pdf`, (v) => (downloadingAcademicos.value = v))
+}
+
+const downloadFinancierosPdf = async () => {
+  const params = buildQueryParams().toString()
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+  const resolvedBaseUrl = baseUrl.startsWith('http')
+    ? baseUrl
+    : `http://localhost:8080${baseUrl.startsWith('/') ? '' : '/'}${baseUrl}`
+  const url = `${resolvedBaseUrl}/reportes/financieros/coordinador/pdf${params ? `?${params}` : ''}`
+  await downloadBlob(url, `reporte-financiero.pdf`, (v) => (downloadingFinancieros.value = v))
 }
 
 const academicosFiltrados = computed(() => {
@@ -482,13 +548,7 @@ const setFinanzasPageSize = finanzasPagination.setPageSize
 
 const formatDate = (value: string) => {
   if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString('es-BO', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  })
+  return formatDateUtil(value, 'es-BO')
 }
 
 const formatCupo = (inscritos: number, cupoMaximo: number) => {

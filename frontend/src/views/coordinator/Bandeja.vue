@@ -18,9 +18,10 @@
         <div>
           <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Carrera</label>
           <select
-            v-model.number="selectedCarreraId"
+            v-model="selectedCarreraId"
             class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
           >
+            <option :value="null">Todas las carreras</option>
             <option v-if="carreras.length === 0" :value="null">Sin carreras</option>
             <option
               v-for="carrera in carreras"
@@ -201,6 +202,7 @@ interface CursoDto {
   idCarrera: number
   nombre: string
   estado: string
+  duracion?: number | null
 }
 
 interface EventoDto {
@@ -324,7 +326,6 @@ const filteredPlantillas = computed(() => {
 const loadCarreras = async () => {
   const response = await api.get('/coordinador/carreras') as CarreraDto[]
   carreras.value = response
-  selectedCarreraId.value = response[0]?.idCarrera ?? null
 }
 
 const loadCursos = async () => {

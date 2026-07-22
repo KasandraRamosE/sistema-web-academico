@@ -95,7 +95,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span>{{ formatDate(inscripcion.fecha_inicio) }} - {{ formatDate(inscripcion.fecha_fin) }}</span>
+                <span>{{ formatDate(inscripcion.fecha_inicio) }}</span>
               </div>
 
               <div class="flex items-center space-x-2">
@@ -173,6 +173,7 @@ import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil } from '@/utils/dateFormatter'
 
 // ============================================
 // COMPOSABLES
@@ -195,7 +196,7 @@ interface InscripcionItem {
   carga_horaria: number
   modalidad: string
   monto_pagado: number
-  estado: 'ACTIVO' | 'COMPLETADO' | 'CANCELADO'
+  estado: 'ACTIVO' | 'COMPLETADO' | 'CANCELADO' | 'PENDIENTE DE PAGO'
   nota: number | null
   certificado_disponible: boolean
   certificadoId?: number
@@ -247,12 +248,7 @@ const inscripcionesFiltradas = computed(() => {
 
 
 const formatDate = (dateString: string): string => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('es-ES', { 
-    day: 'numeric', 
-    month: 'short', 
-    year: 'numeric' 
-  })
+  return formatDateUtil(dateString, 'es-ES')
 }
 
 const getEstadoBadge = (estado: string) => {
@@ -261,6 +257,8 @@ const getEstadoBadge = (estado: string) => {
       return 'info'
     case 'COMPLETADO':
       return 'success'
+    case 'PENDIENTE DE PAGO':
+      return 'warning'
     case 'CANCELADO':
       return 'danger'
     default:
@@ -351,6 +349,8 @@ const cargarInscripciones = async () => {
       const notaFinal = certificado?.notaFinal !== undefined && certificado?.notaFinal !== null
         ? Number(certificado.notaFinal)
         : null
+      const estadoInscripcion = String(item.estado ?? 'PENDIENTE').toUpperCase()
+      const estadoPago = String(item.estadoPago ?? '').toUpperCase()
 
       let fechaInicio = ''
       let fechaFin = ''
@@ -379,10 +379,13 @@ const cargarInscripciones = async () => {
         modalidad = String(detalle.modalidad ?? '')
       }
 
-      const estadoInscripcion = String(item.estado ?? 'PENDIENTE')
       const estado = certificadoId
         ? 'COMPLETADO'
-        : (estadoInscripcion === 'CANCELADA' ? 'CANCELADO' : 'ACTIVO')
+        : (estadoInscripcion === 'CANCELADA'
+          ? 'CANCELADO'
+          : (estadoInscripcion === 'CONFIRMADA' || estadoPago === 'APROBADO'
+            ? 'ACTIVO'
+            : 'PENDIENTE DE PAGO'))
 
       return {
         id: Number(item.idInscripcion),

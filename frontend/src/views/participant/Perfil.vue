@@ -114,6 +114,21 @@
                   />
                 </div>
 
+                <!-- CI -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Carnet de Identidad <span class="text-red-500">*</span>
+                  </label>
+                  <input
+                    v-model="formData.ci"
+                    type="text"
+                    required
+                    :disabled="!modoEdicion"
+                    placeholder="Ej: 1234567 LP"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
+                  />
+                </div>
+
                 
               </div>
             </div>
@@ -304,6 +319,7 @@ const feedbackType = ref<'success' | 'error'>('success')
 interface PerfilResponse {
   idUsuario: number
   username: string
+  ci: string
   nombres: string
   apellidos: string
   email: string
@@ -322,6 +338,7 @@ interface CertificadoResponse {
 
 // Datos del formulario
 const formData = reactive({
+  ci: '',
   nombres: '',
   apellidos: '',
   email: ''
@@ -391,6 +408,7 @@ const cargarDatos = async () => {
   try {
     const response = await api.get('/usuarios/me') as PerfilResponse
     perfil.value = response
+    formData.ci = response.ci ?? ''
     formData.nombres = response.nombres
     formData.apellidos = response.apellidos
     formData.email = response.email
@@ -404,6 +422,7 @@ const cargarDatos = async () => {
     }
   } catch (error) {
     console.error('Error al cargar perfil:', error)
+    formData.ci = ''
     formData.nombres = authStore.user.nombres
     formData.apellidos = authStore.user.apellidos
     formData.email = ''
@@ -486,6 +505,7 @@ const guardarCambios = async () => {
     }
 
     const response = await api.put('/usuarios/me', {
+      ci: formData.ci,
       nombres: formData.nombres,
       apellidos: formData.apellidos
     }) as PerfilResponse
@@ -495,6 +515,7 @@ const guardarCambios = async () => {
     if (authStore.user) {
       authStore.updateUser({
         ...authStore.user,
+        ci: formData.ci,
         nombres: formData.nombres,
         apellidos: formData.apellidos
       })

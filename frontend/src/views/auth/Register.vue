@@ -1,155 +1,215 @@
 <template>
-  <div class="relative">
-    <div class="absolute inset-0 rounded-3xl bg-gradient-to-br from-emerald-300/25 via-transparent to-amber-300/25 blur-2xl"></div>
-    <div class="relative bg-white/95 border border-white/60 rounded-3xl shadow-2xl p-8 backdrop-blur">
-      <div class="flex items-center gap-4 mb-6">
-        <div class="w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-emerald-300/50 bg-white shadow-lg">
-          <img :src="logo" alt="Logo FHCE" class="w-full h-full object-cover" />
+  <!-- Contenedor centrado con ancho máximo -->
+  <div class="w-full flex justify-center px-4 py-8">
+    <div class="w-full max-w-md">
+
+      <!-- Tarjeta principal -->
+      <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+
+        <!-- Header -->
+        <div class="px-8 pt-8 pb-6 text-center border-b border-slate-100">
+          <div class="w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-emerald-200 shadow-md mx-auto mb-4">
+            <img :src="logo" alt="Logo FHCE" class="w-full h-full object-cover" />
+          </div>
+          <p class="text-xs uppercase tracking-widest text-emerald-600 font-medium mb-1">FHCE · Sistema de Eventos</p>
+          <h1 class="text-2xl font-bold text-slate-800">Crear cuenta</h1>
+          <p class="text-sm text-slate-500 mt-1">Completa los datos para registrarte</p>
         </div>
-        <div>
-          <p class="text-xs uppercase tracking-[0.2em] text-emerald-600">FHCE Cursos</p>
-          <h2 class="text-2xl font-bold text-slate-900">Crear Cuenta</h2>
-          <p class="text-sm text-slate-500">Registro de usuario externo</p>
-        </div>
+
+        <!-- Formulario -->
+        <form @submit.prevent="handleRegister" class="px-8 py-6 space-y-4">
+
+          <!-- Usuario + CI -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+                Usuario <span class="text-red-400">*</span>
+              </label>
+              <input
+                v-model="form.username"
+                type="text"
+                autocomplete="username"
+                minlength="4"
+                maxlength="50"
+                :disabled="isSubmitting"
+                placeholder="usuario.acceso"
+                class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent focus:bg-white transition disabled:opacity-50"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+                CI <span class="text-red-400">*</span>
+              </label>
+              <input
+                v-model="form.ci"
+                type="text"
+                autocomplete="off"
+                maxlength="20"
+                :disabled="isSubmitting"
+                placeholder="12345678"
+                class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent focus:bg-white transition disabled:opacity-50"
+              />
+            </div>
+          </div>
+
+          <!-- Nombres + Apellidos -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+                Nombres <span class="text-red-400">*</span>
+              </label>
+              <input
+                v-model="form.nombres"
+                type="text"
+                autocomplete="given-name"
+                maxlength="100"
+                :disabled="isSubmitting"
+                placeholder="Tus nombres"
+                class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent focus:bg-white transition disabled:opacity-50"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+                Apellidos <span class="text-red-400">*</span>
+              </label>
+              <input
+                v-model="form.apellidos"
+                type="text"
+                autocomplete="family-name"
+                maxlength="100"
+                :disabled="isSubmitting"
+                placeholder="Tus apellidos"
+                class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent focus:bg-white transition disabled:opacity-50"
+              />
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+              Correo electrónico <span class="text-red-400">*</span>
+            </label>
+            <input
+              v-model="form.email"
+              type="email"
+              autocomplete="email"
+              maxlength="120"
+              :disabled="isSubmitting"
+              placeholder="correo@ejemplo.com"
+              class="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent focus:bg-white transition disabled:opacity-50"
+            />
+          </div>
+
+          <!-- Contraseña + Confirmar -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+                Contraseña <span class="text-red-400">*</span>
+              </label>
+              <div class="relative">
+                <input
+                  v-model="form.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  autocomplete="new-password"
+                  minlength="8"
+                  maxlength="72"
+                  :disabled="isSubmitting"
+                  placeholder="Mín. 8 caracteres"
+                  class="w-full px-3 py-2.5 pr-9 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent focus:bg-white transition disabled:opacity-50"
+                />
+                <button
+                  type="button"
+                  :disabled="isSubmitting"
+                  @click="showPassword = !showPassword"
+                  :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                  class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-600 transition-colors"
+                >
+                  <svg v-if="!showPassword" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                  <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.27-2.944-9.543-7a9.965 9.965 0 012.472-4.111m3.168-2.225A9.956 9.956 0 0112 5c4.477 0 8.268 2.943 9.543 7a9.97 9.97 0 01-4.198 5.29M15 12a3 3 0 00-3-3"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1.5">
+                Confirmar <span class="text-red-400">*</span>
+              </label>
+              <div class="relative">
+                <input
+                  v-model="form.confirmPassword"
+                  :type="showConfirmPassword ? 'text' : 'password'"
+                  autocomplete="new-password"
+                  minlength="8"
+                  maxlength="72"
+                  :disabled="isSubmitting"
+                  placeholder="Repite la contraseña"
+                  class="w-full px-3 py-2.5 pr-9 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent focus:bg-white transition disabled:opacity-50"
+                />
+                <button
+                  type="button"
+                  :disabled="isSubmitting"
+                  @click="showConfirmPassword = !showConfirmPassword"
+                  :aria-label="showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                  class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-600 transition-colors"
+                >
+                  <svg v-if="!showConfirmPassword" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                  <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.27-2.944-9.543-7a9.965 9.965 0 012.472-4.111m3.168-2.225A9.956 9.956 0 0112 5c4.477 0 8.268 2.943 9.543 7a9.97 9.97 0 01-4.198 5.29M15 12a3 3 0 00-3-3"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensaje error / éxito -->
+          <div v-if="errorMessage || message" class="pt-1">
+            <p v-if="errorMessage" role="alert" class="flex items-start gap-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
+              <svg class="h-3.5 w-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              {{ errorMessage }}
+            </p>
+            <p v-if="message" role="status" class="flex items-start gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2.5">
+              <svg class="h-3.5 w-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              {{ message }}
+            </p>
+          </div>
+
+          <!-- Botón -->
+          <button
+            type="submit"
+            :disabled="isSubmitting"
+            class="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-[0.99] text-white py-3 rounded-lg font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+          >
+            <svg v-if="isSubmitting" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"/>
+              <path class="opacity-75" d="M4 12a8 8 0 018-8" stroke-width="4"/>
+            </svg>
+            {{ isSubmitting ? 'Enviando código...' : 'Crear mi cuenta' }}
+          </button>
+
+          <!-- Link login -->
+          <p class="text-center text-sm text-slate-500 pt-1">
+            ¿Ya tienes una cuenta?
+            <RouterLink to="/auth/login" class="text-emerald-600 hover:text-emerald-700 font-semibold transition-colors">
+              Inicia sesión
+            </RouterLink>
+          </p>
+
+        </form>
       </div>
 
-      <form class="space-y-4" @submit.prevent="handleRegister">
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
-          <input
-            v-model="form.username"
-            type="text"
-            autocomplete="username"
-            :disabled="isSubmitting"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
-            placeholder="Usuario de acceso"
-          />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Nombres</label>
-          <input
-            v-model="form.nombres"
-            type="text"
-            autocomplete="given-name"
-            :disabled="isSubmitting"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
-            placeholder="Tus nombres"
-          />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Apellidos</label>
-          <input
-            v-model="form.apellidos"
-            type="text"
-            autocomplete="family-name"
-            :disabled="isSubmitting"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
-            placeholder="Tus apellidos"
-          />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Email</label>
-          <input
-            v-model="form.email"
-            type="email"
-            autocomplete="email"
-            :disabled="isSubmitting"
-            class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition"
-            placeholder="correo@ejemplo.com"
-          />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
-          <div class="relative">
-            <input
-              v-model="form.password"
-              :type="showPassword ? 'text' : 'password'"
-              autocomplete="new-password"
-              :disabled="isSubmitting"
-              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition pr-10"
-              placeholder="Minimo 8 caracteres"
-            />
-            <button
-              type="button"
-              @click="showPassword = !showPassword"
-              :disabled="isSubmitting"
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              :aria-label="showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'"
-            >
-              <svg v-if="!showPassword" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.27-2.944-9.543-7a9.965 9.965 0 012.472-4.111m3.168-2.225A9.956 9.956 0 0112 5c4.477 0 8.268 2.943 9.543 7a9.97 9.97 0 01-4.198 5.29M15 12a3 3 0 00-3-3" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Confirmar contraseña</label>
-          <div class="relative">
-            <input
-              v-model="form.confirmPassword"
-              :type="showConfirmPassword ? 'text' : 'password'"
-              autocomplete="new-password"
-              :disabled="isSubmitting"
-              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white/80 focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition pr-10"
-              placeholder="Repite tu contraseña"
-            />
-            <button
-              type="button"
-              @click="showConfirmPassword = !showConfirmPassword"
-              :disabled="isSubmitting"
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              :aria-label="showConfirmPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'"
-            >
-              <svg v-if="!showConfirmPassword" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.27-2.944-9.543-7a9.965 9.965 0 012.472-4.111m3.168-2.225A9.956 9.956 0 0112 5c4.477 0 8.268 2.943 9.543 7a9.97 9.97 0 01-4.198 5.29M15 12a3 3 0 00-3-3" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          :disabled="isSubmitting"
-          class="w-full bg-slate-900 text-white py-2.5 rounded-xl font-semibold shadow-lg shadow-slate-900/20 transition flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-        >
-          <svg v-if="isSubmitting" class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4" />
-            <path class="opacity-75" d="M4 12a8 8 0 018-8" stroke-width="4" />
-          </svg>
-          {{ isSubmitting ? 'Enviando codigo...' : 'Registrarme' }}
-        </button>
-
-        <p v-if="message" class="text-sm text-emerald-600" role="status">
-          {{ message }}
-        </p>
-        <p v-if="errorMessage" class="text-sm text-red-600" role="status">
-          {{ errorMessage }}
-        </p>
-
-        <div class="text-center pt-2">
-          <router-link
-            to="/auth/login"
-            class="text-sm text-emerald-700 hover:text-emerald-800"
-          >
-            Ya tengo cuenta
-          </router-link>
-        </div>
-      </form>
     </div>
   </div>
 </template>
@@ -176,6 +236,7 @@ const errorMessage = ref('')
 
 const form = reactive({
   username: '',
+  ci: '',
   nombres: '',
   apellidos: '',
   email: '',
@@ -206,6 +267,11 @@ const handleRegister = async () => {
       return
     }
 
+    if (!form.ci.trim()) {
+      errorMessage.value = 'El CI es obligatorio'
+      return
+    }
+
     if (!/^[\w.\-]+$/i.test(trimmedUsername)) {
       errorMessage.value = 'El usuario solo puede tener letras, numeros, puntos o guiones'
       return
@@ -229,6 +295,7 @@ const handleRegister = async () => {
     isSubmitting.value = true
     const response = await auth.register({
       username: trimmedUsername,
+      ci: form.ci.trim(),
       nombres: trimmedNombres,
       apellidos: trimmedApellidos,
       email: trimmedEmail,

@@ -68,7 +68,7 @@
                 <p class="text-xs text-slate-500">{{ curso.cargaHoraria }} horas · Nota minima {{ curso.notaAprobacion }}</p>
               </td>
               <td class="px-4 py-3 text-slate-600">{{ curso.nombreCarrera }}</td>
-              <td class="px-4 py-3 text-slate-600">{{ curso.fechaInicio }}</td>
+              <td class="px-4 py-3 text-slate-600">{{ formatFechaInicio(curso.fechaInicio) }}</td>
               <td class="px-4 py-3">
                 <Badge :variant="curso.estado === 'ABIERTO' ? 'success' : 'gray'" size="sm">
                   {{ curso.estado }}
@@ -96,6 +96,9 @@
       @close="closeCursoModal"
     >
       <form class="space-y-4" @submit.prevent="saveCurso">
+        <div v-if="cursoFormError" class="rounded-lg border border-rose-200 bg-rose-50 p-4">
+          <p class="text-sm text-rose-700">{{ cursoFormError }}</p>
+        </div>
         <div>
           <label class="mb-1 block text-sm font-medium text-slate-700">Nombre</label>
           <input
@@ -173,6 +176,29 @@
             />
           </div>
           <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Duracion</label>
+            <input
+              v-model.number="formCurso.duracion"
+              type="number"
+              min="0"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Unidad</label>
+            <select
+              v-model="formCurso.unidad"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
+            >
+              <option :value="null">Seleccionar</option>
+              <option value="días">Días</option>
+              <option value="semanas">Semanas</option>
+              <option value="meses">Meses</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div>
             <label class="mb-1 block text-sm font-medium text-slate-700">Costo externo</label>
             <input
               v-model.number="formCurso.costoExterno"
@@ -195,28 +221,30 @@
             />
           </div>
         </div>
-        <div>
-          <label class="mb-1 block text-sm font-medium text-slate-700">Nota de aprobacion</label>
-          <input
-            v-model.number="formCurso.notaAprobacion"
-            type="number"
-            min="0"
-            max="100"
-            step="0.01"
-            required
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
-          />
-        </div>
-        <div>
-          <label class="mb-1 block text-sm font-medium text-slate-700">Estado</label>
-          <select
-            v-model="formCurso.estado"
-            class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
-          >
-            <option value="ABIERTO">Abierto</option>
-            <option value="LLENO">Lleno</option>
-            <option value="FINALIZADO">Finalizado</option>
-          </select>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Nota de aprobacion</label>
+            <input
+              v-model.number="formCurso.notaAprobacion"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              required
+              class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
+            />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Estado</label>
+            <select
+              v-model="formCurso.estado"
+              class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
+            >
+              <option value="ABIERTO">Abierto</option>
+              <option value="LLENO">Lleno</option>
+              <option value="FINALIZADO">Finalizado</option>
+            </select>
+          </div>
         </div>
         <div class="flex justify-end gap-2">
           <Button variant="outline" type="button" @click="closeCursoModal">Cancelar</Button>
@@ -288,6 +316,7 @@
       @close="closeParaleloModal"
     >
       <form v-if="paraleloCurso" class="space-y-4" @submit.prevent="saveParalelo">
+        
         <div>
           <label class="mb-1 block text-sm font-medium text-slate-700">Codigo</label>
           <input
@@ -304,9 +333,11 @@
             v-model="docenteSearch"
             type="text"
             placeholder="Buscar por nombre o username"
+            @input="handleDocenteSearchInput"
+            @focus="handleDocenteFocus"
             class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
           />
-          <div class="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-lg">
+          <div v-if="showDocenteResults && docentesFiltrados.length > 0" class="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-lg">
             <button
               v-for="persona in docentesFiltrados"
               :key="persona.idUsuario"
@@ -364,17 +395,18 @@
           </div>
         </div>
         <div>
-          <label class="mb-1 block text-sm font-medium text-slate-700">Horario</label>
+          <label class="mb-1 block text-sm font-medium text-slate-700">Lugar</label>
           <input
-            v-model="formParalelo.horarioDescripcion"
+            v-model="formParalelo.lugar"
             type="text"
+            placeholder="Aula, plataforma o dirección"
             class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
           />
         </div>
         <div>
-          <label class="mb-1 block text-sm font-medium text-slate-700">Lugar</label>
+          <label class="mb-1 block text-sm font-medium text-slate-700">Horario</label>
           <input
-            v-model="formParalelo.lugar"
+            v-model="formParalelo.horarioDescripcion"
             type="text"
             class="w-full rounded-lg border border-slate-200 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
           />
@@ -403,6 +435,7 @@ import Badge from '@/components/common/Badge.vue'
 import Button from '@/components/common/Button.vue'
 import Modal from '@/components/common/Modal.vue'
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil, parseLocalDate } from '@/utils/dateFormatter'
 import { useAlertStore } from '@/stores/alert.store'
 
 interface CarreraDto {
@@ -412,6 +445,7 @@ interface CarreraDto {
 
 interface ParaleloDto {
   codigo: string
+  idDocente: number | null
   modalidad: string
   cupoMaximo: number | null
   horarioDescripcion: string
@@ -428,6 +462,8 @@ interface CursoDto {
   descripcion: string
   imagen?: string | null
   cargaHoraria: number
+  duracion?: number | null
+  unidad?: 'días' | 'semanas' | 'meses' | null
   fechaInicio: string
   costoExterno: number
   costoUmsa: number
@@ -463,9 +499,11 @@ const saving = ref(false)
 const searchTerm = ref('')
 const estadoFiltro = ref('')
 const docenteSearch = ref('')
-const selectedDocente = ref<ParticipanteDto | null>(null)
+const selectedDocente = ref<ParticipanteDto | DocenteDto | null>(null)
 const tituloDocente = ref('')
 const docenteAssignError = ref('')
+const cursoFormError = ref('')
+const showDocenteResults = ref(false)
 
 const showCursoModal = ref(false)
 const editingCurso = ref<CursoDto | null>(null)
@@ -473,12 +511,27 @@ const editingEstado = ref('')
 const cursoImageInputRef = ref<HTMLInputElement | null>(null)
 const cursoImageFile = ref<File | null>(null)
 const cursoImagePreview = ref('')
-const formCurso = ref({
+const formCurso = ref<{
+  idCarrera: number
+  nombre: string
+  descripcion: string
+  imagen: string
+  cargaHoraria: number
+  duracion: number | null
+  unidad: 'días' | 'semanas' | 'meses' | null
+  fechaInicio: string
+  costoExterno: number
+  costoUmsa: number
+  notaAprobacion: number
+  estado: string
+}>({
   idCarrera: 0,
   nombre: '',
   descripcion: '',
   imagen: '',
   cargaHoraria: 1,
+  duracion: null,
+  unidad: null,
   fechaInicio: '',
   costoExterno: 0,
   costoUmsa: 0,
@@ -536,6 +589,19 @@ const docentesFiltrados = computed(() => {
   })
 })
 
+const findPersonaById = (idUsuario: number | null) => {
+  if (idUsuario == null) return null
+
+  const docente = docentes.value.find(persona => persona.idUsuario === idUsuario)
+  if (docente) return docente
+
+  return participantes.value.find(persona => persona.idUsuario === idUsuario) || null
+}
+
+const formatPersonaNombre = (persona: { nombres: string; apellidos: string }) => {
+  return `${persona.nombres} ${persona.apellidos}`.trim()
+}
+
 const loadCarreras = async () => {
   const response = await api.get('/coordinador/carreras') as CarreraDto[]
   carreras.value = response
@@ -569,12 +635,15 @@ const loadAll = async () => {
 const openCreateCurso = () => {
   editingCurso.value = null
   editingEstado.value = ''
+  cursoFormError.value = ''
   formCurso.value = {
     idCarrera: selectedCarreraId.value || carreras.value[0]?.idCarrera || 0,
     nombre: '',
     descripcion: '',
     imagen: '',
     cargaHoraria: 1,
+    duracion: null,
+    unidad: null,
     fechaInicio: '',
     costoExterno: 0,
     costoUmsa: 0,
@@ -589,12 +658,15 @@ const openCreateCurso = () => {
 const openEditCurso = (curso: CursoDto) => {
   editingCurso.value = curso
   editingEstado.value = curso.estado
+  cursoFormError.value = ''
   formCurso.value = {
     idCarrera: curso.idCarrera,
     nombre: curso.nombre,
     descripcion: curso.descripcion || '',
     imagen: curso.imagen || '',
     cargaHoraria: curso.cargaHoraria,
+    duracion: curso.duracion ?? null,
+    unidad: curso.unidad ? (String(curso.unidad) as 'días' | 'semanas' | 'meses') : null,
     fechaInicio: curso.fechaInicio,
     costoExterno: Number(curso.costoExterno || 0),
     costoUmsa: Number(curso.costoUmsa || 0),
@@ -614,19 +686,23 @@ const closeCursoModal = () => {
   showCursoModal.value = false
   editingCurso.value = null
   editingEstado.value = ''
+  cursoFormError.value = ''
   clearCursoImagePreview()
   cursoImageFile.value = null
 }
 
 const saveCurso = async () => {
-  if (editingCurso.value && formCurso.value.fechaInicio) {
-    const startDate = new Date(formCurso.value.fechaInicio)
+  cursoFormError.value = ''
+
+  if (formCurso.value.fechaInicio) {
+    const startDate = parseLocalDate(formCurso.value.fechaInicio)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     if (startDate < today) {
+      cursoFormError.value = 'La fecha de inicio no puede ser anterior al día de hoy.'
       alertStore.push({
         type: 'warning',
-        message: 'No se puede editar un curso con fecha de inicio en el pasado.'
+        message: cursoFormError.value
       })
       return
     }
@@ -650,6 +726,8 @@ const saveCurso = async () => {
         descripcion: formCurso.value.descripcion,
         imagen: imagenUrl,
         cargaHoraria: formCurso.value.cargaHoraria,
+        duracion: formCurso.value.duracion,
+        unidad: formCurso.value.unidad,
         fechaInicio: formCurso.value.fechaInicio,
         costoExterno: formCurso.value.costoExterno,
         costoUmsa: formCurso.value.costoUmsa,
@@ -665,7 +743,9 @@ const saveCurso = async () => {
         nombre: formCurso.value.nombre,
         descripcion: formCurso.value.descripcion,
         imagen: imagenUrl,
-        cargaHoraria: formCurso.value.cargaHoraria,
+          cargaHoraria: formCurso.value.cargaHoraria,
+          duracion: formCurso.value.duracion,
+          unidad: formCurso.value.unidad,
         fechaInicio: formCurso.value.fechaInicio,
         costoExterno: formCurso.value.costoExterno,
         costoUmsa: formCurso.value.costoUmsa,
@@ -791,6 +871,7 @@ const openCreateParalelo = (defaultCode: string | Event = '') => {
   selectedDocente.value = null
   tituloDocente.value = ''
   docenteAssignError.value = ''
+  showDocenteResults.value = false
   showParaleloModal.value = true
 }
 
@@ -798,17 +879,20 @@ const openEditParalelo = (paralelo: ParaleloDto) => {
   editingParalelo.value = paralelo
   formParalelo.value = {
     codigo: paralelo.codigo,
-    idDocente: null,
+    idDocente: paralelo.idDocente,
     modalidad: paralelo.modalidad,
     cupoMaximo: paralelo.cupoMaximo ?? null,
     horarioDescripcion: paralelo.horarioDescripcion || '',
     lugar: paralelo.lugar || '',
     link: paralelo.link || ''
   }
-  docenteSearch.value = ''
-  selectedDocente.value = null
+  selectedDocente.value = findPersonaById(paralelo.idDocente)
+  docenteSearch.value = selectedDocente.value
+    ? formatPersonaNombre(selectedDocente.value)
+    : (paralelo.nombreDocente || '')
   tituloDocente.value = ''
   docenteAssignError.value = ''
+  showDocenteResults.value = false
   showParaleloModal.value = true
 }
 
@@ -819,12 +903,30 @@ const closeParaleloModal = () => {
   docenteSearch.value = ''
   tituloDocente.value = ''
   docenteAssignError.value = ''
+  showDocenteResults.value = false
+}
+
+const handleDocenteSearchInput = () => {
+  showDocenteResults.value = !!docenteSearch.value.trim()
+  selectedDocente.value = null
+  formParalelo.value.idDocente = null
+  tituloDocente.value = ''
+  docenteAssignError.value = ''
+}
+
+const handleDocenteFocus = () => {
+  if (!selectedDocente.value && docenteSearch.value.trim()) {
+    showDocenteResults.value = true
+  }
 }
 
 const selectDocente = (persona: ParticipanteDto) => {
   selectedDocente.value = persona
   formParalelo.value.idDocente = persona.idUsuario
+  docenteSearch.value = formatPersonaNombre(persona)
+  tituloDocente.value = ''
   docenteAssignError.value = ''
+  showDocenteResults.value = false
 }
 
 const saveParalelo = async () => {
@@ -875,6 +977,11 @@ const saveParalelo = async () => {
   } finally {
     savingParalelo.value = false
   }
+}
+
+const formatFechaInicio = (value: string) => {
+  if (!value) return '-'
+  return formatDateUtil(value, 'es-BO')
 }
 
 onMounted(() => {

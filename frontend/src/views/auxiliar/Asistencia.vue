@@ -138,6 +138,7 @@ import Card from '@/components/common/Card.vue'
 import Badge from '@/components/common/Badge.vue'
 import Button from '@/components/common/Button.vue'
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil, parseLocalDate } from '@/utils/dateFormatter'
 import { useAlertStore } from '@/stores/alert.store'
 
 interface Evento {
@@ -269,7 +270,7 @@ const registrarAsistencia = async (item: AsistenciaItem) => {
 
 const puedeAnular = (item: AsistenciaItem) => {
   if (!item.asistio || !item.fechaRegistro) return false
-  const fecha = new Date(item.fechaRegistro)
+  const fecha = parseLocalDate(item.fechaRegistro)
   if (Number.isNaN(fecha.getTime())) return false
   const diffMs = Date.now() - fecha.getTime()
   return diffMs <= 60 * 60 * 1000
@@ -293,11 +294,7 @@ const anularAsistencia = async (item: AsistenciaItem) => {
 
 const formatDate = (date: string) => {
   if (!date) return '-'
-  return new Date(date).toLocaleDateString('es-BO', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
+  return formatDateUtil(date, 'es-BO')
 }
 
 onMounted(() => {

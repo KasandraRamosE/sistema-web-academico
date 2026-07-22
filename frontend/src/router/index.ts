@@ -1,38 +1,14 @@
-/**
- * Configuración del Router de Vue
- * Define todas las rutas de la aplicación organizadas por módulo
- */
-
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { setupRouterGuards } from './guards'
 
-// ============================================
-// IMPORTAR LAYOUTS
-// ============================================
 import PublicLayout from '@/layouts/PublicLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
 import ParticipantLayout from '@/layouts/ParticipantLayout.vue'
 
-// ============================================
-// IMPORTAR VISTAS
-// ============================================
-
-// Vistas públicas
 import Home from '@/views/public/Home.vue'
-
-// Vistas de autenticación
 import Login from '@/views/auth/Login.vue'
-
-// Vistas de admin
 import DashboardAdmin from '@/views/admin/DashboardAdmin.vue'
-
-// Vistas de participante
-import ParticipantDashboard from '@/views/participant/Dashboard.vue'
-
-// ============================================
-// DEFINICIÓN DE RUTAS
-// ============================================
 
 const routes: RouteRecordRaw[] = [
   // ==========================================
@@ -142,6 +118,17 @@ const routes: RouteRecordRaw[] = [
           requiresAuth: false
         }
       }
+      ,
+      {
+        path: 'reset-password',
+        name: 'reset-password',
+        component: () => import('@/views/auth/ResetPassword.vue'),
+        meta: {
+          title: 'Recuperar Contraseña',
+          requiresAuth: false,
+          requiresGuest: true
+        }
+      }
     ]
   },
 
@@ -223,7 +210,7 @@ const routes: RouteRecordRaw[] = [
     component: DashboardLayout,
     meta: {
       requiresAuth: true,
-      roles: ['ADMINISTRADOR'] // Usa "roles" en array
+      roles: ['ADMINISTRADOR']
     },
     children: [
       {
@@ -323,7 +310,7 @@ const routes: RouteRecordRaw[] = [
     component: DashboardLayout,
     meta: {
       requiresAuth: true,
-      roles: ['COORDINADOR']
+      roles: ['ADMINISTRADOR', 'COORDINADOR']
     },
     children: [
       {
@@ -455,7 +442,7 @@ const routes: RouteRecordRaw[] = [
     children: [
       {
         path: '',
-        redirect: { name: 'auxiliary-attendance' }
+        redirect: { name: 'auxiliary-events' }
       },
       {
         path: 'eventos',
@@ -533,15 +520,10 @@ const routes: RouteRecordRaw[] = [
   }
 ]
 
-// ============================================
-// CREAR INSTANCIA DEL ROUTER
-// ============================================
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-  
-  // Scroll al inicio de la página al cambiar de ruta
+
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {
       return savedPosition
@@ -551,14 +533,8 @@ const router = createRouter({
   }
 })
 
-// ============================================
-// CONFIGURAR GUARDS (protección de rutas)
-// ============================================
 setupRouterGuards(router)
 
-// ============================================
-// ACTUALIZAR TÍTULO DE LA PÁGINA
-// ============================================
 router.afterEach((to) => {
   const title = to.meta.title as string || 'FHCE - Cursos y Eventos'
   document.title = title

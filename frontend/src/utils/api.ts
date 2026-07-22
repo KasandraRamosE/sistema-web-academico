@@ -10,7 +10,10 @@ const buildUrl = (path: string) => {
 }
 
 const getAuthToken = () => {
-  return localStorage.getItem('token')
+  const pinia = getActivePinia()
+  if (!pinia) return null
+  const authStore = useAuthStore(pinia)
+  return authStore.token
 }
 
 const notifySessionExpired = () => {
@@ -39,9 +42,10 @@ const notifyForbidden = () => {
 }
 
 const clearAuthAndRedirect = () => {
-  localStorage.removeItem('user')
-  localStorage.removeItem('token')
-  localStorage.removeItem('currentRole')
+  const pinia = getActivePinia()
+  if (pinia) {
+    useAuthStore(pinia).clearLocalSession()
+  }
 
   const currentPath = `${window.location.pathname}${window.location.search}`
   const loginUrl = `/auth/login?redirect=${encodeURIComponent(currentPath)}`
@@ -63,7 +67,11 @@ const request = async (path: string, options: RequestInit = {}, retried = false)
 
   const response = await fetch(buildUrl(path), {
     ...options,
-    headers
+    headers,
+    // Necesario para que el navegador mande/reciba la cookie HttpOnly del
+    // refresh token en /auth/refresh y /auth/logout (viven en otro origen
+    // en dev: localhost:5173 vs localhost:8080).
+    credentials: 'include'
   })
 
   const isAuthRequest = path.startsWith('/auth/')
@@ -98,7 +106,10 @@ const request = async (path: string, options: RequestInit = {}, retried = false)
     } catch {
       message = response.statusText || message
     }
-    throw new Error(message)
+    const err = new Error(message)
+    // attach HTTP status for callers that want to handle specific codes
+    ;(err as any).status = response.status
+    throw err
   }
 
   if (response.status === 204) {

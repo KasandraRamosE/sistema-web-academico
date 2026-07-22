@@ -2,8 +2,8 @@
   <div class="space-y-6">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="text-3xl font-bold text-slate-900">Asignacion de disenadores</h1>
-        <p class="text-sm text-slate-500">Asigna un disenador para certificados por actividad.</p>
+        <h1 class="text-3xl font-bold text-slate-900">Asignacion de diseñadores</h1>
+        <p class="text-sm text-slate-500">Asigna un diseñador para certificados por actividad.</p>
       </div>
       <Button variant="outline" size="sm" @click="loadAll">Actualizar</Button>
     </div>
@@ -16,7 +16,7 @@
             v-model.number="selectedCarreraId"
             class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 focus:border-transparent focus:ring-2 focus:ring-emerald-400"
           >
-            <option value="">Todas</option>
+            <option value="">Todas mis carreras</option>
             <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="carrera.idCarrera">
               {{ carrera.nombre }}
             </option>
@@ -61,7 +61,7 @@
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-lg font-semibold text-slate-900">Actividades</h3>
-          <p class="text-sm text-slate-500">Listado unificado de cursos y eventos para asignar disenador.</p>
+          <p class="text-sm text-slate-500">Listado unificado de cursos y eventos para asignar diseñador.</p>
         </div>
         <Badge v-if="actividadesFiltradas.length > 0" variant="primary" size="sm">
           {{ actividadesFiltradas.length }} actividades
@@ -81,7 +81,7 @@
               <th class="px-4 py-3">Actividad</th>
               <th class="px-4 py-3">Tipo</th>
               <th class="px-4 py-3">Estado</th>
-              <th class="px-4 py-3">Disenador</th>
+              <th class="px-4 py-3">Diseñador</th>
               <th class="px-4 py-3 text-right">Acciones</th>
             </tr>
           </thead>
@@ -108,7 +108,7 @@
                 <Button
                   variant="outline"
                   size="sm"
-                  @click="openDesignerModal(actividad.tipo, actividad.id, actividad.nombre, actividad.idDisenador, actividad.nombreDisenador)"
+                  @click="openDesignerModal(actividad.tipo, actividad.id, actividad.idCarrera, actividad.nombre, actividad.idDisenador, actividad.nombreDisenador)"
                 >
                   {{ actividad.idDisenador ? 'Reasignar' : 'Asignar' }}
                 </Button>
@@ -121,7 +121,7 @@
 
     <Modal
       :modelValue="showDesignerModal"
-      title="Asignar disenador"
+      title="Asignar diseñador"
       size="lg"
       @close="closeDesignerModal"
     >
@@ -133,7 +133,7 @@
         </div>
 
         <div>
-          <label class="mb-1 block text-sm font-medium text-slate-700">Buscar disenador</label>
+          <label class="mb-1 block text-sm font-medium text-slate-700">Buscar diseñador</label>
           <input
             v-model="designerSearch"
             type="text"
@@ -156,7 +156,7 @@
                 <span class="ml-2 text-xs text-slate-500">{{ persona.username }}</span>
               </span>
               <span class="text-xs text-slate-500">
-                {{ isDesigner(persona.roles) ? 'Disenador' : 'Participante' }}
+                {{ isDesigner(persona.roles) ? 'Diseñador' : 'Participante' }}
               </span>
             </button>
             <p v-if="designerSearch.trim() === ''" class="text-center text-xs text-slate-500">
@@ -170,7 +170,7 @@
             Cargando personas...
           </p>
           <p class="mt-1 text-xs text-slate-500">
-            Si seleccionas a un participante, se le asignara el rol DISENADOR.
+            Si seleccionas a un participante, se le asignara el rol DISEÑADOR.
           </p>
           <p v-if="assigningActivity.nombreDisenador" class="mt-1 text-xs text-slate-500">
             Actual: {{ assigningActivity.nombreDisenador }}
@@ -194,6 +194,7 @@ import Button from '@/components/common/Button.vue'
 import Modal from '@/components/common/Modal.vue'
 import { api } from '@/utils/api'
 import { useAlertStore } from '@/stores/alert.store'
+import { useAuthStore } from '@/stores/auth.store'
 
 interface CarreraDto {
   idCarrera: number
@@ -208,6 +209,7 @@ interface CursoDto {
   nombreCarrera?: string
   idDisenador?: number | null
   nombreDisenador?: string | null
+  duracion?: number | null
 }
 
 interface EventoDto {
@@ -243,12 +245,14 @@ interface PersonaDto {
 interface AssigningActivity {
   tipo: 'CURSO' | 'EVENTO'
   id: number
+  idCarrera: number
   nombre: string
   idDisenador: number | null
   nombreDisenador: string | null
 }
 
 const alertStore = useAlertStore()
+const authStore = useAuthStore()
 
 const carreras = ref<CarreraDto[]>([])
 const selectedCarreraId = ref<number | ''>('')
@@ -303,13 +307,15 @@ const actividades = computed((): ActividadRow[] => {
 
 const actividadesFiltradas = computed(() => {
   const term = searchTerm.value.trim().toLowerCase()
+  const carrerasPermitidas = new Set(carreras.value.map(carrera => carrera.idCarrera))
 
   return actividades.value.filter((actividad) => {
+    const carreraPermitida = carrerasPermitidas.size === 0 ? false : carrerasPermitidas.has(actividad.idCarrera)
     const carreraOk = !selectedCarreraId.value || actividad.idCarrera === selectedCarreraId.value
     const tipoOk = !tipoFiltro.value || actividad.tipo === tipoFiltro.value
     const estadoOk = !estadoFiltro.value || actividad.estadoActividad === estadoFiltro.value
     const searchOk = !term || actividad.nombre.toLowerCase().includes(term)
-    return carreraOk && tipoOk && estadoOk && searchOk
+    return carreraPermitida && carreraOk && tipoOk && estadoOk && searchOk
   })
 })
 
@@ -332,7 +338,11 @@ const designersFiltrados = computed(() => {
 })
 
 const loadCarreras = async () => {
-  const response = await api.get('/coordinador/carreras') as CarreraDto[]
+  const endpoint = authStore.hasRole('ADMINISTRADOR')
+    ? '/carreras/todas'
+    : '/coordinador/carreras'
+
+  const response = await api.get(endpoint) as CarreraDto[]
   carreras.value = response
 }
 
@@ -393,6 +403,7 @@ const loading = computed(() => {
 const openDesignerModal = (
   tipo: AssigningActivity['tipo'],
   id: number,
+  idCarrera: number,
   nombre: string,
   idDisenador?: number | null,
   nombreDisenador?: string | null
@@ -400,6 +411,7 @@ const openDesignerModal = (
   assigningActivity.value = {
     tipo,
     id,
+    idCarrera,
     nombre,
     idDisenador: idDisenador ?? null,
     nombreDisenador: nombreDisenador ?? null
@@ -422,6 +434,15 @@ const selectDesigner = (persona: PersonaDto) => {
 
 const assignDesigner = async () => {
   if (!assigningActivity.value || !selectedDesigner.value) return
+
+  const carrerasPermitidas = new Set(carreras.value.map(carrera => carrera.idCarrera))
+  if (!carrerasPermitidas.has(assigningActivity.value.idCarrera)) {
+    alertStore.push({
+      type: 'error',
+      message: 'No puedes asignar diseñadores a actividades fuera de tus carreras.'
+    })
+    return
+  }
 
   savingDesigner.value = true
   try {
@@ -452,13 +473,13 @@ const assignDesigner = async () => {
 
     alertStore.push({
       type: 'success',
-      message: 'Disenador asignado correctamente.'
+      message: 'Diseñador asignado correctamente.'
     })
     closeDesignerModal()
   } catch (error) {
     alertStore.push({
       type: 'error',
-      message: (error as Error).message || 'No se pudo asignar el disenador.'
+      message: (error as Error).message || 'No se pudo asignar el diseñador.'
     })
   } finally {
     savingDesigner.value = false

@@ -16,7 +16,7 @@
                 </Badge>
               </div>
               <h1 class="text-2xl font-bold text-gray-900">{{ actividad.nombre }}</h1>
-              <p class="text-sm text-gray-600">{{ actividad.descripcion || 'Sin descripcion.' }}</p>
+              <p class="text-sm text-gray-600 whitespace-pre-line">{{ actividad.descripcion || 'Sin descripcion.' }}</p>
             </div>
           </Card>
 
@@ -27,15 +27,19 @@
                 <p class="font-semibold">{{ actividad.modalidad }}</p>
               </div>
               <div>
-                <p class="text-xs uppercase text-gray-400">Fecha inicio</p>
-                <p class="font-semibold">{{ formatDateOnly(actividad.fecha_inicio) }}</p>
+                <p class="text-xs uppercase text-gray-400">Fecha y hora</p>
+                <p class="font-semibold">{{ formatEventDateTime(actividad.fecha_inicio) }}</p>
               </div>
               <div>
                 <p class="text-xs uppercase text-gray-400">Carga horaria</p>
                 <p class="font-semibold">{{ actividad.carga_horaria }} horas</p>
               </div>
+              <div v-if="hasDurationInfo">
+                <p class="text-xs uppercase text-gray-400">Duracion</p>
+                <p class="font-semibold">{{ actividad.duracion }} {{ formatDurationUnit(actividad.unidad) }}</p>
+              </div>
               <div>
-                <p class="text-xs uppercase text-gray-400">Curso</p>
+                <p class="text-xs uppercase text-gray-400">Tipo</p>
                 <p class="font-semibold">{{ actividad.tipo }}</p>
               </div>
               <div>
@@ -45,6 +49,17 @@
               <div v-if="actividad.lugar">
                 <p class="text-xs uppercase text-gray-400">Lugar</p>
                 <p class="font-semibold">{{ actividad.lugar }}</p>
+              </div>
+              <div v-if="actividad.link">
+                <p class="text-xs uppercase text-gray-400">Enlace</p>
+                <a
+                  :href="actividad.link"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="font-semibold text-emerald-700 hover:text-emerald-800"
+                >
+                  Abrir enlace
+                </a>
               </div>
             </div>
           </Card>
@@ -80,6 +95,16 @@
                     <p class="text-xs text-gray-500">Cupos libres: {{ paralelo.cuposDisponibles ?? paralelo.cupoMaximo }} / {{ paralelo.cupoMaximo }}</p>
                     <p v-if="paralelo.horarioDescripcion" class="text-xs text-gray-500">Horario: {{ paralelo.horarioDescripcion }}</p>
                     <p v-if="paralelo.lugar" class="text-xs text-gray-500">Lugar: {{ paralelo.lugar }}</p>
+                    <p v-if="paralelo.link" class="text-xs text-emerald-700">Clase virtual disponible</p>
+                    <a
+                      v-if="paralelo.link"
+                      :href="paralelo.link"
+                      target="_blank"
+                      rel="noreferrer"
+                      class="mt-1 inline-block text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+                    >
+                      Abrir enlace
+                    </a>
                   </div>
                 </label>
               </div>
@@ -114,9 +139,9 @@
                 <p class="text-xs uppercase text-gray-400">Carga horaria</p>
                 <p class="font-semibold">{{ actividad.carga_horaria }} horas</p>
               </div>
-              <div>
-                <p class="text-xs uppercase text-gray-400">Curso</p>
-                <p class="font-semibold">{{ actividad.tipo }}</p>
+              <div v-if="hasDurationInfo">
+                <p class="text-xs uppercase text-gray-400">Duracion</p>
+                <p class="font-semibold">{{ actividad.duracion }} {{ formatDurationUnit(actividad.unidad) }}</p>
               </div>
               <div>
                 <p class="text-xs uppercase text-gray-400">Cupos libres</p>
@@ -182,6 +207,7 @@ import Card from '@/components/common/Card.vue'
 import Badge from '@/components/common/Badge.vue'
 import Button from '@/components/common/Button.vue'
 import { api } from '@/utils/api'
+import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil, formatDateRange as formatDateRangeUtil } from '@/utils/dateFormatter'
 import { useAuthStore } from '@/stores/auth.store'
 
 interface ParaleloItem {
@@ -193,6 +219,7 @@ interface ParaleloItem {
   tituloDocente: string | null
   horarioDescripcion: string | null
   lugar?: string | null
+  link?: string | null
 }
 
 interface ActividadDetalle {
@@ -201,6 +228,8 @@ interface ActividadDetalle {
   nombre: string
   descripcion: string
   carga_horaria: number
+  duracion?: number | null
+  unidad?: 'días' | 'semanas' | 'meses' | null
   modalidad: string
   fecha_inicio: string
   fecha_fin: string
@@ -210,6 +239,7 @@ interface ActividadDetalle {
   costo_umsa: number
   estado: string
   lugar?: string | null
+  link?: string | null
 }
 
 const route = useRoute()
@@ -227,6 +257,7 @@ const isPaying = ref(false)
 const step = ref<'detalle' | 'pago'>('detalle')
 const inscripcionId = ref<number | null>(null)
 const inscripcionConfirmada = ref(false)
+const inscripcionPendiente = ref(false)
 
 const costoPago = computed(() => actividad.value?.costo_externo ?? 0)
 const isInterno = computed(() => authStore.user?.tipoParticipante === 'UMSA')
@@ -234,6 +265,7 @@ const isExterno = computed(() => !authStore.user?.tipoParticipante || authStore.
 
 const botonInscripcionLabel = computed(() => {
   if (inscripcionConfirmada.value) return 'Ya inscrito'
+  if (inscripcionPendiente.value) return costoPago.value > 0 ? 'Continuar con el pago' : 'Inscripcion pendiente'
   if (actividad.value?.tipo === 'CURSO' && paralelos.value.length > 0 && !selectedParalelo.value) {
     return 'Selecciona un paralelo'
   }
@@ -242,18 +274,35 @@ const botonInscripcionLabel = computed(() => {
 
 const formatDateRange = (inicio: string, fin: string) => {
   if (!inicio) return '-'
-  const start = new Date(inicio)
-  const end = fin ? new Date(fin) : start
-  const fmt = new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
-  return `${fmt.format(start)} - ${fmt.format(end)}`
+  return formatDateRangeUtil(inicio, fin, 'es-BO')
 }
 
 const formatDateOnly = (inicio: string) => {
   if (!inicio) return '-'
-  const date = new Date(inicio)
-  const fmt = new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
-  return fmt.format(date)
+  return formatDateUtil(inicio, 'es-BO')
 }
+
+const formatEventDateTime = (datetime: string) => {
+  if (!datetime) return '-'
+  return formatDateTimeUtil(datetime, 'es-BO')
+}
+
+const formatDurationUnit = (unidad?: string | null) => {
+  switch (unidad) {
+    case 'días':
+      return 'días'
+    case 'semanas':
+      return 'semanas'
+    case 'meses':
+      return 'meses'
+    default:
+      return 'horas'
+  }
+}
+
+const hasDurationInfo = computed(() => {
+  return actividad.value?.duracion != null && Boolean(actividad.value?.unidad)
+})
 
 const cargarDetalle = async () => {
   loading.value = true
@@ -291,6 +340,8 @@ const mapCurso = (curso: Record<string, unknown>) => {
     nombre: String(curso.nombre ?? ''),
     descripcion: String(curso.descripcion ?? ''),
     carga_horaria: Number(curso.cargaHoraria ?? 0),
+    duracion: curso.duracion !== undefined && curso.duracion !== null ? Number(curso.duracion) : null,
+    unidad: curso.unidad ? String(curso.unidad) as 'días' | 'semanas' | 'meses' : null,
     modalidad: String(curso.modalidad ?? 'PRESENCIAL'),
     fecha_inicio: String(curso.fechaInicio ?? ''),
     fecha_fin: String(curso.fechaInicio ?? ''),
@@ -299,7 +350,8 @@ const mapCurso = (curso: Record<string, unknown>) => {
     costo_externo: Number(curso.costoExterno ?? 0),
     costo_umsa: Number(curso.costoUmsa ?? 0),
     estado: String(curso.estado ?? 'ABIERTO'),
-    lugar: paralelosList.length > 0 ? String(paralelosList[0].lugar ?? '') || null : null
+    lugar: paralelosList.length > 0 ? String(paralelosList[0].lugar ?? '') || null : null,
+    link: paralelosList.length > 0 ? String(paralelosList[0].link ?? '') || null : null
   }
 
   paralelos.value = paralelosList.map((paralelo) => ({
@@ -312,7 +364,8 @@ const mapCurso = (curso: Record<string, unknown>) => {
     nombreDocente: paralelo.nombreDocente ? String(paralelo.nombreDocente) : null,
     tituloDocente: paralelo.tituloDocente ? String(paralelo.tituloDocente) : null,
     horarioDescripcion: paralelo.horarioDescripcion ? String(paralelo.horarioDescripcion) : null,
-    lugar: paralelo.lugar ? String(paralelo.lugar) : null
+    lugar: paralelo.lugar ? String(paralelo.lugar) : null,
+    link: paralelo.link ? String(paralelo.link) : null
   }))
 
   if (paralelos.value.length === 1) {
@@ -329,6 +382,8 @@ const mapEvento = (evento: Record<string, unknown>) => {
     nombre: String(evento.nombre ?? ''),
     descripcion: String(evento.descripcion ?? ''),
     carga_horaria: Number(evento.cargaHoraria ?? 0),
+    duracion: evento.duracion !== undefined && evento.duracion !== null ? Number(evento.duracion) : null,
+    unidad: evento.unidad ? String(evento.unidad) as 'días' | 'semanas' | 'meses' : null,
     modalidad: String(evento.modalidad ?? 'PRESENCIAL'),
     fecha_inicio: String(evento.fechaHora ?? ''),
     fecha_fin: String(evento.fechaHora ?? ''),
@@ -337,7 +392,8 @@ const mapEvento = (evento: Record<string, unknown>) => {
     costo_externo: Number(evento.costoExterno ?? 0),
     costo_umsa: Number(evento.costoUmsa ?? 0),
     estado: String(evento.estado ?? 'ABIERTO'),
-    lugar: String(evento.lugar ?? '') || null
+    lugar: String(evento.lugar ?? '') || null,
+    link: String(evento.link ?? evento.url ?? '') || null
   }
   paralelos.value = []
 
@@ -372,12 +428,28 @@ const crearInscripcion = async () => {
   return Number(response.idInscripcion ?? 0)
 }
 
-const abrirVentanaPago = () => {
+const abrirVentanaPago = async () => {
   if (!inscripcionId.value || !actividad.value) return
+
+  // Registra la deuda en Libélula (o en el mock, en dev) y obtiene la
+  // referencia de transacción — sin ella no se puede verificar el pago después.
+  let referenciaTransaccion = ''
+  try {
+    const response = await api.post('/inscripciones/pago', { idInscripcion: inscripcionId.value }) as Record<string, unknown>
+    referenciaTransaccion = String(response.referenciaTransaccion ?? '')
+  } catch (error) {
+    formError.value = (error as Error).message || 'No se pudo iniciar el pago.'
+    return
+  }
+
   const url = router.resolve({
     name: 'payment-simulacion',
     params: { idInscripcion: inscripcionId.value },
-    query: { monto: costoPago.value, actividad: actividad.value.nombre }
+    query: {
+      monto: costoPago.value,
+      actividad: actividad.value.nombre,
+      transaction_id: referenciaTransaccion
+    }
   }).href
 
   const popup = window.open(url, '_blank', 'width=520,height=720')
@@ -386,12 +458,30 @@ const abrirVentanaPago = () => {
   }
 }
 
-const actualizarEstadoPago = () => {
-  if (!inscripcionId.value) return
-  const marcado = localStorage.getItem(`pago_confirmado_${inscripcionId.value}`) === 'true'
-  if (marcado) {
+const sincronizarInscripcion = (match: Record<string, unknown>) => {
+  inscripcionId.value = Number(match.idInscripcion ?? inscripcionId.value)
+
+  const estado = String(match.estado ?? '').toUpperCase()
+  const estadoPago = String(match.estadoPago ?? '').toUpperCase()
+
+  if (estado === 'CONFIRMADA' || estadoPago === 'APROBADO') {
     inscripcionConfirmada.value = true
+    inscripcionPendiente.value = false
+    step.value = 'detalle'
+    return
   }
+
+  if (estado === 'PENDIENTE') {
+    inscripcionConfirmada.value = false
+    inscripcionPendiente.value = true
+    if (costoPago.value > 0) {
+      step.value = 'pago'
+    }
+    return
+  }
+
+  inscripcionConfirmada.value = false
+  inscripcionPendiente.value = false
 }
 
 const verificarInscripcion = async () => {
@@ -404,6 +494,8 @@ const verificarInscripcion = async () => {
     const match = response.find((item) => {
       const idCurso = Number(item.idCurso ?? 0)
       const idEvento = Number(item.idEvento ?? 0)
+      const estado = String(item.estado ?? '').toUpperCase()
+      if (estado === 'CANCELADA') return false
       if (actividad.value?.tipo === 'CURSO') {
         return idCurso === actividad.value?.id
       }
@@ -411,8 +503,7 @@ const verificarInscripcion = async () => {
     })
 
     if (match) {
-      inscripcionConfirmada.value = true
-      inscripcionId.value = Number(match.idInscripcion ?? inscripcionId.value)
+      sincronizarInscripcion(match)
     }
   } catch {
     // Silencioso: no bloquea el detalle si falla la verificacion.
@@ -432,6 +523,12 @@ const continuarInscripcion = async () => {
 
   if (!asegurarParticipante()) return
 
+  if (inscripcionPendiente.value && inscripcionId.value && costoPago.value > 0) {
+    step.value = 'pago'
+    abrirVentanaPago()
+    return
+  }
+
   isSubmitting.value = true
   try {
     const nuevaInscripcionId = await crearInscripcion()
@@ -447,6 +544,7 @@ const continuarInscripcion = async () => {
     }
 
     inscripcionConfirmada.value = true
+    inscripcionPendiente.value = false
     router.push('/participante/inscripciones')
   } catch (error) {
     formError.value = (error as Error).message || 'No se pudo completar la inscripcion.'
@@ -455,27 +553,37 @@ const continuarInscripcion = async () => {
   }
 }
 
+const handlePaymentMessage = (event: MessageEvent) => {
+  if (event.origin !== window.location.origin) return
 
-const handleStorage = (event: StorageEvent) => {
-  if (!inscripcionId.value) return
-  if (event.key === `pago_confirmado_${inscripcionId.value}`) {
-    actualizarEstadoPago()
-  }
+  const data = event.data as {
+    type?: string
+    idInscripcion?: number
+    estadoPago?: string
+  } | null
+
+  if (!data || data.type !== 'payment:confirmed') return
+  if (!inscripcionId.value || Number(data.idInscripcion ?? 0) !== inscripcionId.value) return
+
+  sincronizarInscripcion({
+    idInscripcion: inscripcionId.value,
+    estado: 'CONFIRMADA',
+    estadoPago: data.estadoPago ?? 'APROBADO'
+  })
 }
 
 const handleFocus = () => {
-  actualizarEstadoPago()
   verificarInscripcion()
 }
 
 onMounted(() => {
   cargarDetalle()
-  window.addEventListener('storage', handleStorage)
+  window.addEventListener('message', handlePaymentMessage)
   window.addEventListener('focus', handleFocus)
 })
 
 onUnmounted(() => {
-  window.removeEventListener('storage', handleStorage)
+  window.removeEventListener('message', handlePaymentMessage)
   window.removeEventListener('focus', handleFocus)
 })
 </script>

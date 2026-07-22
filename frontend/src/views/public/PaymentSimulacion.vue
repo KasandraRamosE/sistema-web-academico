@@ -19,7 +19,7 @@
         <Card>
           <div class="space-y-3">
             <p class="text-sm text-slate-600">
-              Esta pantalla simula la pasarela de pago. Al verificar, se registrara el pago en el backend.
+              Esta pantalla simula la pasarela de pago. Al verificar, se registrara el pago en el backend y se notificara a la ventana anterior.
             </p>
             <Button :loading="loading" class="w-full" @click="verificarPago">
               Verificar pago
@@ -53,10 +53,14 @@ const actividad = computed(() => {
   const nombre = route.query.actividad
   return typeof nombre === 'string' ? nombre : ''
 })
+const transactionId = computed(() => {
+  const id = route.query.transaction_id
+  return typeof id === 'string' ? id : ''
+})
 
 const verificarPago = async () => {
-  if (!idInscripcion.value) {
-    errorMessage.value = 'No se encontro la inscripcion.'
+  if (!transactionId.value) {
+    errorMessage.value = 'No se encontro la referencia de la transaccion.'
     return
   }
 
@@ -65,10 +69,20 @@ const verificarPago = async () => {
   successMessage.value = ''
 
   try {
-    await api.post('/inscripciones/pago', { idInscripcion: idInscripcion.value })
-    localStorage.setItem(`pago_confirmado_${idInscripcion.value}`, 'true')
+    // No confirma el pago directamente: dispara la verificacion server-to-server
+    // contra Libelula (o el mock, en dev). Es el mismo endpoint publico que
+    // Libelula llamaria en produccion tras un pago real.
+    await api.get(`/payments/libelula/callback?transaction_id=${encodeURIComponent(transactionId.value)}`)
+    const estadoPago = 'APROBADO'
     successMessage.value = 'Pago verificado. Redirigiendo...'
     setTimeout(() => {
+      if (window.opener) {
+        window.opener.postMessage({
+          type: 'payment:confirmed',
+          idInscripcion: idInscripcion.value,
+          estadoPago
+        }, window.location.origin)
+      }
       router.push('/participante/inscripciones')
       if (window.opener) {
         window.close()

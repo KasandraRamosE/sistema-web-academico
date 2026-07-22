@@ -1,13 +1,7 @@
 <template>
-  <!--
-    Componente Badge reutilizable
-    Para mostrar estados, categorías, contadores, etc.
-  -->
   <span :class="badgeClasses">
-    <!-- Dot indicator (opcional) -->
     <span v-if="dot" class="w-2 h-2 rounded-full mr-1.5" :class="dotColor"></span>
-    
-    <!-- Contenido -->
+
     <slot></slot>
   </span>
 </template>
@@ -15,19 +9,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-/**
- * Props del componente Badge
- */
 interface BadgeProps {
-  /** Variante de color */
   variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'gray'
-  /** Tamaño del badge */
   size?: 'sm' | 'md' | 'lg'
-  /** Mostrar punto indicador */
   dot?: boolean
-  /** Bordes redondeados completos (píldora) */
   pill?: boolean
-  /** Sin fondo, solo texto con color */
   outline?: boolean
 }
 
@@ -39,16 +25,12 @@ const props = withDefaults(defineProps<BadgeProps>(), {
   outline: false
 })
 
-/**
- * Clases CSS del badge
- */
 const badgeClasses = computed(() => {
   const classes = [
     'inline-flex items-center font-medium',
     props.pill ? 'rounded-full' : 'rounded',
   ]
 
-  // Tamaños
   const sizes = {
     sm: 'px-2 py-0.5 text-xs',
     md: 'px-2.5 py-1 text-sm',
@@ -56,9 +38,7 @@ const badgeClasses = computed(() => {
   }
   classes.push(sizes[props.size])
 
-  // Variantes de color
   if (props.outline) {
-    // Versión outline (solo borde)
     const outlineVariants = {
       primary: 'border-2 border-purple-600 text-purple-700',
       secondary: 'border-2 border-blue-600 text-blue-700',
@@ -70,7 +50,6 @@ const badgeClasses = computed(() => {
     }
     classes.push(outlineVariants[props.variant])
   } else {
-    // Versión con fondo
     const solidVariants = {
       primary: 'bg-purple-100 text-purple-800',
       secondary: 'bg-blue-100 text-blue-800',
@@ -86,9 +65,6 @@ const badgeClasses = computed(() => {
   return classes.join(' ')
 })
 
-/**
- * Color del dot indicator
- */
 const dotColor = computed(() => {
   const colors = {
     primary: 'bg-purple-600',
@@ -104,5 +80,4 @@ const dotColor = computed(() => {
 </script>
 
 <style scoped>
-/* Estilos adicionales si son necesarios */
 </style>

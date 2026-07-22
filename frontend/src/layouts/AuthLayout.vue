@@ -7,11 +7,20 @@
     <div class="absolute -top-24 -left-20 h-72 w-72 rounded-full bg-amber-400/20 blur-3xl"></div>
     <div class="absolute -bottom-24 -right-16 h-80 w-80 rounded-full bg-emerald-400/20 blur-3xl"></div>
 
-    <div class="relative w-full max-w-md text-left">
+    <div class="relative w-full text-left" :class="containerWidthClass">
       <router-view />
     </div>
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
+const containerWidthClass = computed(() => {
+  if (route.name === 'register') return 'max-w-5xl'
+  return 'max-w-md'
+})
 </script>

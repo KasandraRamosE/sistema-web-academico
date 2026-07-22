@@ -11,6 +11,12 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
+    // Vite es quien compila y empaqueta (esbuild/Rollup) — vue-tsc solo se
+    // usa como chequeo de tipos en el build ("vue-tsc -b && vite build").
+    // Sin esto, tsc escribe un .js/.vue.js al lado de cada archivo fuente
+    // en cada build, y Vite los resuelve ANTES que el .ts/.vue real en los
+    // imports sin extensión — los cambios en el código fuente quedan tapados.
+    "noEmit": true,
 
     "baseUrl": ".",
     "paths": {

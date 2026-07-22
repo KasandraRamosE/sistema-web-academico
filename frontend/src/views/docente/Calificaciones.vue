@@ -68,7 +68,7 @@
           <Button
             variant="outline"
             size="sm"
-            :disabled="cambiosPendientes.length === 0"
+            :disabled="cambiosPendientes.length === 0 || (paraleloConfirmado && !esAdmin)"
             @click="guardarNotas"
           >
             Guardar cambios
@@ -115,7 +115,8 @@
                   min="0"
                   max="100"
                   step="0.01"
-                  class="w-24 rounded-lg border border-slate-200 px-2 py-1 text-center focus:border-transparent focus:ring-2 focus:ring-emerald-400"
+                  :disabled="paraleloConfirmado && !esAdmin"
+                  class="w-24 rounded-lg border border-slate-200 px-2 py-1 text-center focus:border-transparent focus:ring-2 focus:ring-emerald-400 disabled:bg-slate-100"
                 />
               </td>
               <td class="px-4 py-3 text-center">
@@ -130,6 +131,9 @@
 
       <p v-if="cambiosPendientes.length > 0" class="mt-4 text-xs text-amber-700">
         Tienes {{ cambiosPendientes.length }} notas pendientes de guardar.
+      </p>
+      <p v-if="paraleloConfirmado && !esAdmin" class="mt-2 text-xs text-rose-600">
+        Las notas de este paralelo han sido confirmadas y están bloqueadas. Solo el administrador puede modificarlas.
       </p>
       <p v-if="confirmacionExitosa" class="mt-2 text-xs text-emerald-600">
         Paralelo confirmado. Se envio la solicitud de emision.
@@ -207,6 +211,7 @@ const selectedParaleloCodigo = ref('')
 const estudiantes = ref<EstudianteNota[]>([])
 const loading = ref(false)
 const saving = ref(false)
+const paraleloConfirmado = ref(false)
 
 const showConfirmModal = ref(false)
 const confirmando = ref(false)
@@ -247,7 +252,16 @@ const puedeConfirmar = computed(() => {
   if (!selectedCursoId.value || !selectedParaleloCodigo.value) return false
   if (stats.value.pendientes > 0) return false
   if (cambiosPendientes.value.length > 0) return false
+  if (paraleloConfirmado.value) return false
   return true
+})
+
+const esAdmin = computed(() => {
+  try {
+    return authStore.hasRole('ADMINISTRADOR')
+  } catch (e) {
+    return false
+  }
 })
 
 const loadCursos = async () => {
@@ -297,7 +311,21 @@ const loadEstudiantes = async () => {
 
   loading.value = true
   confirmacionExitosa.value = false
+  // Reiniciar bandera de confirmado al recargar paralelo
+  paraleloConfirmado.value = false
   try {
+    // Consultar estado de confirmacion del paralelo (nuevo endpoint)
+    try {
+      const estadoResp = await api.get(`/evaluaciones/paralelo/${selectedCursoId.value}/${selectedParaleloCodigo.value}/estado`)
+      const confirmado = (estadoResp && (estadoResp as any).confirmado) || (estadoResp && (estadoResp as any).confirmado === false ? false : null)
+      if (typeof confirmado === 'boolean') {
+        paraleloConfirmado.value = confirmado
+      }
+    } catch (errEstado) {
+      // Silencioso: si el endpoint no existe o falla, se mantiene la lógica existente
+      console.warn('No se pudo obtener estado de paralelo:', errEstado)
+    }
+
     const [inscripcionesResponse, evaluacionesResponse] = await Promise.all([
       api.get(`/inscripciones/curso/${selectedCursoId.value}`),
       api.get(`/evaluaciones/paralelo/${selectedCursoId.value}/${selectedParaleloCodigo.value}`)
@@ -305,6 +333,20 @@ const loadEstudiantes = async () => {
 
     const inscripciones = inscripcionesResponse as Array<Record<string, unknown>>
     const evaluaciones = evaluacionesResponse as Array<Record<string, unknown>>
+
+    // Algunos endpoints pueden devolver metadatos sobre el paralelo (ej: confirmado)
+    const maybeMeta = (!Array.isArray(inscripcionesResponse) && inscripcionesResponse && typeof inscripcionesResponse === 'object')
+      ? inscripcionesResponse
+      : ((!Array.isArray(evaluacionesResponse) && evaluacionesResponse && typeof evaluacionesResponse === 'object')
+        ? evaluacionesResponse
+        : null)
+
+    if (maybeMeta) {
+      const confirmadoFlag = (maybeMeta as any).confirmado ?? (maybeMeta as any).paraleloConfirmado ?? (maybeMeta as any).confirmadoParalelo
+      if (typeof confirmadoFlag === 'boolean') {
+        paraleloConfirmado.value = confirmadoFlag
+      }
+    }
 
     const evaluacionesMap = new Map<number, number | null>()
     evaluaciones.forEach(item => {
@@ -344,6 +386,11 @@ const loadEstudiantes = async () => {
 
 const guardarNotas = async () => {
   if (cambiosPendientes.value.length === 0) return
+  if (paraleloConfirmado.value && !esAdmin.value) {
+    // Evitar guardar si el paralelo ya fue confirmado y el usuario no es admin
+    console.warn('Intento de guardar notas en paralelo confirmado por usuario no administrador')
+    return
+  }
 
   saving.value = true
   try {
@@ -385,6 +432,8 @@ const confirmarNotas = async () => {
     confirmacionExitosa.value = true
     showConfirmModal.value = false
     notasConfirmacion.value = ''
+      // Marcar el paralelo como confirmado para evitar ediciones posteriores
+      paraleloConfirmado.value = true
   } catch (error) {
     console.error('Error al confirmar notas:', error)
   } finally {
