@@ -1,6 +1,9 @@
 # Credenciales
 .env
 
+# Notas internas de trabajo — no publicar en el repo público
+PENDIENTES.md
+
 # Java
 backend/target/
 backend/sistema-cursos/certificados/
