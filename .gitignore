@@ -3,6 +3,9 @@
 
 # Notas internas de trabajo — no publicar en el repo público
 PENDIENTES.md
+docs/
+estructura.sql
+db/init/init-old.sql
 
 # Java
 backend/target/
