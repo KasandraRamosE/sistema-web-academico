@@ -184,12 +184,7 @@ public class AuthService {
                 "No hay un código de verificación activo. Solicita uno nuevo.", 400));
 
         // 4. Verificar que el código coincida y no haya expirado
-        if (!codigo.getCodigo().equals(request.getCodigo())) {
-            throw new BusinessException("Código de verificación incorrecto", 400);
-        }
-        if (!codigo.esValido()) {
-            throw new BusinessException("El código ha expirado. Solicita uno nuevo.", 400);
-        }
+        validarCodigo(codigo, request.getCodigo());
 
         // 5. Activar cuenta y marcar código como usado
         usuario.setEmailVerificado(true);
@@ -540,13 +535,7 @@ public class AuthService {
                 "No hay un código de reset activo. Solicita uno nuevo.", 400));
 
         // Verificar código
-        if (!codigo.getCodigo().equals(request.getCodigo())) {
-            throw new BusinessException("Código incorrecto", 400);
-        }
-
-        if (!codigo.esValido()) {
-            throw new BusinessException("El código ha expirado. Solicita uno nuevo.", 400);
-        }
+        validarCodigo(codigo, request.getCodigo());
 
         log.info("Código de reset verificado para usuario: {}", username);
 
@@ -574,13 +563,7 @@ public class AuthService {
                 "No hay un código de reset activo. Solicita uno nuevo.", 400));
 
         // Verificar código
-        if (!codigo.getCodigo().equals(request.getCodigo())) {
-            throw new BusinessException("Código incorrecto", 400);
-        }
-
-        if (!codigo.esValido()) {
-            throw new BusinessException("El código ha expirado. Solicita uno nuevo.", 400);
-        }
+        validarCodigo(codigo, request.getCodigo());
 
         // Cambiar contraseña
         usuario.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
@@ -594,6 +577,23 @@ public class AuthService {
         log.info("Contraseña cambiada para usuario: {}", username);
 
         return new MensajeResponse("Contraseña cambiada exitosamente. Ya puedes iniciar sesión.");
+    }
+
+    // ── Verificación de código (email/reset) con límite de intentos ─────────
+    // Protección contra fuerza bruta: un código de 6 dígitos tiene 10^6
+    // combinaciones — sin este límite, alguien podría probarlas todas
+    // dentro de la ventana de expiración de 24h. Mismo mensaje genérico
+    // para código incorrecto/expirado/agotado: no da pistas de cuál pasó.
+    private void validarCodigo(CodigoVerificacion codigo, String codigoIngresado) {
+        if (!codigo.esValido()) {
+            throw new BusinessException(
+                "El código expiró o se agotaron los intentos. Solicita uno nuevo.", 400);
+        }
+        if (!codigo.getCodigo().equals(codigoIngresado)) {
+            codigo.setIntentos(codigo.getIntentos() + 1);
+            codigoRepository.save(codigo);
+            throw new BusinessException("Código incorrecto", 400);
+        }
     }
 
     // ── Utilidad: genera código numérico de 6 dígitos ───────────────────────

@@ -1,5 +1,3 @@
-// src/main/java/.../modules/certificado/service/CertificadoService.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.certificado.service;
 
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
@@ -20,18 +18,18 @@ import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.entity.Inscripcion;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.repository.InscripcionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.service.PlantillaService;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
-import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
-import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
+import bo.edu.umsa.fhce.sistemacursos.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,7 +45,7 @@ public class CertificadoService {
     private final InscripcionRepository  inscripcionRepository;
     private final EvaluacionRepository   evaluacionRepository;
     private final AsistenciaRepository   asistenciaRepository;
-    private final UsuarioRepository      usuarioRepository;
+    private final CurrentUserProvider    currentUserProvider;
     private final CertificadoPdfService  pdfService;
     private final PlantillaService plantillaService;
     private final CursoRepository cursoRepository;
@@ -175,6 +173,7 @@ public class CertificadoService {
     public CertificadoDto anular(Long idCertificado, AnularCertificadoRequest request) {
         Certificado certificado = buscarCertificado(idCertificado);
         Usuario usuario = getUsuarioActual();
+        verificarAccesoCarrera(usuario, carreraDe(certificado.getInscripcion()));
 
         if (certificado.getEstadoEmision() == Certificado.EstadoEmision.REEMITIDO) {
             throw new BusinessException("El certificado ya fue reemitido", 400);
@@ -298,10 +297,29 @@ public class CertificadoService {
     }
 
     // ── Ver todos los certificados (admin/coordinador) ────────────────────
+    // Admin ve todos; coordinador solo los de las carreras que tiene asignadas
+    // (mismo criterio que verificarAccesoCarrera, pero para listar en vez de mutar).
     @Transactional(readOnly = true)
     public List<CertificadoDto> listarTodos() {
-        return certificadoRepository.findAll()
-            .stream()
+        Usuario actual = getUsuarioActual();
+        boolean esAdmin = actual.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+
+        List<Certificado> certificados = certificadoRepository.findAll();
+
+        if (!esAdmin) {
+            Set<Long> carrerasPermitidas = coordinadorCarreraRepository
+                .findByIdCoordinador(actual.getIdUsuario())
+                .stream()
+                .map(cc -> cc.getCarrera().getIdCarrera())
+                .collect(Collectors.toSet());
+
+            certificados = certificados.stream()
+                .filter(c -> carrerasPermitidas.contains(carreraDe(c.getInscripcion()).getIdCarrera()))
+                .toList();
+        }
+
+        return certificados.stream()
             .map(this::toCertificadoDto)
             .toList();
     }
@@ -459,11 +477,7 @@ public class CertificadoService {
     }
 
     private Usuario getUsuarioActual() {
-        CustomUserDetails userDetails = (CustomUserDetails)
-            SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return usuarioRepository.findById(userDetails.getIdUsuario())
-            .orElseThrow(() -> new ResourceNotFoundException(
-                "Usuario", userDetails.getIdUsuario()));
+        return currentUserProvider.getUsuarioActual();
     }
 
     private CertificadoDto toCertificadoDto(Certificado c) {

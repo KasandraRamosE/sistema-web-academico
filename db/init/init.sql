@@ -302,6 +302,7 @@ CREATE TABLE `codigo_verificacion` (
   `codigo` varchar(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `tipo` enum('EMAIL','REGISTRO','RESET_PASSWORD') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `usado` tinyint(1) NOT NULL DEFAULT '0',
+  `intentos` int NOT NULL DEFAULT '0' COMMENT 'Intentos fallidos de este código; protección contra fuerza bruta',
   `fecha_creacion` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `fecha_expiracion` datetime NOT NULL COMMENT 'Válido por 24 horas desde la creación',
   `fecha_uso` datetime DEFAULT NULL COMMENT 'Momento en que fue ingresado por el usuario',

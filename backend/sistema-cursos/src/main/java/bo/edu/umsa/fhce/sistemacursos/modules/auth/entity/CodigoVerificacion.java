@@ -34,6 +34,12 @@ public class CodigoVerificacion {
     @Column(name = "usado", nullable = false)
     private boolean usado = false;
 
+    // Intentos fallidos de este código — protección contra fuerza bruta
+    // (probar los 10^6 valores posibles antes de que expire)
+    @Column(name = "intentos", nullable = false)
+    @Builder.Default
+    private int intentos = 0;
+
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
 
@@ -53,9 +59,11 @@ public class CodigoVerificacion {
         // fechaExpiracion la setea el Service — tiene el valor configurable
     }
 
+    public static final int MAX_INTENTOS = 5;
+
     // Verifica si el código todavía puede usarse
     public boolean esValido() {
-        return !usado && LocalDateTime.now().isBefore(fechaExpiracion);
+        return !usado && intentos < MAX_INTENTOS && LocalDateTime.now().isBefore(fechaExpiracion);
     }
 
     public enum TipoCodigo {

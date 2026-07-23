@@ -7,10 +7,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import bo.edu.umsa.fhce.sistemacursos.common.RolUtil;
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.Carrera;
@@ -29,7 +29,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.EventoRepository
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.repository.InscripcionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
-import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
+import bo.edu.umsa.fhce.sistemacursos.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -47,6 +47,7 @@ public class EventoService {
     private final UsuarioRepository       usuarioRepository;
     private final InscripcionRepository inscripcionRepository;
     private final EventoEstadoService eventoEstadoService;
+    private final CurrentUserProvider currentUserProvider;
 
     // ── Listar eventos abiertos (catálogo) ───────────────────────────────────
     @Transactional(readOnly = true)
@@ -222,9 +223,8 @@ public class EventoService {
             .orElseThrow(() -> new ResourceNotFoundException(
                 "Usuario", request.getIdAuxiliar()));
 
-        // Verificar que tenga rol AUXILIAR
         boolean esAuxiliar = auxiliar.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("AUXILIAR"));
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals("AUXILIAR"));
         if (!esAuxiliar) {
             throw new BusinessException(
                 "El usuario no tiene el rol AUXILIAR", 400);
@@ -282,7 +282,7 @@ public class EventoService {
     public List<EventoDto> listarAsignadosAuxiliar() {
         Usuario usuario = getUsuarioActual();
         boolean esAuxiliar = usuario.getRoles().stream()
-            .anyMatch(r -> r.getNombre().equals("AUXILIAR"));
+            .anyMatch(r -> normalizeRolName(r.getNombre()).equals("AUXILIAR"));
         if (!esAuxiliar) {
             throw new BusinessException(
                 "El usuario no tiene el rol AUXILIAR", 403);
@@ -307,11 +307,7 @@ public class EventoService {
     }
 
     private Usuario getUsuarioActual() {
-        CustomUserDetails userDetails = (CustomUserDetails)
-            SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return usuarioRepository.findById(userDetails.getIdUsuario())
-            .orElseThrow(() -> new ResourceNotFoundException(
-                "Usuario", userDetails.getIdUsuario()));
+        return currentUserProvider.getUsuarioActual();
     }
 
     private List<EventoDto> mapearEventos(List<Evento> eventos) {
@@ -372,8 +368,7 @@ public class EventoService {
     }
 
     private String normalizeRolName(String nombreRol) {
-        if (nombreRol == null) return "";
-        return nombreRol.replace("ROLE_", "").replace("Ñ", "N").replace("ñ", "n").toUpperCase();
+        return RolUtil.normalizar(nombreRol);
     }
 
     // Verifica que el usuario pueda gestionar la carrera del evento.

@@ -1,5 +1,3 @@
-// src/main/java/.../modules/curso/service/CursoService.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.curso.service;
 
 import java.util.HashMap;
@@ -7,10 +5,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import bo.edu.umsa.fhce.sistemacursos.common.RolUtil;
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity.Carrera;
@@ -30,7 +28,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.repository.Inscripcion
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.DocenteRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
-import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
+import bo.edu.umsa.fhce.sistemacursos.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,6 +44,7 @@ public class CursoService {
     private final UsuarioRepository  usuarioRepository;
     private final DocenteRepository  docenteRepository;
     private final InscripcionRepository inscripcionRepository;
+    private final CurrentUserProvider currentUserProvider;
 
     // ── Listar cursos abiertos (catálogo público autenticado) ────────────────
     @Transactional(readOnly = true)
@@ -102,11 +101,7 @@ public class CursoService {
         Carrera carrera = carreraRepository.findById(request.getIdCarrera())
             .orElseThrow(() -> new ResourceNotFoundException("Carrera", request.getIdCarrera()));
 
-        // El organizador es el usuario autenticado actual
         Usuario organizador = getUsuarioActual();
-
-        // Verificar que el coordinador gestione esa carrera
-        // (el admin puede crear en cualquier carrera)
         verificarAccesoCarrera(organizador, carrera);
 
         Curso curso = Curso.builder()
@@ -216,7 +211,6 @@ public class CursoService {
         Curso curso = buscarCurso(idCurso);
         verificarAccesoCarrera(getUsuarioActual(), curso.getCarrera());
 
-        // Verificar que el código no esté repetido en ese curso
         ParaleloId pk = new ParaleloId(idCurso, request.getCodigo());
         if (paraleloRepository.existsById(pk)) {
             throw new BusinessException(
@@ -231,14 +225,12 @@ public class CursoService {
         paralelo.setLugar(request.getLugar());
         paralelo.setLink(request.getLink());
 
-        // Asignar docente si se especificó
         if (request.getIdDocente() != null) {
             Usuario docente = usuarioRepository.findById(request.getIdDocente())
                 .orElseThrow(() -> new ResourceNotFoundException("Docente", request.getIdDocente()));
 
-            // Verificar que tenga rol DOCENTE
             boolean esDocente = docente.getRoles().stream()
-                .anyMatch(r -> r.getNombre().equals("DOCENTE"));
+                .anyMatch(r -> normalizeRolName(r.getNombre()).equals("DOCENTE"));
             if (!esDocente) {
                 throw new BusinessException(
                     "El usuario no tiene el rol DOCENTE", 400);
@@ -298,13 +290,8 @@ public class CursoService {
             .orElseThrow(() -> new ResourceNotFoundException("Curso", idCurso));
     }
 
-    // Obtiene el usuario autenticado del SecurityContext
     private Usuario getUsuarioActual() {
-        CustomUserDetails userDetails = (CustomUserDetails)
-            SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return usuarioRepository.findById(userDetails.getIdUsuario())
-            .orElseThrow(() -> new ResourceNotFoundException(
-                "Usuario", userDetails.getIdUsuario()));
+        return currentUserProvider.getUsuarioActual();
     }
 
     // Verifica que el usuario pueda gestionar la carrera
@@ -411,8 +398,7 @@ public class CursoService {
     }
 
     private String normalizeRolName(String nombreRol) {
-        if (nombreRol == null) return "";
-        return nombreRol.replace("ROLE_", "").replace("Ñ", "N").replace("ñ", "n").toUpperCase();
+        return RolUtil.normalizar(nombreRol);
     }
 
     private String normalizeUnidadDuracion(String unidad) {
