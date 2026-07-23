@@ -34,6 +34,6 @@ public class LibelulaCallbackController {
     public ResponseEntity<Void> pagoExitoso(@RequestParam("transaction_id") String transactionId) {
         log.info("Callback de Libélula recibido — transaction_id={}", transactionId);
         inscripcionService.confirmarPagoLibelula(transactionId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 }
