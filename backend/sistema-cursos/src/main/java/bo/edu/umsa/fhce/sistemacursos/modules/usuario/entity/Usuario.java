@@ -51,6 +51,14 @@ public class Usuario {
     @Column(name = "fecha_registro", nullable = false, updatable = false)
     private LocalDateTime fechaRegistro;
 
+    // Protección contra fuerza bruta en login (ver AuthService)
+    @Builder.Default
+    @Column(name = "intentos_fallidos", nullable = false)
+    private int intentosFallidos = 0;
+
+    @Column(name = "bloqueado_hasta")
+    private LocalDateTime bloqueadoHasta;
+
     // Relación N:M con Rol a través de la tabla usuario_rol
     // FetchType.EAGER: carga los roles junto con el usuario
     // (necesario para Spring Security — necesita los roles al autenticar)

@@ -1,6 +1,7 @@
 package bo.edu.umsa.fhce.sistemacursos.modules.auth.service;
 
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -71,21 +73,29 @@ public class AuthService {
     @Value("${app.umsa.email-domain:umsa.bo}")
     private String umsaEmailDomain;
 
+    // Bloqueo de cuenta tras intentos fallidos (protección contra fuerza bruta)
+    private static final int MAX_INTENTOS_FALLIDOS = 5;
+    private static final long BLOQUEO_MINUTOS = 15;
+    // Mensaje genérico a propósito: no revelar si el usuario existe, si la
+    // contraseña es incorrecta, o si la cuenta es UMSA/externa
+    private static final String CREDENCIALES_INVALIDAS_MSG = "Usuario o contraseña incorrectos";
+
     public LoginResponse login(LoginRequest request) {
         String username = request.getUsername().trim();
         Usuario usuario = usuarioRepository.findByUsernameWithRoles(username).orElse(null);
 
+        verificarBloqueo(usuario);
+
         if (usuario != null && usuario.getPasswordHash() != null) {
-            return loginExterno(request);
+            return loginExterno(request, usuario);
         }
 
+        // Mensaje genérico a propósito: no revelar si el usuario existe o no
         if (!esRu(username) && usuario == null) {
-            throw new BusinessException("Usuario no encontrado", 401);
+            throw new BusinessException(CREDENCIALES_INVALIDAS_MSG, 401);
         }
 
         return loginUmsa(request, usuario);
-
-        
     }
     // ── Registro de usuario externo ──────────────────────────────────────────
     @Transactional
@@ -227,24 +237,31 @@ public class AuthService {
         return new MensajeResponse("Se envió un nuevo código a " + usuario.getEmail());
     }
 
-    private LoginResponse loginExterno(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(
-                request.getUsername(),
-                request.getPassword()
-            )
-        );
+    private LoginResponse loginExterno(LoginRequest request, Usuario usuario) {
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                    request.getUsername(),
+                    request.getPassword()
+                )
+            );
+        } catch (AuthenticationException ex) {
+            registrarIntentoFallido(usuario);
+            throw new BusinessException(CREDENCIALES_INVALIDAS_MSG, 401);
+        }
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-        Usuario usuario = usuarioRepository.findById(userDetails.getIdUsuario())
+        Usuario usuarioAutenticado = usuarioRepository.findById(userDetails.getIdUsuario())
             .orElseThrow(() -> new ResourceNotFoundException(
                 "Usuario", userDetails.getIdUsuario()));
-        if (usuario.getEstado() == Usuario.EstadoUsuario.INACTIVO) {
+        if (usuarioAutenticado.getEstado() == Usuario.EstadoUsuario.INACTIVO) {
             throw new BusinessException("La cuenta está inactiva", 403);
         }
 
-        return buildLoginResponse(userDetails, usuario);
+        resetIntentosFallidos(usuarioAutenticado);
+        return buildLoginResponse(userDetails, usuarioAutenticado);
     }
 
     private LoginResponse loginUmsa(LoginRequest request, Usuario usuario) {
@@ -263,12 +280,54 @@ public class AuthService {
                 usuario.setEstado(Usuario.EstadoUsuario.INACTIVO);
                 usuarioRepository.save(usuario);
             }
-            throw new BusinessException("Credenciales UMSA inválidas", 401);
+            registrarIntentoFallido(usuario);
+            throw new BusinessException(CREDENCIALES_INVALIDAS_MSG, 401);
         }
 
         Usuario actualizado = sincronizarUsuarioUmsa(usuario, result);
+        resetIntentosFallidos(actualizado);
         CustomUserDetails userDetails = new CustomUserDetails(actualizado);
         return buildLoginResponse(userDetails, actualizado);
+    }
+
+    // ── Bloqueo de cuenta por intentos fallidos ──────────────────────────────
+
+    private void verificarBloqueo(Usuario usuario) {
+        if (usuario == null || usuario.getBloqueadoHasta() == null) {
+            return;
+        }
+        LocalDateTime ahora = LocalDateTime.now();
+        if (usuario.getBloqueadoHasta().isAfter(ahora)) {
+            long minutosRestantes = Duration.between(ahora, usuario.getBloqueadoHasta()).toMinutes() + 1;
+            throw new BusinessException(
+                "Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intenta nuevamente en "
+                    + minutosRestantes + " minuto(s).",
+                423);
+        }
+        // El bloqueo ya expiró: limpiar el contador para que arranque de cero
+        usuario.setIntentosFallidos(0);
+        usuario.setBloqueadoHasta(null);
+        usuarioRepository.save(usuario);
+    }
+
+    private void registrarIntentoFallido(Usuario usuario) {
+        if (usuario == null) {
+            return;
+        }
+        int intentos = usuario.getIntentosFallidos() + 1;
+        usuario.setIntentosFallidos(intentos);
+        if (intentos >= MAX_INTENTOS_FALLIDOS) {
+            usuario.setBloqueadoHasta(LocalDateTime.now().plusMinutes(BLOQUEO_MINUTOS));
+        }
+        usuarioRepository.save(usuario);
+    }
+
+    private void resetIntentosFallidos(Usuario usuario) {
+        if (usuario.getIntentosFallidos() != 0 || usuario.getBloqueadoHasta() != null) {
+            usuario.setIntentosFallidos(0);
+            usuario.setBloqueadoHasta(null);
+            usuarioRepository.save(usuario);
+        }
     }
 
     private Usuario sincronizarUsuarioUmsa(Usuario usuario, UmsaAuthResult result) {

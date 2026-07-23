@@ -24,6 +24,8 @@ CREATE TABLE usuario (
     password_hash     VARCHAR(255)    NULL             COMMENT 'Solo externos; NULL para usuarios UMSA',
     estado            ENUM('ACTIVO','INACTIVO') NOT NULL DEFAULT 'ACTIVO',
     fecha_registro    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    intentos_fallidos INT             NOT NULL DEFAULT 0 COMMENT 'Intentos de login fallidos consecutivos',
+    bloqueado_hasta   DATETIME        NULL             COMMENT 'Bloqueo temporal por fuerza bruta; NULL si no está bloqueado',
 
     INDEX idx_email       (email),
     INDEX idx_username    (username),

@@ -890,6 +890,8 @@ CREATE TABLE `usuario` (
   `password_hash` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Solo externos; NULL para usuarios UMSA',
   `estado` enum('ACTIVO','INACTIVO') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ACTIVO',
   `fecha_registro` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `intentos_fallidos` int NOT NULL DEFAULT '0' COMMENT 'Intentos de login fallidos consecutivos',
+  `bloqueado_hasta` datetime DEFAULT NULL COMMENT 'Bloqueo temporal por fuerza bruta; NULL si no está bloqueado',
   PRIMARY KEY (`id_usuario`),
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `email` (`email`),
