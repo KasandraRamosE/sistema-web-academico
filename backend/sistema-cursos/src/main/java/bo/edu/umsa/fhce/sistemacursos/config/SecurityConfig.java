@@ -1,5 +1,3 @@
-// src/main/java/.../config/SecurityConfig.java
-
 package bo.edu.umsa.fhce.sistemacursos.config;
 
 import java.util.Arrays;

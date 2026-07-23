@@ -24,7 +24,6 @@ public class CoordinadorCarreraController {
 
     private final CarreraService carreraService;
 
-    // GET /api/coordinador/carreras
     @GetMapping("/carreras")
     @PreAuthorize("hasRole('COORDINADOR')")
     @Operation(summary = "Listar carreras del coordinador autenticado")

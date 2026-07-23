@@ -1,5 +1,3 @@
-// src/main/java/.../modules/plantilla/dto/PlantillaDto.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.plantilla.dto;
 
 import java.time.LocalDateTime;

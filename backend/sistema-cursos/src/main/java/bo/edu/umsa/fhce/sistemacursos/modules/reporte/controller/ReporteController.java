@@ -30,7 +30,6 @@ public class ReporteController {
 
     private final ReporteService reporteService;
 
-    // GET /api/reportes/academicos
     @GetMapping("/academicos")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Reporte academico de cursos, eventos e inscripciones")
@@ -43,7 +42,6 @@ public class ReporteController {
         return ResponseEntity.ok(reporteService.reporteAcademico(idCarrera, desde, hasta));
     }
 
-    // GET /api/reportes/financieros
     @GetMapping("/financieros")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     @Operation(summary = "Reporte financiero por actividad y tipo de participante")
@@ -56,7 +54,6 @@ public class ReporteController {
         return ResponseEntity.ok(reporteService.reporteFinanciero(idCarrera, desde, hasta));
     }
 
-    // GET /api/reportes/financieros/coordinador
     @GetMapping("/financieros/coordinador")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Reporte financiero para coordinadores (limitado por carrera)")
@@ -69,7 +66,6 @@ public class ReporteController {
         return ResponseEntity.ok(reporteService.reporteFinancieroCoordinador(idCarrera, desde, hasta));
     }
 
-    // GET /api/reportes/participacion
     @GetMapping("/participacion")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Estadisticas de participacion por carrera y tipo de usuario")
@@ -82,7 +78,6 @@ public class ReporteController {
         return ResponseEntity.ok(reporteService.reporteParticipacion(idCarrera, desde, hasta));
     }
 
-    // GET /api/reportes/actividad
     @GetMapping("/actividad")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Detalle de reporte por actividad (curso o evento)")

@@ -1,5 +1,3 @@
-// src/main/java/.../modules/certificado/repository/CertificadoRepository.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.certificado.repository;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.entity.Certificado;

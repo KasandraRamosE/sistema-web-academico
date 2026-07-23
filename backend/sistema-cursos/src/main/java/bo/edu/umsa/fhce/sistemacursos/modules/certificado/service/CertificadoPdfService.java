@@ -1,5 +1,3 @@
-// src/main/java/.../modules/certificado/service/CertificadoPdfService.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.certificado.service;
 
 import java.io.ByteArrayInputStream;

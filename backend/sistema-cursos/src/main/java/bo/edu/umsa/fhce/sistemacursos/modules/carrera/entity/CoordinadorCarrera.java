@@ -1,5 +1,3 @@
-// src/main/java/.../modules/carrera/entity/CoordinadorCarrera.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.carrera.entity;
 
 import java.time.LocalDateTime;

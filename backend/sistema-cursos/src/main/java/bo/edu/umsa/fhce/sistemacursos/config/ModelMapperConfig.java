@@ -1,5 +1,3 @@
-// src/main/java/.../config/ModelMapperConfig.java
-
 package bo.edu.umsa.fhce.sistemacursos.config;
 
 import org.modelmapper.ModelMapper;

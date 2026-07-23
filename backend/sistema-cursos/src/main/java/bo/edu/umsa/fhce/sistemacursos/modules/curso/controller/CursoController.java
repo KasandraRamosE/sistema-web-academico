@@ -1,5 +1,3 @@
-// src/main/java/.../modules/curso/controller/CursoController.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.curso.controller;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.dto.*;
@@ -22,7 +20,6 @@ public class CursoController {
 
     private final CursoService cursoService;
 
-    // GET /api/cursos — catálogo de cursos abiertos
     @GetMapping
     @PreAuthorize("permitAll()")
     @Operation(summary = "Listar cursos abiertos",
@@ -32,7 +29,6 @@ public class CursoController {
         return ResponseEntity.ok(cursoService.listarAbiertos(idCarrera));
     }
 
-    // GET /api/cursos/todos — para admin y coordinador
     @GetMapping("/todos")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Listar todos los cursos incluyendo finalizados")
@@ -41,7 +37,6 @@ public class CursoController {
         return ResponseEntity.ok(cursoService.listarTodos(idCarrera));
     }
 
-    // GET /api/cursos/disenador
     @GetMapping("/disenador")
     @PreAuthorize("hasAnyRole('DISENADOR', 'DISEÑADOR')")
     @Operation(summary = "Listar cursos asignados al disenador autenticado")
@@ -49,7 +44,6 @@ public class CursoController {
         return ResponseEntity.ok(cursoService.listarAsignadosDisenador());
     }
 
-    // GET /api/cursos/{id}
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
     @Operation(summary = "Ver detalle de un curso con sus paralelos")
@@ -57,7 +51,6 @@ public class CursoController {
         return ResponseEntity.ok(cursoService.obtener(id));
     }
 
-    // POST /api/cursos
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Crear curso")
@@ -65,7 +58,6 @@ public class CursoController {
         return ResponseEntity.status(201).body(cursoService.crear(request));
     }
 
-    // PUT /api/cursos/{id}
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Actualizar curso")
@@ -75,7 +67,6 @@ public class CursoController {
         return ResponseEntity.ok(cursoService.actualizar(id, request));
     }
 
-    // DELETE /api/cursos/{id}
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Eliminar curso")
@@ -84,7 +75,6 @@ public class CursoController {
         return ResponseEntity.noContent().build();
     }
 
-    // PATCH /api/cursos/{id}/estado
     @PatchMapping("/{id}/estado")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Cambiar estado del curso")
@@ -94,7 +84,6 @@ public class CursoController {
         return ResponseEntity.ok(cursoService.cambiarEstado(id, estado));
     }
 
-    // PATCH /api/cursos/{id}/disenador
     @PatchMapping("/{id}/disenador")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Asignar o remover disenador del curso")
@@ -106,7 +95,6 @@ public class CursoController {
 
     // ── Endpoints de paralelos ────────────────────────────────────────────────
 
-    // POST /api/cursos/{id}/paralelos
     @PostMapping("/{id}/paralelos")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Agregar paralelo al curso")
@@ -116,7 +104,6 @@ public class CursoController {
         return ResponseEntity.status(201).body(cursoService.agregarParalelo(id, request));
     }
 
-    // PUT /api/cursos/{id}/paralelos/{codigo}
     @PutMapping("/{id}/paralelos/{codigo}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Actualizar paralelo")
@@ -127,7 +114,6 @@ public class CursoController {
         return ResponseEntity.ok(cursoService.actualizarParalelo(id, codigo, request));
     }
 
-    // DELETE /api/cursos/{id}/paralelos/{codigo}
     @DeleteMapping("/{id}/paralelos/{codigo}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Eliminar paralelo")

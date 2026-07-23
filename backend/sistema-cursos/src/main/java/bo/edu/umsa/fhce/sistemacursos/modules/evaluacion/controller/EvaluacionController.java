@@ -1,5 +1,3 @@
-// src/main/java/.../modules/evaluacion/controller/EvaluacionController.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.controller;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto.*;
@@ -24,7 +22,6 @@ public class EvaluacionController {
 
     private final EvaluacionService evaluacionService;
 
-    // POST /api/evaluaciones
     @PostMapping
     @PreAuthorize("hasAnyRole('DOCENTE', 'ADMINISTRADOR')")
     @Operation(summary = "Registrar nota a un participante")
@@ -34,7 +31,6 @@ public class EvaluacionController {
             .body(evaluacionService.registrarNota(request));
     }
 
-    // POST /api/evaluaciones/lote
     @PostMapping("/lote")
     @PreAuthorize("hasAnyRole('DOCENTE', 'ADMINISTRADOR')")
     @Operation(summary = "Registrar notas en lote para un paralelo")
@@ -44,7 +40,6 @@ public class EvaluacionController {
             .body(evaluacionService.registrarNotasLote(requests));
     }
 
-    // GET /api/evaluaciones/paralelo/{idCurso}/{codigo}
     @GetMapping("/paralelo/{idCurso}/{codigo}")
     @PreAuthorize("hasAnyRole('DOCENTE', 'COORDINADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Ver notas de un paralelo")
@@ -54,7 +49,6 @@ public class EvaluacionController {
         return ResponseEntity.ok(evaluacionService.notasDeParalelo(idCurso, codigo));
     }
 
-    // GET /api/evaluaciones/paralelo/{idCurso}/{codigo}/estado
     @GetMapping("/paralelo/{idCurso}/{codigo}/estado")
     @PreAuthorize("hasAnyRole('DOCENTE', 'COORDINADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Estado de confirmacion del paralelo")
@@ -66,7 +60,6 @@ public class EvaluacionController {
         return ResponseEntity.ok(dto);
     }
 
-    // PATCH /api/evaluaciones/{id}/nota
     @PatchMapping("/{id}/nota")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     @Operation(summary = "Modificar nota — solo administrador")
@@ -76,7 +69,6 @@ public class EvaluacionController {
         return ResponseEntity.ok(evaluacionService.modificarNota(id, request));
     }
 
-    // GET /api/evaluaciones/{id}/historial
     @GetMapping("/{id}/historial")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Ver historial de cambios de una evaluación")
@@ -84,7 +76,6 @@ public class EvaluacionController {
         return ResponseEntity.ok(evaluacionService.historialDeEvaluacion(id));
     }
 
-    // POST /api/evaluaciones/confirmar/{idCurso}
     @PostMapping("/confirmar/{idCurso}")
     @PreAuthorize("hasRole('DOCENTE')")
     @Operation(summary = "Confirmar notas de un paralelo y generar solicitud de emisión")
@@ -95,7 +86,6 @@ public class EvaluacionController {
             .body(evaluacionService.confirmarNotas(idCurso, request));
     }
 
-    // GET /api/evaluaciones/solicitudes
     @GetMapping("/solicitudes")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Ver solicitudes de emisión pendientes")
@@ -103,7 +93,6 @@ public class EvaluacionController {
         return ResponseEntity.ok(evaluacionService.solicitudesPendientes());
     }
 
-    // GET /api/evaluaciones/solicitudes/todas
     @GetMapping("/solicitudes/todas")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Ver historial de solicitudes de emisión")
@@ -111,7 +100,6 @@ public class EvaluacionController {
         return ResponseEntity.ok(evaluacionService.solicitudesTodas());
     }
 
-    // POST /api/evaluaciones/solicitudes/evento/{idEvento}
     @PostMapping("/solicitudes/evento/{idEvento}")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Crear solicitud de emisión para un evento")
@@ -122,7 +110,6 @@ public class EvaluacionController {
             .body(evaluacionService.solicitarEmisionEvento(idEvento, request));
     }
 
-    // PATCH /api/evaluaciones/solicitudes/{id}
     @PatchMapping("/solicitudes/{id}")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Procesar solicitud de emisión")

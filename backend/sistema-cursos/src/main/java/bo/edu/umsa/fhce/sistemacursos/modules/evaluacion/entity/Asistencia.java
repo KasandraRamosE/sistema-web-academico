@@ -1,5 +1,3 @@
-// src/main/java/.../modules/evaluacion/entity/Asistencia.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity;
 
 import java.time.LocalDateTime;

@@ -20,8 +20,6 @@ public class CarreraController {
 
     private final CarreraService carreraService;
 
-    // GET /api/carreras
-    // Coordinadores y participantes pueden ver las carreras activas
     @GetMapping
     @PreAuthorize("permitAll()")
     @Operation(summary = "Listar carreras activas")
@@ -29,8 +27,6 @@ public class CarreraController {
         return ResponseEntity.ok(carreraService.listarActivas());
     }
 
-    // GET /api/carreras/todas
-    // Solo admin ve las inactivas también
     @GetMapping("/todas")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     @Operation(summary = "Listar todas las carreras incluidas las inactivas")
@@ -38,7 +34,6 @@ public class CarreraController {
         return ResponseEntity.ok(carreraService.listarTodas());
     }
 
-    // POST /api/carreras
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     @Operation(summary = "Crear carrera")
@@ -46,7 +41,6 @@ public class CarreraController {
         return ResponseEntity.status(201).body(carreraService.crear(request));
     }
 
-    // PUT /api/carreras/{id}
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     @Operation(summary = "Actualizar nombre de carrera")
@@ -56,7 +50,6 @@ public class CarreraController {
         return ResponseEntity.ok(carreraService.actualizar(id, request));
     }
 
-    // PATCH /api/carreras/{id}/estado
     @PatchMapping("/{id}/estado")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     @Operation(summary = "Activar o desactivar carrera")
@@ -66,7 +59,6 @@ public class CarreraController {
         return ResponseEntity.ok(carreraService.cambiarEstado(id, estado));
     }
 
-    // POST /api/carreras/{id}/coordinadores
     @PostMapping("/{id}/coordinadores")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     @Operation(summary = "Asignar coordinador a carrera")
@@ -77,7 +69,6 @@ public class CarreraController {
         return ResponseEntity.status(201).build();
     }
 
-    // DELETE /api/carreras/{id}/coordinadores/{idCoordinador}
     @DeleteMapping("/{id}/coordinadores/{idCoordinador}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     @Operation(summary = "Remover coordinador de carrera")
@@ -88,7 +79,6 @@ public class CarreraController {
         return ResponseEntity.noContent().build();
     }
 
-    // GET /api/carreras/{id}/coordinadores
     @GetMapping("/{id}/coordinadores")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Listar coordinadores de una carrera")

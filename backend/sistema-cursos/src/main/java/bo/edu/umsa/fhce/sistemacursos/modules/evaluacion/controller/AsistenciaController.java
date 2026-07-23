@@ -1,5 +1,3 @@
-// src/main/java/.../modules/evaluacion/controller/AsistenciaController.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.controller;
 
 import java.util.List;
@@ -31,7 +29,6 @@ public class AsistenciaController {
 
     private final AsistenciaService asistenciaService;
 
-    // POST /api/asistencias
     @PostMapping
     @PreAuthorize("hasAnyRole('COORDINADOR', 'AUXILIAR', 'ADMINISTRADOR')")
     @Operation(summary = "Registrar asistencia de un participante a un evento")
@@ -41,7 +38,6 @@ public class AsistenciaController {
             .body(asistenciaService.registrar(request));
     }
 
-    // GET /api/asistencias/evento/{idEvento}
     @GetMapping("/evento/{idEvento}")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'AUXILIAR', 'ADMINISTRADOR')")
     @Operation(summary = "Ver lista de asistentes de un evento")
@@ -49,7 +45,6 @@ public class AsistenciaController {
         return ResponseEntity.ok(asistenciaService.asistentesDeEvento(idEvento));
     }
 
-    // GET /api/asistencias/evento/{idEvento}/detalle
     @GetMapping("/evento/{idEvento}/detalle")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'AUXILIAR', 'ADMINISTRADOR')")
     @Operation(summary = "Ver inscripciones de un evento con estado de asistencia")
@@ -57,7 +52,6 @@ public class AsistenciaController {
         return ResponseEntity.ok(asistenciaService.inscripcionesConAsistencia(idEvento));
     }
 
-    // DELETE /api/asistencias/{idInscripcion}
     @DeleteMapping("/{idInscripcion}")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR', 'AUXILIAR')")
     @Operation(summary = "Anular registro de asistencia")

@@ -1,5 +1,3 @@
-// src/main/java/.../modules/usuario/dto/AsignarRolRequest.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto;
 
 import jakarta.validation.constraints.NotBlank;

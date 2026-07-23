@@ -1,5 +1,3 @@
-// src/main/java/.../modules/usuario/dto/RolDto.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto;
 
 import lombok.Getter;

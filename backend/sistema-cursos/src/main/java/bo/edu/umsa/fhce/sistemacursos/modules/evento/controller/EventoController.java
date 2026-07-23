@@ -34,7 +34,6 @@ public class EventoController {
 
     private final EventoService eventoService;
 
-    // GET /api/eventos — catálogo de eventos abiertos
     @GetMapping
     @PreAuthorize("permitAll()")
     @Operation(summary = "Listar eventos abiertos",
@@ -44,7 +43,6 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.listarAbiertos(idCarrera));
     }
 
-    // GET /api/eventos/todos
     @GetMapping("/todos")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Listar todos los eventos incluyendo finalizados")
@@ -53,7 +51,6 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.listarTodos(idCarrera));
     }
 
-    // GET /api/eventos/disenador
     @GetMapping("/disenador")
     @PreAuthorize("hasAnyRole('DISENADOR', 'DISEÑADOR')")
     @Operation(summary = "Listar eventos asignados al disenador autenticado")
@@ -61,7 +58,6 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.listarAsignadosDisenador());
     }
 
-    // GET /api/eventos/auxiliar
     @GetMapping("/auxiliar")
     @PreAuthorize("hasRole('AUXILIAR')")
     @Operation(summary = "Listar eventos asignados al auxiliar actual")
@@ -69,7 +65,6 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.listarAsignadosAuxiliar());
     }
 
-    // GET /api/eventos/{id}
     @GetMapping("/{id}")
     @PreAuthorize("permitAll()")
     @Operation(summary = "Ver detalle de un evento")
@@ -77,7 +72,6 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.obtener(id));
     }
 
-    // POST /api/eventos
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Crear evento")
@@ -85,7 +79,6 @@ public class EventoController {
         return ResponseEntity.status(201).body(eventoService.crear(request));
     }
 
-    // PUT /api/eventos/{id}
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Actualizar evento")
@@ -95,7 +88,6 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.actualizar(id, request));
     }
 
-    // DELETE /api/eventos/{id}
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Eliminar evento")
@@ -104,7 +96,6 @@ public class EventoController {
         return ResponseEntity.noContent().build();
     }
 
-    // PATCH /api/eventos/{id}/estado
     @PatchMapping("/{id}/estado")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Cambiar estado del evento")
@@ -114,7 +105,6 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.cambiarEstado(id, estado));
     }
 
-    // PATCH /api/eventos/{id}/disenador
     @PatchMapping("/{id}/disenador")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Asignar o remover disenador del evento")
@@ -124,7 +114,6 @@ public class EventoController {
         return ResponseEntity.ok(eventoService.asignarDisenador(id, request));
     }
 
-    // POST /api/eventos/{id}/auxiliares
     @PostMapping("/{id}/auxiliares")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Asignar auxiliar a evento")
@@ -135,7 +124,6 @@ public class EventoController {
         return ResponseEntity.status(201).build();
     }
 
-    // DELETE /api/eventos/{id}/auxiliares/{idAuxiliar}
     @DeleteMapping("/{id}/auxiliares/{idAuxiliar}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Remover auxiliar de evento")
@@ -146,7 +134,6 @@ public class EventoController {
         return ResponseEntity.noContent().build();
     }
 
-    // GET /api/eventos/{id}/auxiliares
     @GetMapping("/{id}/auxiliares")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Listar auxiliares asignados a un evento")

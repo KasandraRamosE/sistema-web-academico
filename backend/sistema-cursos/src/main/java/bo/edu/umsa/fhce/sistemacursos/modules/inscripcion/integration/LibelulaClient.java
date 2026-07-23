@@ -1,5 +1,3 @@
-// src/main/java/.../modules/inscripcion/integration/LibelulaClient.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.integration;
 
 import java.math.BigDecimal;

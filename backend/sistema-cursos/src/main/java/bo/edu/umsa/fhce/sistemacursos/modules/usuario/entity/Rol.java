@@ -1,5 +1,3 @@
-// src/main/java/.../modules/usuario/entity/Rol.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity;
 
 import jakarta.persistence.Column;

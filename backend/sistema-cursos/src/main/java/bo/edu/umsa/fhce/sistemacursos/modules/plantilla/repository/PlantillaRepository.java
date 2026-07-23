@@ -1,5 +1,3 @@
-// src/main/java/.../modules/plantilla/repository/PlantillaRepository.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.plantilla.repository;
 
 import java.util.List;

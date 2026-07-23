@@ -1,5 +1,3 @@
-// src/main/java/.../modules/evaluacion/entity/SolicitudEmision.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.entity;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Curso;

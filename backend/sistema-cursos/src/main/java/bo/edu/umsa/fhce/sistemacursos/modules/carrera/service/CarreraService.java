@@ -1,5 +1,3 @@
-// src/main/java/.../modules/carrera/service/CarreraService.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.carrera.service;
 
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;

@@ -28,7 +28,6 @@ public class LibelulaCallbackController {
 
     private final InscripcionService inscripcionService;
 
-    // GET /api/payments/libelula/callback?transaction_id=...
     @GetMapping("/callback")
     @Operation(summary = "Callback de Libélula tras un pago exitoso (uso interno de Libélula)")
     public ResponseEntity<Void> pagoExitoso(@RequestParam("transaction_id") String transactionId) {

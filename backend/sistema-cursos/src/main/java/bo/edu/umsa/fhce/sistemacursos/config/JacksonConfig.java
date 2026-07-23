@@ -1,5 +1,3 @@
-// src/main/java/.../config/JacksonConfig.java
-
 package bo.edu.umsa.fhce.sistemacursos.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;

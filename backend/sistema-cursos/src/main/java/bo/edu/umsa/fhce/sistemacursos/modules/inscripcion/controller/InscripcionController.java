@@ -20,7 +20,6 @@ public class InscripcionController {
 
     private final InscripcionService inscripcionService;
 
-    // POST /api/inscripciones
     @PostMapping
     @PreAuthorize("hasRole('PARTICIPANTE')")
     @Operation(summary = "Inscribirse a un curso o evento")
@@ -30,7 +29,6 @@ public class InscripcionController {
             .body(inscripcionService.inscribirse(request));
     }
 
-    // POST /api/inscripciones/pago
     @PostMapping("/pago")
     @PreAuthorize("hasRole('PARTICIPANTE')")
     @Operation(summary = "Iniciar pago de una inscripción mediante Libélula")
@@ -39,7 +37,6 @@ public class InscripcionController {
         return ResponseEntity.ok(inscripcionService.iniciarPago(request));
     }
 
-    // POST /api/inscripciones/pago/confirmar
     // Confirmación MANUAL, solo para soporte/administración — la confirmación
     // normal ocurre en LibelulaCallbackController tras verificar contra Libélula.
     // No es de uso del participante: nunca confirma sin haber recibido el dinero.
@@ -51,7 +48,6 @@ public class InscripcionController {
         return ResponseEntity.ok(inscripcionService.confirmarPago(request));
     }
 
-    // GET /api/inscripciones/mis-inscripciones
     @GetMapping("/mis-inscripciones")
     @PreAuthorize("hasRole('PARTICIPANTE')")
     @Operation(summary = "Ver mis inscripciones")
@@ -59,7 +55,6 @@ public class InscripcionController {
         return ResponseEntity.ok(inscripcionService.misInscripciones());
     }
 
-    // PATCH /api/inscripciones/{id}/cancelar
     @PatchMapping("/{id}/cancelar")
     @PreAuthorize("hasAnyRole('PARTICIPANTE', 'ADMINISTRADOR')")
     @Operation(summary = "Cancelar inscripción")
@@ -67,7 +62,6 @@ public class InscripcionController {
         return ResponseEntity.ok(inscripcionService.cancelar(id));
     }
 
-    // GET /api/inscripciones/curso/{idCurso}
     @GetMapping("/curso/{idCurso}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR', 'DOCENTE')")
     @Operation(summary = "Ver inscripciones de un curso")
@@ -75,7 +69,6 @@ public class InscripcionController {
         return ResponseEntity.ok(inscripcionService.inscripcionesDeCurso(idCurso));
     }
 
-    // GET /api/inscripciones/evento/{idEvento}
     @GetMapping("/evento/{idEvento}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR', 'AUXILIAR')")
     @Operation(summary = "Ver inscripciones de un evento")

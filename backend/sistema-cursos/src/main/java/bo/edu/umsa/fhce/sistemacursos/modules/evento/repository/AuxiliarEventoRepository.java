@@ -1,5 +1,3 @@
-// src/main/java/.../modules/evento/repository/AuxiliarEventoRepository.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.evento.repository;
 
 import java.util.List;

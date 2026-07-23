@@ -1,5 +1,3 @@
-// src/main/java/.../modules/evaluacion/dto/ModificarNotaRequest.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.dto;
 
 import jakarta.validation.constraints.DecimalMax;

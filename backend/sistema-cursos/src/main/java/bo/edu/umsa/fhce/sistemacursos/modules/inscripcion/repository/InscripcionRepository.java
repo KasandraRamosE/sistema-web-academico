@@ -1,5 +1,3 @@
-// src/main/java/.../modules/inscripcion/repository/InscripcionRepository.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.repository;
 
 import java.util.List;

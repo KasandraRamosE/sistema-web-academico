@@ -1,5 +1,3 @@
-// src/main/java/.../modules/certificado/controller/CertificadoController.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.certificado.controller;
 
 import bo.edu.umsa.fhce.sistemacursos.modules.certificado.dto.*;
@@ -24,7 +22,6 @@ public class CertificadoController {
 
     private final CertificadoService certificadoService;
 
-    // POST /api/certificados
     @PostMapping
     @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Emitir certificado individual")
@@ -34,7 +31,6 @@ public class CertificadoController {
             .body(certificadoService.emitir(request));
     }
 
-    // POST /api/certificados/lote
     @PostMapping("/lote")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Emitir certificados en lote para un paralelo")
@@ -44,7 +40,6 @@ public class CertificadoController {
             .body(certificadoService.emitirLote(request));
     }
 
-    // GET /api/certificados/mis-certificados
     @GetMapping("/mis-certificados")
     @PreAuthorize("hasRole('PARTICIPANTE')")
     @Operation(summary = "Ver mis certificados")
@@ -52,7 +47,6 @@ public class CertificadoController {
         return ResponseEntity.ok(certificadoService.misCertificados());
     }
 
-    // GET /api/certificados/admin
     @GetMapping("/admin")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'COORDINADOR')")
     @Operation(summary = "Listar certificados (admin/coordinador)")
@@ -60,8 +54,6 @@ public class CertificadoController {
         return ResponseEntity.ok(certificadoService.listarTodos());
     }
 
-    // GET /api/certificados/{id}/descargar
-    // Devuelve el PDF como bytes para descarga directa
     @GetMapping("/{id}/descargar")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Descargar certificado en PDF")
@@ -75,7 +67,6 @@ public class CertificadoController {
             .body(pdfBytes);
     }
 
-    // PATCH /api/certificados/{id}/anular
     @PatchMapping("/{id}/anular")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Anular certificado (con opción de reemitir)")
@@ -85,7 +76,6 @@ public class CertificadoController {
         return ResponseEntity.ok(certificadoService.anular(id, request));
     }
 
-    // GET /api/verificar/{codigo}
     // Endpoint PÚBLICO — sin autenticación — para escanear QR
     @GetMapping("/verificar/{codigo}")
     @Operation(summary = "Verificar certificado por código QR — acceso público")

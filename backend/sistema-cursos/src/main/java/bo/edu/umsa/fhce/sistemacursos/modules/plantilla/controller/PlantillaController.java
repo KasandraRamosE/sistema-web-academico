@@ -1,5 +1,3 @@
-// src/main/java/.../modules/plantilla/controller/PlantillaController.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.plantilla.controller;
 
 import java.io.IOException;
@@ -39,7 +37,6 @@ public class PlantillaController {
 
     private final PlantillaService plantillaService;
 
-    // POST /api/plantillas
     // multipart/form-data — el archivo PDF viene como parte del formulario
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyRole('DISENADOR', 'DISEÑADOR', 'ADMINISTRADOR')")
@@ -53,7 +50,6 @@ public class PlantillaController {
             .body(plantillaService.subirPlantilla(archivo, idCurso, idEvento));
     }
 
-    // GET /api/plantillas/pendientes
     @GetMapping("/pendientes")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Ver plantillas pendientes de revisión")
@@ -61,7 +57,6 @@ public class PlantillaController {
         return ResponseEntity.ok(plantillaService.listarPendientes());
     }
 
-    // GET /api/plantillas/estados-por-actividad
     @GetMapping("/estados-por-actividad")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Estado más reciente de plantillas por actividad")
@@ -69,7 +64,6 @@ public class PlantillaController {
         return ResponseEntity.ok(plantillaService.estadosPorActividad());
     }
 
-    // GET /api/plantillas/mis-plantillas
     @GetMapping("/mis-plantillas")
     @PreAuthorize("hasAnyRole('DISENADOR', 'DISEÑADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Ver plantillas subidas por el diseñador autenticado")
@@ -77,7 +71,6 @@ public class PlantillaController {
         return ResponseEntity.ok(plantillaService.misPlantillas());
     }
 
-    // GET /api/plantillas/historial
     @GetMapping("/historial")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'DISENADOR', 'DISEÑADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Historial de versiones de plantillas de una actividad")
@@ -92,7 +85,6 @@ public class PlantillaController {
         return ResponseEntity.ok(plantillaService.historial(idCurso, idEvento));
     }
 
-    // PATCH /api/plantillas/{id}/revisar
     @PatchMapping("/{id}/revisar")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Aprobar o rechazar plantilla",
@@ -103,7 +95,6 @@ public class PlantillaController {
         return ResponseEntity.ok(plantillaService.revisar(id, request));
     }
 
-    // GET /api/plantillas/{id}/descargar
     @GetMapping("/{id}/descargar")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'DISENADOR', 'DISEÑADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Descargar plantilla PDF para revisión")
@@ -116,7 +107,6 @@ public class PlantillaController {
             .body(pdf);
     }
 
-    // GET /api/plantillas/{id}/aprobaciones
     @GetMapping("/{id}/aprobaciones")
     @PreAuthorize("hasAnyRole('COORDINADOR', 'DISENADOR', 'DISEÑADOR', 'ADMINISTRADOR')")
     @Operation(summary = "Ver historial de revisiones de una plantilla")
