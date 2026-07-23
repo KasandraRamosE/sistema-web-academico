@@ -30,7 +30,7 @@ services:
       # Persistencia de datos — sobrevive a reinicios y recreaciones del contenedor
       - mysql_data:/var/lib/mysql
       # Script SQL inicial — solo se ejecuta si la BD está vacía (primera vez)
-      
+      - ./db/init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
