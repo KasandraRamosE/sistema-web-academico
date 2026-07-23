@@ -373,7 +373,7 @@ import Card from '@/components/common/Card.vue'
 import Badge from '@/components/common/Badge.vue'
 import Button from '@/components/common/Button.vue'
 import Modal from '@/components/common/Modal.vue'
-import { api } from '@/utils/api'
+import { api, getAuthToken } from '@/utils/api'
 import { formatDateTime, parseLocalDate } from '@/utils/dateFormatter'
 import { useAlertStore } from '@/stores/alert.store'
 
@@ -736,7 +736,7 @@ const uploadEventoImagen = async () => {
   formData.append('archivo', eventoImageFile.value)
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-  const token = localStorage.getItem('token')
+  const token = getAuthToken()
 
   const response = await fetch(`${baseUrl}/archivos/imagenes`, {
     method: 'POST',
@@ -812,13 +812,11 @@ const removeAuxiliar = async (auxiliar: AuxiliarDto) => {
   try {
     await api.delete(`/eventos/${selectedEvento.value.idEvento}/auxiliares/${auxiliar.idUsuario}`)
     alertStore.push({ type: 'success', message: 'Auxiliar removido del evento.' })
-    // remove from local list immediately
     auxiliaresAsignados.value = auxiliaresAsignados.value.filter(a => a.idUsuario !== auxiliar.idUsuario)
     await loadAuxiliaresAsignados()
   } catch (error) {
     const err = error as any
     if (err?.status === 404) {
-      // already removed; sync list
       auxiliaresAsignados.value = auxiliaresAsignados.value.filter(a => a.idUsuario !== auxiliar.idUsuario)
       alertStore.push({ type: 'warning', message: 'El auxiliar ya no estaba asignado.' })
       await loadAuxiliaresAsignados()
@@ -893,7 +891,6 @@ const assignAuxiliar = async () => {
     const succeededIds = results.filter(r => r.ok).map(r => r.id)
     const failed = results.filter(r => !r.ok)
 
-    // Optimistic update: add successfully assigned personas to the local list
     const currentAssigned = new Map<number, AuxiliarDto>()
     auxiliaresAsignados.value.forEach((auxiliar) => {
       currentAssigned.set(auxiliar.idUsuario, auxiliar)
@@ -905,7 +902,6 @@ const assignAuxiliar = async () => {
     })
     auxiliaresAsignados.value = Array.from(currentAssigned.values())
 
-    // Feedback: show success or partial failure
     if (failed.length === 0) {
       alertStore.push({ type: 'success', message: 'Auxiliar(es) asignado(s).' })
     } else if (succeededIds.length > 0) {
@@ -914,7 +910,6 @@ const assignAuxiliar = async () => {
       alertStore.push({ type: 'error', message: 'No se pudo asignar ninguno de los auxiliares seleccionados.' })
     }
 
-    // Clear selections and refresh assigned list to be safe
     selectedAuxiliarIds.value = []
     auxiliarSearch.value = ''
     await loadAuxiliaresAsignados()

@@ -434,7 +434,7 @@ import Card from '@/components/common/Card.vue'
 import Badge from '@/components/common/Badge.vue'
 import Button from '@/components/common/Button.vue'
 import Modal from '@/components/common/Modal.vue'
-import { api } from '@/utils/api'
+import { api, getAuthToken } from '@/utils/api'
 import { formatDate as formatDateUtil, parseLocalDate } from '@/utils/dateFormatter'
 import { useAlertStore } from '@/stores/alert.store'
 
@@ -801,7 +801,7 @@ const uploadCursoImagen = async () => {
   formData.append('archivo', cursoImageFile.value)
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-  const token = localStorage.getItem('token')
+  const token = getAuthToken()
 
   const response = await fetch(`${baseUrl}/archivos/imagenes`, {
     method: 'POST',

@@ -1,29 +1,20 @@
 <template>
-  <!--
-    Vista: Mi Perfil
-    Permite al usuario ver y editar su información personal
-  -->
-  <div class="container mx-auto px-4 py-8">
-    <!-- Encabezado -->
+  <div class="w-full px-4 sm:px-6 lg:px-10 py-8">
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-gray-800 mb-2">Mi Perfil</h1>
       <p class="text-gray-600">Gestiona tu información personal</p>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Columna izquierda: Avatar y estadísticas -->
       <div class="lg:col-span-1 space-y-6">
-        <!-- Card de perfil -->
         <Card>
           <div class="text-center space-y-4">
-            <!-- Avatar -->
             <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto">
               <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
             </div>
 
-            <!-- Nombre -->
             <div>
               <h2 class="text-xl font-bold text-gray-800">
                 {{ authStore.fullName }}
@@ -40,7 +31,6 @@
           </div>
         </Card>
 
-        <!-- Estadísticas rápidas -->
         <Card>
           <div class="space-y-4">
             <h3 class="font-semibold text-gray-800 mb-3">Estadísticas</h3>
@@ -63,16 +53,13 @@
         </Card>
       </div>
 
-      <!-- Columna derecha: Formulario de datos -->
       <div class="lg:col-span-2">
         <Card>
           <form @submit.prevent="guardarCambios" class="space-y-6">
-            <!-- Información Personal -->
             <div>
               <h3 class="text-lg font-semibold text-gray-800 mb-4">Información Personal</h3>
               
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Nombres -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">
                     Nombres <span class="text-red-500">*</span>
@@ -86,7 +73,6 @@
                   />
                 </div>
 
-                <!-- Apellidos -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">
                     Apellidos <span class="text-red-500">*</span>
@@ -100,7 +86,6 @@
                   />
                 </div>
 
-                <!-- Email -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">
                     Correo Electrónico <span class="text-red-500">*</span>
@@ -114,7 +99,6 @@
                   />
                 </div>
 
-                <!-- CI -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">
                     Carnet de Identidad <span class="text-red-500">*</span>
@@ -128,12 +112,9 @@
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500"
                   />
                 </div>
-
-                
               </div>
             </div>
 
-            <!-- Cambiar Contraseña -->
             <div v-if="esExterno" class="border-t border-gray-200 pt-6">
               <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-semibold text-gray-800">Contraseña</h3>
@@ -149,7 +130,6 @@
               </div>
 
               <div v-if="mostrarCambioPassword || modoEdicion" class="space-y-4">
-                <!-- Contraseña actual -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">
                     Contraseña Actual <span class="text-red-500">*</span>
@@ -180,7 +160,6 @@
                   </div>
                 </div>
 
-                <!-- Nueva contraseña -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">
                     Nueva Contraseña <span class="text-red-500">*</span>
@@ -211,7 +190,6 @@
                   </div>
                 </div>
 
-                <!-- Confirmar contraseña -->
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-2">
                     Confirmar Nueva Contraseña <span class="text-red-500">*</span>
@@ -244,7 +222,6 @@
               </div>
             </div>
 
-            <!-- Botones de acción -->
             <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
               <Button
                 v-if="!modoEdicion && esExterno"
@@ -297,15 +274,7 @@ import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
 import { api } from '@/utils/api'
 
-// ============================================
-// COMPOSABLES
-// ============================================
-
 const authStore = useAuthStore()
-
-// ============================================
-// ESTADO
-// ============================================
 
 const modoEdicion = ref(false)
 const guardando = ref(false)
@@ -336,7 +305,6 @@ interface CertificadoResponse {
   cargaHoraria?: number | null
 }
 
-// Datos del formulario
 const formData = reactive({
   ci: '',
   nombres: '',
@@ -351,19 +319,13 @@ const stats = reactive({
   horasTotales: 0
 })
 
-// Backup de datos originales
-let datosOriginales: any = {}
+let datosOriginales: typeof formData = { ...formData }
 
-// Datos de cambio de contraseña
 const passwordData = reactive({
   actual: '',
   nueva: '',
   confirmar: ''
 })
-
-// ============================================
-// MÉTODOS
-// ============================================
 
 const esExterno = computed(() => {
   if (perfil.value?.tipoUsuario) {
@@ -399,9 +361,6 @@ const cargarEstadisticas = async () => {
   }
 }
 
-/**
- * Carga los datos del usuario
- */
 const cargarDatos = async () => {
   if (!authStore.user) return
 
@@ -428,13 +387,9 @@ const cargarDatos = async () => {
     formData.email = ''
   }
 
-  // Guardar copia de datos originales
   datosOriginales = { ...formData }
 }
 
-/**
- * Activa el modo edición
- */
 const activarEdicion = () => {
   if (!esExterno.value) {
     feedbackMessage.value = 'Solo usuarios externos pueden editar su perfil.'
@@ -445,9 +400,6 @@ const activarEdicion = () => {
   feedbackMessage.value = ''
 }
 
-/**
- * Cancela la edición y restaura datos originales
- */
 const cancelarEdicion = () => {
   Object.assign(formData, datosOriginales)
   modoEdicion.value = false
@@ -456,16 +408,12 @@ const cancelarEdicion = () => {
   mostrarPasswordNueva.value = false
   mostrarPasswordConfirmar.value = false
   feedbackMessage.value = ''
-  
-  // Limpiar campos de contraseña
+
   passwordData.actual = ''
   passwordData.nueva = ''
   passwordData.confirmar = ''
 }
 
-/**
- * Guarda los cambios del perfil
- */
 const guardarCambios = async () => {
   if (!esExterno.value) {
     feedbackMessage.value = 'Solo usuarios externos pueden editar su perfil.'
@@ -473,7 +421,6 @@ const guardarCambios = async () => {
     return
   }
 
-  // Validar contraseñas si se está cambiando
   if (mostrarCambioPassword.value || (passwordData.nueva && passwordData.confirmar)) {
     if (!passwordData.actual) {
       feedbackMessage.value = 'Debes ingresar tu contrasena actual.'
@@ -510,8 +457,7 @@ const guardarCambios = async () => {
       apellidos: formData.apellidos
     }) as PerfilResponse
     perfil.value = response
-    
-    // Actualizar datos en el store
+
     if (authStore.user) {
       authStore.updateUser({
         ...authStore.user,
@@ -520,17 +466,15 @@ const guardarCambios = async () => {
         apellidos: formData.apellidos
       })
     }
-    
-    // Actualizar datos originales
+
     datosOriginales = { ...formData }
-    
+
     modoEdicion.value = false
     mostrarCambioPassword.value = false
     mostrarPasswordActual.value = false
     mostrarPasswordNueva.value = false
     mostrarPasswordConfirmar.value = false
-    
-    // Limpiar campos de contraseña
+
     passwordData.actual = ''
     passwordData.nueva = ''
     passwordData.confirmar = ''
@@ -546,10 +490,6 @@ const guardarCambios = async () => {
   }
 }
 
-// ============================================
-// LIFECYCLE
-// ============================================
-
 onMounted(() => {
   cargarDatos()
   cargarEstadisticas()
@@ -557,7 +497,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Estilos adicionales si son necesarios */
 :deep(input::-ms-reveal),
 :deep(input::-ms-clear) {
   display: none;

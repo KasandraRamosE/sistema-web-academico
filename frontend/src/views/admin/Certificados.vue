@@ -1,16 +1,10 @@
 <template>
-  <!--
-    Vista de Gestión de Certificados - Administrador
-    Permite ver solicitudes pendientes, emitir, anular y reemitir certificados
-  -->
   <div class="space-y-6">
-    <!-- Encabezado -->
     <div>
       <h1 class="text-3xl font-bold text-gray-800 mb-2">Gestión de Certificados</h1>
       <p class="text-gray-600">Solicitudes, emisión y control de certificados</p>
     </div>
 
-    <!-- Estadísticas -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <Card>
         <div class="text-center">
@@ -43,7 +37,6 @@
           <h3 class="text-lg font-semibold text-gray-800">Certificados emitidos</h3>
         </div>
 
-        <!-- Filtros -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
@@ -87,8 +80,13 @@
           </div>
         </div>
 
-        <!-- Tabla de certificados -->
-        <div v-if="certificadosPaginados.length > 0" class="overflow-x-auto">
+        <div v-if="loading" class="text-center py-12">
+          <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p class="mt-4 text-gray-600">Cargando certificados...</p>
+        </div>
+
+        <template v-else-if="certificadosPaginados.length > 0">
+        <div class="overflow-x-auto">
           <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -178,7 +176,6 @@
         </div>
 
         <Pagination
-          v-if="totalItems > 0"
           :current-page="currentPage"
           :total-items="totalItems"
           :page-size="pageSize"
@@ -186,7 +183,8 @@
           @update:current-page="goToPage"
           @update:page-size="setPageSize"
         />
-        <!-- Sin certificados -->
+        </template>
+
         <div v-else class="text-center py-12">
           <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
@@ -196,14 +194,12 @@
       </div>
     </Card>
 
-    <!-- Modal Anular Certificado -->
     <Modal
       :modelValue="showAnularModal"
       @close="closeAnularModal"
       title="Anular Certificado"
     >
       <div v-if="certificadoSeleccionado" class="space-y-4">
-        <!-- Info del certificado -->
         <div class="bg-red-50 border border-red-200 rounded-lg p-4">
           <p class="text-sm text-red-800 mb-2">
             <strong>Atención:</strong> Esta acción anulará el certificado.
@@ -214,7 +210,6 @@
           </div>
         </div>
 
-        <!-- Motivo -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Motivo de Anulación <span class="text-red-600">*</span>
@@ -228,7 +223,6 @@
           ></textarea>
         </div>
 
-        <!-- Botones -->
         <div class="flex justify-end space-x-3 pt-4 border-t">
           <Button variant="outline" @click="closeAnularModal">
             Cancelar
@@ -254,11 +248,8 @@ import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
-import { api } from '@/utils/api'
+import { api, getAuthToken } from '@/utils/api'
 import { formatDate as formatDateUtil } from '@/utils/dateFormatter'
-// ============================================
-// TIPOS
-// ============================================
 
 interface Actividad {
   nombre: string
@@ -281,10 +272,6 @@ interface Certificado {
   fechaEmision: string
 }
 
-// ============================================
-// ESTADO
-// ============================================
-
 const loading = ref(false)
 const procesando = ref(false)
 
@@ -303,16 +290,10 @@ const filtrosCertificados = ref({
   tipo: ''
 })
 
-// Modales
 const showAnularModal = ref(false)
 const certificadoSeleccionado = ref<Certificado | null>(null)
 
-// Anulación
 const motivoAnulacion = ref('')
-
-// ============================================
-// COMPUTED
-// ============================================
 
 const certificadosFiltrados = computed(() => {
   const certificadosOrdenados = [...certificados.value].sort((a, b) => {
@@ -349,7 +330,7 @@ const certificadosFiltrados = computed(() => {
   return resultado
 })
 const {
-  paginatedData: certificadosPaginados,  // Solo 10 usuarios a la vez
+  paginatedData: certificadosPaginados,
   currentPage,
   pageSize,
   totalItems,
@@ -359,9 +340,6 @@ const {
   pageSize: 10,
   initialPage: 1
 })
-// ============================================
-// MÉTODOS - CARGA DE DATOS
-// ============================================
 
 const cargarDatos = async () => {
   loading.value = true
@@ -417,13 +395,9 @@ const calcularEstadisticas = () => {
   }
 }
 
-// ============================================
-// MÉTODOS - CERTIFICADOS
-// ============================================
-
 const verCertificado = (certificado: Certificado) => {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-  const token = localStorage.getItem('token')
+  const token = getAuthToken()
 
   fetch(`${baseUrl}/certificados/${certificado.idCertificado}/descargar`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {}
@@ -483,19 +457,11 @@ const reemitirCertificado = async (certificado: Certificado) => {
   }
 }
 
-// ============================================
-// MÉTODOS - MODALES
-// ============================================
-
 const closeAnularModal = () => {
   showAnularModal.value = false
   certificadoSeleccionado.value = null
   motivoAnulacion.value = ''
 }
-
-// ============================================
-// MÉTODOS - UTILIDADES
-// ============================================
 
 const limpiarFiltrosCertificados = () => {
   filtrosCertificados.value = {
@@ -519,15 +485,10 @@ const getEstadoCertificadoBadge = (estado: string): 'primary' | 'secondary' | 's
   return variants[estado] || 'gray'
 }
 
-// ============================================
-// LIFECYCLE
-// ============================================
-
 onMounted(() => {
   cargarDatos()
 })
 </script>
 
 <style scoped>
-/* Estilos adicionales si son necesarios */
 </style>

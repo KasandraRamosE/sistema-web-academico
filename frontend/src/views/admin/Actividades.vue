@@ -1,10 +1,5 @@
 <template>
-  <!--
-    Vista de Gestión de Actividades - Administrador
-    Permite gestionar todos los cursos y eventos del sistema sin filtro de carrera
-  -->
   <div class="space-y-6">
-    <!-- Encabezado -->
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-gray-800 mb-2">Gestión de Actividades</h1>
@@ -18,7 +13,6 @@
       </Button>
     </div>
 
-    <!-- Estadísticas -->
     <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
       <Card>
         <div class="text-center">
@@ -52,10 +46,8 @@
       </Card>
     </div>
 
-    <!-- Filtros -->
     <Card>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <!-- Búsqueda -->
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
           <input
@@ -66,7 +58,6 @@
           />
         </div>
 
-        <!-- Tipo -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
           <select
@@ -79,7 +70,6 @@
           </select>
         </div>
 
-        <!-- Estado -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
           <select
@@ -95,7 +85,6 @@
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-        <!-- Carrera -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Carrera</label>
           <select
@@ -109,7 +98,6 @@
           </select>
         </div>
 
-        <!-- Modalidad -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Modalidad</label>
           <select
@@ -123,7 +111,6 @@
           </select>
         </div>
 
-        <!-- Rango de fechas -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Desde</label>
           <input
@@ -144,14 +131,14 @@
       </div>
     </Card>
 
-    <!-- Tabla de actividades -->
     <Card>
       <div v-if="loading" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         <p class="mt-4 text-gray-600">Cargando actividades...</p>
       </div>
 
-      <div v-else-if="actividadesPaginadas.length > 0" class="overflow-x-auto"> <!-- era actividadesFiltradas -->
+      <template v-else-if="actividadesPaginadas.length > 0">
+      <div class="overflow-x-auto">
         <table class="w-full">
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -168,7 +155,6 @@
           </thead>
           <tbody class="divide-y divide-gray-200">
             <tr v-for="actividad in actividadesPaginadas" :key="actividad.idActividad" class="hover:bg-gray-50">
-              <!-- Nombre -->
               <td class="px-4 py-3">
                 <div>
                   <p class="text-sm font-medium text-gray-800">{{ actividad.nombre }}</p>
@@ -176,19 +162,16 @@
                 </div>
               </td>
 
-              <!-- Tipo -->
               <td class="px-4 py-3">
                 <Badge :variant="actividad.tipo === 'CURSO' ? 'primary' : 'secondary'" size="sm">
                   {{ actividad.tipo }}
                 </Badge>
               </td>
 
-              <!-- Carrera -->
               <td class="px-4 py-3 text-sm text-gray-600">
                 {{ actividad.carrera }}
               </td>
 
-              <!-- Fechas -->
               <td class="px-4 py-3 text-sm text-gray-600">
                 <div class="text-xs">
                   <template v-if="actividad.tipo === 'EVENTO'">
@@ -203,14 +186,12 @@
                 </div>
               </td>
 
-              <!-- Modalidad -->
               <td class="px-4 py-3">
                 <Badge :variant="getModalidadBadge(actividad.modalidad)" size="sm">
                   {{ actividad.modalidad }}
                 </Badge>
               </td>
 
-              <!-- Inscritos -->
               <td class="px-4 py-3 text-sm">
                 <div class="flex items-center space-x-2">
                   <span class="font-medium">{{ actividad.inscritos }}</span>
@@ -225,7 +206,6 @@
                 </div>
               </td>
 
-              <!-- Precio -->
               <td class="px-4 py-3 text-sm">
                 <div v-if="actividad.esGratuito" class="text-green-600 font-medium">
                   GRATUITO
@@ -236,14 +216,12 @@
                 </div>
               </td>
 
-              <!-- Estado -->
               <td class="px-4 py-3">
                 <Badge :variant="getEstadoBadge(getEstadoMostrado(actividad))" size="sm">
                   {{ getEstadoMostrado(actividad) }}
                 </Badge>
               </td>
 
-              <!-- Acciones -->
               <td class="px-4 py-3">
                 <div class="flex items-center space-x-2">
                   <Button variant="ghost" size="sm" @click="verDetalle(actividad)">
@@ -275,7 +253,6 @@
       </div>
 
       <Pagination
-        v-if="totalItems > 0"
         :current-page="currentPage"
         :total-items="totalItems"
         :page-size="pageSize"
@@ -283,6 +260,7 @@
         @update:current-page="goToPage"
         @update:page-size="setPageSize"
       />
+      </template>
 
       <div v-else class="text-center py-12">
         <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -292,7 +270,6 @@
       </div>
     </Card>
 
-    <!-- Modal Crear/Editar Actividad -->
     <Modal
       :modelValue="showActividadModal"
       @close="closeActividadModal"
@@ -300,7 +277,6 @@
       size="lg"
     >
       <form @submit.prevent="submitActividad" class="space-y-4">
-        <!-- Tipo de actividad -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Tipo de Actividad <span class="text-red-600">*</span>
@@ -337,9 +313,7 @@
           </div>
         </div>
 
-        <!-- Información básica -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Nombre -->
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Nombre <span class="text-red-600">*</span>
@@ -353,7 +327,6 @@
             />
           </div>
 
-          <!-- Carrera -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Carrera <span class="text-red-600">*</span>
@@ -370,7 +343,6 @@
             </select>
           </div>
 
-          <!-- Carga horaria -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Carga Horaria <span class="text-red-600">*</span>
@@ -385,7 +357,6 @@
             />
           </div>
 
-          <!-- Modalidad (solo evento) -->
           <div v-if="formActividad.tipo === 'EVENTO'">
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Modalidad <span class="text-red-600">*</span>
@@ -402,7 +373,6 @@
             </select>
           </div>
 
-          <!-- Cupo máximo (solo evento) -->
           <div v-if="formActividad.tipo === 'EVENTO'">
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Cupo Máximo
@@ -417,7 +387,6 @@
           </div>
         </div>
 
-        <!-- Descripción -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
           <textarea
@@ -428,7 +397,6 @@
           ></textarea>
         </div>
 
-        <!-- Lugar e imagen -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div v-if="formActividad.tipo === 'EVENTO'">
             <label class="block text-sm font-medium text-gray-700 mb-1">Lugar</label>
@@ -470,7 +438,6 @@
           </div>
         </div>
 
-        <!-- Fechas / Fecha y hora -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div v-if="formActividad.tipo === 'CURSO'">
             <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -505,7 +472,6 @@
           </div>
         </div>
 
-        <!-- Precios -->
         <div>
           <label class="flex items-center mb-3">
             <input
@@ -550,7 +516,6 @@
           </div>
         </div>
 
-        <!-- Nota mínima (solo para cursos) -->
         <div v-if="formActividad.tipo === 'CURSO'">
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Nota Mínima de Aprobación <span class="text-red-600">*</span>
@@ -567,7 +532,6 @@
           <p class="text-xs text-gray-500 mt-1">Sobre 100 puntos</p>
         </div>
 
-        <!-- Botones -->
         <div class="flex justify-end space-x-3 pt-4 border-t">
           <Button type="button" variant="outline" @click="closeActividadModal">
             Cancelar
@@ -609,12 +573,9 @@ import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
-import { api } from '@/utils/api'
+import { api, getAuthToken } from '@/utils/api'
 import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil, parseLocalDate } from '@/utils/dateFormatter'
 import { useAlertStore } from '@/stores/alert.store'
-// ============================================
-// TIPOS
-// ============================================
 
 interface Actividad {
   idActividad: number
@@ -643,10 +604,6 @@ interface Carrera {
   id: number
   nombre: string
 }
-
-// ============================================
-// ESTADO
-// ============================================
 
 const loading = ref(false)
 const saving = ref(false)
@@ -705,10 +662,6 @@ const formActividad = ref({
   link: ''
 })
 
-// ============================================
-// COMPUTED
-// ============================================
-
 const actividadesFiltradas = computed(() => {
   let resultado = [...actividades.value]
 
@@ -739,21 +692,16 @@ const actividadesFiltradas = computed(() => {
 })
 
 const {
-  paginatedData: actividadesPaginadas, // ← Los datos que mostraremos en la tabla (10 items por defecto)
-  currentPage,                       // ← Página actual (reactivo)
-  pageSize,                          // ← Tamaño de página (reactivo)
-  totalPages,                        // ← Total de páginas (calculado automáticamente)
-  totalItems,                        // ← Total de items después de filtrar
-  goToPage,                          // ← Método para ir a una página específica
-  setPageSize                        // ← Método para cambiar el tamaño de página
+  paginatedData: actividadesPaginadas,
+  currentPage,
+  pageSize,
+  totalItems,
+  goToPage,
+  setPageSize
 } = usePagination(actividadesFiltradas, {
-  pageSize: 10,      
-  initialPage: 1     
+  pageSize: 10,
+  initialPage: 1
 })
-
-// ============================================
-// MÉTODOS
-// ============================================
 
 const cargarDatos = async () => {
   loading.value = true
@@ -1050,8 +998,8 @@ const getEstadoMostrado = (actividad: Actividad): Actividad['estado'] => {
 
 const toDateInput = (value: string) => {
   if (!value) return ''
-  if (value.includes('T')) return value.split('T')[0]
-  if (value.includes(' ')) return value.split(' ')[0]
+  if (value.includes('T')) return value.split('T')[0] ?? ''
+  if (value.includes(' ')) return value.split(' ')[0] ?? ''
   return value
 }
 
@@ -1125,7 +1073,7 @@ const uploadImagen = async () => {
   formData.append('archivo', imagenFile.value)
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-  const token = localStorage.getItem('token')
+  const token = getAuthToken()
 
   const response = await fetch(`${baseUrl}/archivos/imagenes`, {
     method: 'POST',

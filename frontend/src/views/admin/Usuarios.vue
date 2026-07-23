@@ -1,10 +1,5 @@
 <template>
-  <!--
-    Vista de Gestión de Usuarios - Administrador
-    Permite ver, crear, editar y gestionar roles de todos los usuarios del sistema
-  -->
   <div class="space-y-6">
-    <!-- Encabezado con botón de crear -->
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-gray-800 mb-2">Gestión de Usuarios</h1>
@@ -20,7 +15,6 @@
       </div>
     </div>
 
-    <!-- Estadísticas rápidas -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <Card>
         <div class="text-center">
@@ -48,10 +42,8 @@
       </Card>
     </div>
 
-    <!-- Filtros -->
     <Card>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <!-- Búsqueda -->
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
           <input
@@ -62,7 +54,6 @@
           />
         </div>
 
-        <!-- Filtro por tipo -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Usuario</label>
           <select
@@ -75,7 +66,6 @@
           </select>
         </div>
 
-        <!-- Filtro por rol -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Rol</label>
           <select
@@ -93,9 +83,7 @@
         </div>
       </div>
 
-      <!-- Filtros adicionales -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-        <!-- Estado -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
           <select
@@ -108,7 +96,6 @@
           </select>
         </div>
 
-        <!-- Email verificado -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Email Verificado</label>
           <select
@@ -121,7 +108,6 @@
           </select>
         </div>
 
-        <!-- Botón limpiar filtros -->
         <div class="flex items-end">
           <Button variant="outline" class="w-full" @click="limpiarFiltros">
             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,15 +119,12 @@
       </div>
     </Card>
 
-    <!-- Tabla de usuarios -->
     <Card>
-      <!-- Estado de carga -->
       <div v-if="loading" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         <p class="mt-4 text-gray-600">Cargando usuarios...</p>
       </div>
 
-      <!-- Tabla -->
       <div v-else-if="usuariosPaginados.length > 0" class="overflow-x-auto">
         <table class="w-full">
           <thead class="bg-gray-50 border-b border-gray-200">
@@ -152,13 +135,12 @@
               <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Tipo</th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Roles</th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Estado</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Email</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Verificado</th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Acciones</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
             <tr v-for="usuario in usuariosPaginados" :key="usuario.idUsuario" class="hover:bg-gray-50">
-              <!-- Nombre completo -->
               <td class="px-4 py-3">
                 <div class="flex items-center space-x-3">
                   <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
@@ -171,25 +153,20 @@
                 </div>
               </td>
 
-              
-              <!-- Username/RU -->
               <td class="px-4 py-3 text-sm text-gray-600">
                 {{ usuario.username }}
               </td>
 
-              <!-- Email -->
               <td class="px-4 py-3 text-sm text-gray-600">
                 {{ usuario.email }}
               </td>
 
-              <!-- Tipo de usuario -->
               <td class="px-4 py-3 text-sm">
                 <Badge :variant="usuario.tipoUsuario === 'INTERNO' ? 'info' : 'secondary'" size="sm">
                   {{ usuario.tipoUsuario }}
                 </Badge>
               </td>
 
-              <!-- Roles -->
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">
                   <Badge
@@ -209,14 +186,12 @@
                 </div>
               </td>
 
-              <!-- Estado -->
               <td class="px-4 py-3 text-sm">
                 <Badge :variant="usuario.estado === 'ACTIVO' ? 'success' : 'gray'" size="sm">
                   {{ usuario.estado }}
                 </Badge>
               </td>
 
-              <!-- Email verificado -->
               <td class="px-4 py-3 text-sm text-center">
                 <span v-if="usuario.emailVerificado" class="text-green-600">
                   <svg class="w-5 h-5 inline" fill="currentColor" viewBox="0 0 20 20">
@@ -230,7 +205,6 @@
                 </span>
               </td>
 
-              <!-- Acciones -->
               <td class="px-4 py-3">
                 <Button
                   variant="ghost"
@@ -246,21 +220,17 @@
             </tr>
           </tbody>
         </table>
+
+        <Pagination
+          :current-page="currentPage"
+          :total-items="totalItems"
+          :page-size="pageSize"
+          :show-page-size-selector="true"
+          @update:current-page="goToPage"
+          @update:page-size="setPageSize"
+        />
       </div>
 
-      <!-- NUEVO: Componente de Paginación -->
-      <!-- Solo se muestra si hay resultados -->
-      <Pagination
-        v-if="totalItems > 0"
-        :current-page="currentPage"
-        :total-items="totalItems"
-        :page-size="pageSize"
-        :show-page-size-selector="true"
-        @update:current-page="goToPage"
-        @update:page-size="setPageSize"
-      />
-
-      <!-- Sin resultados -->
       <div v-else class="text-center py-12">
         <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
@@ -334,10 +304,8 @@
       </div>
     </Modal>
 
-    <!-- Modal Crear/Editar Usuario -->
     <Modal :modelValue="showUsuarioModal" @close="closeUsuarioModal" :title="modoEdicion ? 'Editar Usuario' : 'Crear Usuario Externo'">
       <form @submit.prevent="submitUsuario" class="space-y-4">
-        <!-- Info según tipo -->
         <div v-if="!modoEdicion" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p class="text-sm text-blue-800">
             <strong>Nota:</strong> Los usuarios UMSA se sincronizan automáticamente desde el sistema de Usuarios Umsa.
@@ -350,7 +318,6 @@
           </p>
         </div>
 
-        <!-- CI -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             CI <span class="text-red-600">*</span>
@@ -366,7 +333,6 @@
           />
         </div>
 
-        <!-- Username -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             {{ formUsuario.tipoUsuario === 'INTERNO' ? 'RU' : 'Username' }} <span class="text-red-600">*</span>
@@ -381,7 +347,6 @@
           />
         </div>
 
-        <!-- Nombres -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Nombres <span class="text-red-600">*</span>
@@ -395,7 +360,6 @@
           />
         </div>
 
-        <!-- Apellidos -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Apellidos <span class="text-red-600">*</span>
@@ -409,7 +373,6 @@
           />
         </div>
 
-        <!-- Email - Solo editable para externos -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Email <span class="text-red-600">*</span>
@@ -425,7 +388,6 @@
           />
         </div>
 
-        <!-- Contraseña - Solo para externos al crear -->
         <div v-if="!modoEdicion && formUsuario.tipoUsuario === 'EXTERNO'">
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Contraseña <span class="text-red-600">*</span>
@@ -440,7 +402,6 @@
           />
         </div>
 
-        <!-- Estado - Solo editable para externos -->
         <div v-if="modoEdicion && formUsuario.tipoUsuario === 'EXTERNO'">
           <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
           <select
@@ -452,7 +413,6 @@
           </select>
         </div>
 
-        <!-- Botones -->
         <div class="flex justify-end space-x-3 pt-4 border-t">
           <Button type="button" variant="outline" @click="closeUsuarioModal">
             Cancelar
@@ -464,10 +424,8 @@
       </form>
     </Modal>
     
-    <!-- Modal Gestión de Carreras -->
     <Modal :modelValue="showCarrerasModal" @close="closeCarrerasModal" title="Gestionar Carreras">
       <div v-if="usuarioSeleccionado" class="space-y-4">
-        <!-- Info del usuario -->
         <div class="bg-gray-50 p-4 rounded-lg">
           <p class="text-sm text-gray-600">Usuario:</p>
           <p class="font-semibold text-gray-800">
@@ -485,7 +443,6 @@
           </div>
         </div>
 
-        <!-- Lista de carreras -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-3">
             Carreras Asignadas
@@ -509,7 +466,6 @@
           </div>
         </div>
 
-        <!-- Info adicional -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p class="text-sm text-blue-800">
             <strong v-if="usuarioSeleccionado.roles.includes('COORDINADOR')">Coordinadores:</strong>
@@ -520,7 +476,6 @@
           </p>
         </div>
 
-        <!-- Botones -->
         <div class="flex justify-end space-x-3 pt-4 border-t">
           <Button type="button" variant="outline" @click="closeCarrerasModal">
             Cancelar
@@ -532,8 +487,7 @@
       </div>
     </Modal>
 
-    <!-- Modal Asignar Actividades (Docentes y Auxiliares) -->
-    <Modal 
+    <Modal
       :modelValue="showActividadesModal" 
       @close="closeActividadesModal" 
       :title="tipoGestionActividades === 'DOCENTE' 
@@ -541,7 +495,6 @@
         : 'Asignar Eventos a Auxiliar'"
     >
       <div v-if="usuarioSeleccionado" class="space-y-4">
-        <!-- Info del usuario -->
         <div class="bg-gray-50 p-4 rounded-lg">
           <div class="flex items-center justify-between">
             <div>
@@ -552,8 +505,7 @@
                 {{ usuarioSeleccionado.nombres }} {{ usuarioSeleccionado.apellidos }}
               </p>
             </div>
-            <!-- Badge del rol que estamos gestionando -->
-            <Badge 
+            <Badge
               :variant="tipoGestionActividades === 'DOCENTE' ? 'info' : 'secondary'" 
               size="lg"
             >
@@ -562,9 +514,7 @@
           </div>
         </div>
 
-        <!-- Filtros -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b">
-          <!-- Filtro por carrera -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Carrera</label>
             <select
@@ -578,7 +528,6 @@
             </select>
           </div>
 
-          <!-- Búsqueda -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
             <input
@@ -590,9 +539,7 @@
           </div>
         </div>
 
-        <!-- Lista de actividades/paralelos -->
         <div class="max-h-96 overflow-y-auto">
-          <!-- Para DOCENTES: Mostrar paralelos -->
           <div v-if="tipoGestionActividades === 'DOCENTE'" class="space-y-2">
             <label class="block text-sm font-medium text-gray-700 mb-3">
               Paralelos de Cursos Disponibles
@@ -631,7 +578,6 @@
             </label>
           </div>
 
-          <!-- Para AUXILIARES: Mostrar eventos -->
           <div v-else class="space-y-2">
             <label class="block text-sm font-medium text-gray-700 mb-3">
               Eventos Disponibles
@@ -672,7 +618,6 @@
           </div>
         </div>
 
-        <!-- Info adicional -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p class="text-sm text-blue-800">
             <strong v-if="tipoGestionActividades === 'DOCENTE'">💡 Docentes:</strong>
@@ -683,7 +628,6 @@
           </p>
         </div>
 
-        <!-- Contador de seleccionados -->
         <div class="text-sm text-gray-600 text-center">
           <span v-if="tipoGestionActividades === 'DOCENTE'">
             {{ paralelosSeleccionados.length }} paralelo(s) seleccionado(s)
@@ -693,7 +637,6 @@
           </span>
         </div>
 
-        <!-- Botones -->
         <div class="flex justify-end space-x-3 pt-4 border-t">
           <Button type="button" variant="outline" @click="closeActividadesModal">
             Cancelar
@@ -705,10 +648,8 @@
       </div>
     </Modal>
 
-    <!-- Modal Gestión de Roles -->
     <Modal :modelValue="showRolesModal" @close="closeRolesModal" title="Gestionar Roles de Usuario">
       <div v-if="usuarioSeleccionado" class="space-y-4">
-        <!-- Info del usuario -->
         <div class="bg-gray-50 p-4 rounded-lg">
           <p class="text-sm text-gray-600">Usuario:</p>
           <p class="font-semibold text-gray-800">
@@ -717,13 +658,11 @@
           <p class="text-sm text-gray-500">{{ usuarioSeleccionado.email }}</p>
         </div>
 
-        <!-- Lista de roles disponibles -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-3">
             Roles Asignados
           </label>
           <div class="space-y-2">
-            <!-- Rol Administrador -->
             <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
               <input
                 type="checkbox"
@@ -738,7 +677,6 @@
               <Badge variant="danger" size="sm">ADMIN</Badge>
             </label>
 
-            <!-- Rol Coordinador -->
             <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
               <input
                 type="checkbox"
@@ -753,7 +691,6 @@
               <Badge variant="primary" size="sm">COORD</Badge>
             </label>
 
-            <!-- Rol Docente -->
             <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
               <input
                 type="checkbox"
@@ -768,7 +705,6 @@
               <Badge variant="info" size="sm">DOC</Badge>
             </label>
 
-            <!-- Rol Participante (siempre activo) -->
             <label class="flex items-center p-3 border rounded-lg bg-gray-50 cursor-not-allowed">
               <input
                 type="checkbox"
@@ -783,7 +719,6 @@
               <Badge variant="gray" size="sm">BASE</Badge>
             </label>
 
-            <!-- Rol Auxiliar -->
             <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
               <input
                 type="checkbox"
@@ -798,7 +733,6 @@
               <Badge variant="secondary" size="sm">AUX</Badge>
             </label>
 
-            <!-- Rol Diseñador -->
             <label class="flex items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
               <input
                 type="checkbox"
@@ -827,14 +761,12 @@
           />
         </div>
 
-        <!-- Nota si es Coordinador -->
         <div v-if="rolesSeleccionados.includes('COORDINADOR')" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p class="text-sm text-blue-800">
             <strong>Nota:</strong> Después de guardar, deberás asignar las carreras a este coordinador.
           </p>
         </div>
 
-        <!-- Botones -->
         <div class="flex justify-end space-x-3 pt-4 border-t">
           <Button type="button" variant="outline" @click="closeRolesModal()">
             Cancelar
@@ -846,10 +778,8 @@
       </div>
     </Modal>
 
-    <!-- Modal Cambiar Contraseña -->
     <Modal :modelValue="showPasswordModal" @close="closePasswordModal" title="Cambiar Contraseña">
       <div v-if="usuarioSeleccionado" class="space-y-4">
-        <!-- Info del usuario -->
         <div class="bg-gray-50 p-4 rounded-lg">
           <p class="text-sm text-gray-600">Usuario:</p>
           <p class="font-semibold text-gray-800">
@@ -858,7 +788,6 @@
           <p class="text-sm text-gray-500">{{ usuarioSeleccionado.username }}</p>
         </div>
 
-        <!-- Nueva contraseña -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Nueva Contraseña <span class="text-red-600">*</span>
@@ -873,7 +802,6 @@
           />
         </div>
 
-        <!-- Confirmar contraseña -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Confirmar Contraseña <span class="text-red-600">*</span>
@@ -888,14 +816,12 @@
           />
         </div>
 
-        <!-- Advertencia -->
         <div class="bg-red-50 border border-red-200 rounded-lg p-3">
           <p class="text-sm text-red-800">
             <strong>⚠️ Advertencia:</strong> El usuario deberá usar la nueva contraseña en su próximo inicio de sesión.
           </p>
         </div>
 
-        <!-- Botones -->
         <div class="flex justify-end space-x-3 pt-4 border-t">
           <Button type="button" variant="outline" @click="closePasswordModal">
             Cancelar
@@ -917,16 +843,12 @@ import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
-import Pagination from '@/components/common/Pagination.vue' // ← NUEVO: Importar componente de paginación
-import { usePagination } from '@/composables/usePagination' // ← NUEVO: Importar composable
+import Pagination from '@/components/common/Pagination.vue'
+import { usePagination } from '@/composables/usePagination'
 import { api } from '@/utils/api'
-import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil } from '@/utils/dateFormatter'
+import { formatDateTime as formatDateTimeUtil } from '@/utils/dateFormatter'
 import { useAlertStore } from '@/stores/alert.store'
 import { useAuthStore } from '@/stores/auth.store'
-
-// ============================================
-// TIPOS CORREGIDOS
-// ============================================
 
 interface Carrera {
   idCarrera: number
@@ -966,7 +888,7 @@ interface Usuario {
   emailVerificado: boolean
   estado: 'ACTIVO' | 'INACTIVO'
   roles: string[]
-  carreras: Carrera[]  // ← Solo para COORDINADORES
+  carreras: Carrera[]
   fechaRegistro: string
 }
 
@@ -1026,31 +948,17 @@ interface FormUsuario {
   estado: 'ACTIVO' | 'INACTIVO'
 }
 
-interface FormCarreras {
-  carrerasSeleccionadas: number[]
-}
-
-interface FormEventos {
-  eventosSeleccionados: number[]
-}
-
-// ============================================
-// ESTADO
-// ============================================
-
 const loading = ref(false)
 const saving = ref(false)
 const alertStore = useAlertStore()
 const authStore = useAuthStore()
 const router = useRouter()
 
-// Datos
 const usuarios = ref<Usuario[]>([])
 const carreras = ref<Carrera[]>([])
-const actividadesDisponibles = ref<Actividad[]>([])  // ← Para docentes/auxiliares
-const paralelosDisponibles = ref<Paralelo[]>([])     // ← Para docentes
+const actividadesDisponibles = ref<Actividad[]>([])
+const paralelosDisponibles = ref<Paralelo[]>([])
 
-// Estadísticas
 const estadisticas = ref({
   total: 0,
   internos: 0,
@@ -1058,7 +966,6 @@ const estadisticas = ref({
   activos: 0
 })
 
-// Filtros
 const filtros = ref({
   busqueda: '',
   tipoUsuario: '',
@@ -1067,17 +974,15 @@ const filtros = ref({
   emailVerificado: ''
 })
 
-// Modales
 const showUsuarioModal = ref(false)
 const showRolesModal = ref(false)
-const showCarrerasModal = ref(false)        // Solo coordinadores
-const showActividadesModal = ref(false)     // ← NUEVO: Para docentes y auxiliares
+const showCarrerasModal = ref(false)
+const showActividadesModal = ref(false)
 const showPasswordModal = ref(false)
 const showAccionesModal = ref(false)
 const modoEdicion = ref(false)
 const usuarioSeleccionado = ref<Usuario | null>(null)
 
-// Formularios
 const formUsuario = ref<FormUsuario>({
   username: '',
   ci: '',
@@ -1091,13 +996,12 @@ const formUsuario = ref<FormUsuario>({
 })
 
 const rolesSeleccionados = ref<string[]>([])
-const carrerasSeleccionadas = ref<number[]>([])     // Solo coordinadores
-const actividadesSeleccionadas = ref<number[]>([])  // ← NUEVO: Para auxiliares (eventos)
-const paralelosSeleccionados = ref<string[]>([])    // ← NUEVO: Para docentes (paralelos)
+const carrerasSeleccionadas = ref<number[]>([])
+const actividadesSeleccionadas = ref<number[]>([])
+const paralelosSeleccionados = ref<string[]>([])
 
-// Filtros del modal de actividades
-const filtroCarreraActividades = ref<number | ''>('')  // ← NUEVO
-const filtroBusquedaActividades = ref('')              // ← NUEVO
+const filtroCarreraActividades = ref<number | ''>('')
+const filtroBusquedaActividades = ref('')
 
 const nuevaPassword = ref('')
 const confirmarPassword = ref('')
@@ -1106,10 +1010,6 @@ const tituloDocente = ref('')
 const canAssignDesigners = computed(() => {
   return authStore.hasRole('ADMINISTRADOR') || authStore.hasRole('COORDINADOR')
 })
-
-// ============================================
-// COMPUTED
-// ============================================
 
 const usuariosFiltrados = computed(() => {
   let resultado = [...usuarios.value]
@@ -1144,26 +1044,18 @@ const usuariosFiltrados = computed(() => {
   return resultado
 })
 
-// ============================================
-// PAGINACIÓN
-// ============================================
-
 const {
-  paginatedData: usuariosPaginados, // ← Los datos que mostraremos en la tabla (10 items por defecto)
-  currentPage,                       // ← Página actual (reactivo)
-  pageSize,                          // ← Tamaño de página (reactivo)
-  totalPages,                        // ← Total de páginas (calculado automáticamente)
-  totalItems,                        // ← Total de items después de filtrar
-  goToPage,                          // ← Método para ir a una página específica
-  setPageSize                        // ← Método para cambiar el tamaño de página
+  paginatedData: usuariosPaginados,
+  currentPage,
+  pageSize,
+  totalItems,
+  goToPage,
+  setPageSize
 } = usePagination(usuariosFiltrados, {
-  pageSize: 10,      // ← 10 usuarios por página
-  initialPage: 1     // ← Empezar en la página 1
+  pageSize: 10,
+  initialPage: 1
 })
 
-// ============================================
-// MÉTODOS - CRUD
-// ============================================
 const cargarUsuarios = async () => {
   loading.value = true
   try {
@@ -1265,7 +1157,6 @@ const submitUsuario = async () => {
       await api.put(`/usuarios/${usuarioSeleccionado.value.idUsuario}`, payload)
       alertStore.push({ type: 'success', message: 'Usuario actualizado correctamente.' })
     } else {
-      // Solo se pueden crear usuarios EXTERNOS
       await api.post('/auth/registro', {
         username: formUsuario.value.username,
         ci: formUsuario.value.ci,
@@ -1304,10 +1195,6 @@ const toggleEstadoUsuario = async (usuario: Usuario) => {
     }
   }
 }
-
-// ============================================
-// MÉTODOS - ROLES
-// ============================================
 
 const guardarRoles = async () => {
   if (!usuarioSeleccionado.value) return
@@ -1374,16 +1261,13 @@ const guardarRoles = async () => {
   }
 }
 
-// ============================================
-// MÉTODOS - CARRERAS (Solo COORDINADORES)
-// ============================================
-
 const openCarrerasModal = (usuario: Usuario) => {
   if (!hasRole(usuario.roles, 'COORDINADOR')) {
     alert('Solo los coordinadores tienen carreras asignadas')
     return
   }
-  
+
+
   usuarioSeleccionado.value = usuario
   carrerasSeleccionadas.value = []
   api.get(`/usuarios/${usuario.idUsuario}/carreras`)
@@ -1425,21 +1309,15 @@ const guardarCarreras = async () => {
   }
 }
 
-// ============================================
-// MÉTODOS - ACTIVIDADES (Docentes y Auxiliares)
-// ============================================
-
-const tipoGestionActividades = ref<'DOCENTE' | 'AUXILIAR'>('DOCENTE')  // ← NUEVO: Guardar el tipo
+const tipoGestionActividades = ref<'DOCENTE' | 'AUXILIAR'>('DOCENTE')
 
 const openActividadesModal = (usuario: Usuario, tipo: 'DOCENTE' | 'AUXILIAR') => {
   usuarioSeleccionado.value = usuario
-  tipoGestionActividades.value = tipo  // ← Guardar qué tipo estamos gestionando
-  
-  // Resetear filtros
+  tipoGestionActividades.value = tipo
+
   filtroCarreraActividades.value = ''
   filtroBusquedaActividades.value = ''
-  
-  // Cargar datos según el tipo
+
   if (tipo === 'DOCENTE') {
     paralelosSeleccionados.value = []
     api.get(`/usuarios/${usuario.idUsuario}/paralelos`)
@@ -1476,18 +1354,15 @@ const closeActividadesModal = () => {
   filtroBusquedaActividades.value = ''
 }
 
-// Computed: Filtrar actividades por carrera y búsqueda
 const actividadesFiltradas = computed(() => {
   let resultado = [...actividadesDisponibles.value]
 
-  // Filtrar por carrera
   if (filtroCarreraActividades.value) {
-    resultado = resultado.filter(a => 
+    resultado = resultado.filter(a =>
       a.idCarrera === Number(filtroCarreraActividades.value)
     )
   }
 
-  // Filtrar por búsqueda
   if (filtroBusquedaActividades.value) {
     const busqueda = filtroBusquedaActividades.value.toLowerCase()
     resultado = resultado.filter(a =>
@@ -1497,7 +1372,6 @@ const actividadesFiltradas = computed(() => {
 
   resultado = resultado.filter(a => a.estado === 'ABIERTO')
 
-  // Si estamos gestionando AUXILIAR, mostrar solo EVENTOS
   if (tipoGestionActividades.value === 'AUXILIAR') {
     resultado = resultado.filter(a => a.tipo === 'EVENTO')
   }
@@ -1505,18 +1379,15 @@ const actividadesFiltradas = computed(() => {
   return resultado
 })
 
-// Computed: Filtrar paralelos por carrera y búsqueda
 const paralelosFiltrados = computed(() => {
   let resultado = [...paralelosDisponibles.value]
 
-  // Filtrar por carrera
   if (filtroCarreraActividades.value) {
     resultado = resultado.filter(p =>
       p.idCarrera === Number(filtroCarreraActividades.value)
     )
   }
 
-  // Filtrar por búsqueda
   if (filtroBusquedaActividades.value) {
     const busqueda = filtroBusquedaActividades.value.toLowerCase()
     resultado = resultado.filter(p =>
@@ -1556,10 +1427,6 @@ const guardarActividades = async () => {
   }
 }
 
-// ============================================
-// MÉTODOS - CONTRASEÑA (NUEVO)
-// ============================================
-
 const openPasswordModal = (usuario: Usuario) => {
   if (usuario.tipoUsuario === 'INTERNO') {
     alert('No se puede cambiar la contraseña de usuarios UMSA. La autenticación es mediante el sistema de Usuarios Umsa.')
@@ -1582,36 +1449,39 @@ const closePasswordModal = () => {
 const guardarPassword = async () => {
   if (!usuarioSeleccionado.value) return
 
-  // Validaciones
+  if (usuarioSeleccionado.value.tipoUsuario === 'INTERNO') {
+    alertStore.push({
+      type: 'error',
+      message: 'No se puede cambiar la contraseña de usuarios UMSA. La autenticación es mediante el sistema de Usuarios Umsa.'
+    })
+    return
+  }
+
   if (nuevaPassword.value.length < 6) {
-    alert('La contraseña debe tener al menos 6 caracteres')
+    alertStore.push({ type: 'warning', message: 'La contraseña debe tener al menos 6 caracteres.' })
     return
   }
 
   if (nuevaPassword.value !== confirmarPassword.value) {
-    alert('Las contraseñas no coinciden')
+    alertStore.push({ type: 'warning', message: 'Las contraseñas no coinciden.' })
     return
   }
 
   saving.value = true
   try {
-    console.log('Cambiando contraseña para:', usuarioSeleccionado.value.username)
-    // TODO: API call - PUT /api/usuarios/:id/password
-    // Body: { password: nuevaPassword.value }
-    
-    alert('Contraseña actualizada exitosamente')
+    await api.put(`/usuarios/${usuarioSeleccionado.value.idUsuario}/password`, {
+      passwordNueva: nuevaPassword.value
+    })
+
+    alertStore.push({ type: 'success', message: 'Contraseña actualizada correctamente.' })
     closePasswordModal()
   } catch (error) {
     console.error('Error al cambiar contraseña:', error)
-    alert('Error al cambiar la contraseña')
+    alertStore.push({ type: 'error', message: (error as Error).message || 'No se pudo cambiar la contraseña.' })
   } finally {
     saving.value = false
   }
 }
-
-// ============================================
-// MÉTODOS - MODALES
-// ============================================
 
 const openCreateModal = () => {
   modoEdicion.value = false
@@ -1631,9 +1501,7 @@ const openCreateModal = () => {
 
 const openEditModal = (usuario: Usuario) => {
   modoEdicion.value = true
-  
-  // USUARIOS INTERNOS: Solo editar nombres y apellidos
-  // USUARIOS EXTERNOS: Editar todo excepto username
+
   formUsuario.value = {
     username: usuario.username,
     ci: usuario.ci ?? '',
@@ -1685,10 +1553,6 @@ const ejecutarAccionUsuario = (callback: (usuario: Usuario) => void) => {
   showAccionesModal.value = false
 }
 
-// ============================================
-// MÉTODOS - UTILIDADES
-// ============================================
-
 const limpiarFiltros = () => {
   filtros.value = {
     busqueda: '',
@@ -1733,10 +1597,6 @@ const formatRolName = (rol: string) => {
   return nombres[normalizarRol(rol)] || rol
 }
 
-const formatDate = (date: string) => {
-  return formatDateUtil(date, 'es-BO')
-}
-
 const formatDateTime = (date: string) => {
   return formatDateTimeUtil(date, 'es-BO')
 }
@@ -1755,15 +1615,10 @@ const parseParaleloKey = (key: string) => {
   return { idCurso: Number(idCurso), codigo }
 }
 
-// ============================================
-// LIFECYCLE
-// ============================================
-
 onMounted(() => {
   cargarUsuarios()
 })
 </script>
 
 <style scoped>
-/* Estilos adicionales si son necesarios */
 </style>

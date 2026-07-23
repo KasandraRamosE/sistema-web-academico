@@ -1,7 +1,7 @@
 <template>
   <!-- El selector de rol no aparece para DISENADOR aunque tenga varios roles -->
   <header class="bg-white shadow-md sticky top-0 z-50">
-    <nav class="container mx-auto px-4 py-4">
+    <nav class="mx-auto w-full max-w-[1600px] px-4 sm:px-4 lg:px-6 py-4">
       <div class="flex items-center justify-between">
         <router-link to="/" class="flex items-center space-x-3 hover:opacity-80 transition">
           <div class="w-11 h-11 rounded-lg overflow-hidden ring-2 ring-emerald-500/30 bg-white">

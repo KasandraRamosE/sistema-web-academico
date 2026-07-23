@@ -1,18 +1,11 @@
 <template>
-  <!--
-    Dashboard del Administrador
-    Vista general con KPIs y accesos rápidos a todas las secciones
-  -->
   <div class="space-y-8">
-    <!-- Encabezado -->
     <div>
       <h1 class="text-3xl font-bold text-gray-800 mb-2">Panel de Administración</h1>
       <p class="text-gray-600">Gestión completa del sistema</p>
     </div>
 
-    <!-- KPIs - Tarjetas de estadísticas -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <!-- Total Usuarios -->
       <Card :hoverable="true" @click="router.push('/admin/usuarios')">
         <div class="flex items-center justify-between">
           <div>
@@ -31,7 +24,6 @@
         </div>
       </Card>
 
-      <!-- Total Actividades -->
       <Card :hoverable="true" @click="router.push('/admin/actividades')">
         <div class="flex items-center justify-between">
           <div>
@@ -50,7 +42,6 @@
         </div>
       </Card>
 
-      <!-- Total Inscripciones -->
       <Card :hoverable="true" @click="router.push('/admin/inscripciones')">
         <div class="flex items-center justify-between">
           <div>
@@ -68,7 +59,6 @@
         </div>
       </Card>
 
-      <!-- Certificados Pendientes -->
       <Card :hoverable="true" @click="router.push('/admin/certificados')">
         <div class="flex items-center justify-between">
           <div>
@@ -87,11 +77,9 @@
       </Card>
     </div>
 
-    <!-- Accesos Rápidos -->
     <div>
       <h2 class="text-xl font-bold text-gray-800 mb-4">Accesos Rápidos</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <!-- Gestión de Usuarios -->
         <Card :hoverable="true" @click="router.push('/admin/usuarios')">
           <div class="flex items-center space-x-4">
             <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -106,7 +94,6 @@
           </div>
         </Card>
 
-        <!-- Gestión de Actividades -->
         <Card :hoverable="true" @click="router.push('/admin/actividades')">
           <div class="flex items-center space-x-4">
             <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -121,7 +108,6 @@
           </div>
         </Card>
 
-        <!-- Gestión de Inscripciones -->
         <Card :hoverable="true" @click="router.push('/admin/inscripciones')">
           <div class="flex items-center space-x-4">
             <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -136,7 +122,6 @@
           </div>
         </Card>
 
-        <!-- Gestión de Calificaciones -->
         <Card :hoverable="true" @click="router.push('/admin/calificaciones')">
           <div class="flex items-center space-x-4">
             <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -151,7 +136,6 @@
           </div>
         </Card>
 
-        <!-- Gestión de Certificados -->
         <Card :hoverable="true" @click="router.push('/admin/certificados')">
           <div class="flex items-center space-x-4">
             <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -166,7 +150,6 @@
           </div>
         </Card>
 
-        <!-- Gestión de Carreras -->
         <Card :hoverable="true" @click="router.push('/admin/carreras')">
           <div class="flex items-center space-x-4">
             <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -183,7 +166,6 @@
       </div>
     </div>
 
-    <!-- Actividades Recientes -->
     <div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-xl font-bold text-gray-800">Actividades Recientes</h2>
@@ -221,7 +203,7 @@
                   </Badge>
                 </td>
                 <td class="px-4 py-3 text-sm">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" @click="verDetalle(actividad)">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -242,12 +224,11 @@
           @update:page-size="setPageSize"
         />
 
-        <!-- Sin resultados -->
         <div v-else class="text-center py-12">
           <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
           </svg>
-          <p class="text-gray-600">No se encontraron usuarios con los filtros aplicados</p>
+          <p class="text-gray-600">No hay actividades recientes para mostrar</p>
         </div>
       </Card>
     </div>
@@ -264,15 +245,8 @@ import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import { api } from '@/utils/api'
 import { useAlertStore } from '@/stores/alert.store'
-// ============================================
-// COMPOSABLES
-// ============================================
 
 const router = useRouter()
-
-// ============================================
-// ESTADO
-// ============================================
 
 interface DashboardStats {
   totalUsuarios: number
@@ -304,7 +278,6 @@ interface DashboardResponse {
 
 const alertStore = useAlertStore()
 
-// Estadísticas generales
 const stats = ref<DashboardStats>({
   totalUsuarios: 0,
   usuariosInternos: 0,
@@ -318,11 +291,10 @@ const stats = ref<DashboardStats>({
   certificadosPendientes: 0
 })
 
-// Actividades recientes
 const actividadesRecientes = ref<DashboardActividad[]>([])
 
 const {
-  paginatedData: actividadesPaginadas,  // Solo 10 usuarios a la vez
+  paginatedData: actividadesPaginadas,
   currentPage,
   pageSize,
   totalItems,
@@ -333,9 +305,13 @@ const {
   initialPage: 1
 })
 
-// ============================================
-// MÉTODOS
-// ============================================
+const verDetalle = (actividad: DashboardActividad) => {
+  router.push({
+    name: 'activity-detail',
+    params: { id: actividad.id },
+    query: { tipo: actividad.tipo }
+  })
+}
 
 const getEstadoBadge = (estado: string) => {
   switch (estado) {
@@ -367,6 +343,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Estilos adicionales si son necesarios */
 </style>
 

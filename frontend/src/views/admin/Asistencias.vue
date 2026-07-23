@@ -1,16 +1,10 @@
 <template>
-  <!--
-    Vista de Gestión de Asistencias - Administrador
-    Permite ver y editar asistencias de eventos, con control de certificados
-  -->
   <div class="space-y-6">
-    <!-- Encabezado -->
     <div>
       <h1 class="text-3xl font-bold text-gray-800 mb-2">Gestión de Asistencias</h1>
       <p class="text-gray-600">Ver y modificar asistencias de eventos facultativos</p>
     </div>
 
-    <!-- Estadísticas -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
       <Card>
         <div class="text-center">
@@ -38,13 +32,11 @@
       </Card>
     </div>
 
-    <!-- Selección de Evento -->
     <Card>
       <div class="space-y-4">
         <h3 class="text-lg font-semibold text-gray-800">Seleccionar Evento</h3>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <!-- Busqueda de evento -->
           <div class="md:col-span-3">
             <label class="block text-sm font-medium text-gray-700 mb-1">Buscar evento</label>
             <input
@@ -54,7 +46,6 @@
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <!-- Carrera -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Carrera</label>
             <select
@@ -68,7 +59,6 @@
             </select>
           </div>
 
-          <!-- Evento -->
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 mb-1">Evento</label>
             <select
@@ -84,7 +74,6 @@
           </div>
         </div>
 
-        <!-- Información del evento seleccionado -->
         <div v-if="eventoSeleccionado && infoEvento" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
@@ -108,23 +97,19 @@
       </div>
     </Card>
 
-    <!-- Tabla de Asistencias -->
     <Card v-if="eventoSeleccionado">
       <div class="space-y-4">
-        <!-- Encabezado de la tabla -->
         <div class="flex items-center justify-between">
           <h3 class="text-lg font-semibold text-gray-800">
             Asistencias - {{ infoEvento?.nombre }}
           </h3>
         </div>
 
-        <!-- Estado de carga -->
         <div v-if="loading" class="text-center py-12">
           <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           <p class="mt-4 text-gray-600">Cargando asistencias...</p>
         </div>
 
-        <!-- Tabla -->
         <div v-else-if="asistencias.length > 0" class="overflow-x-auto">
           <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
@@ -140,12 +125,10 @@
             </thead>
             <tbody class="divide-y divide-gray-200">
               <tr v-for="(asistencia, index) in asistencias" :key="asistencia.idAsistencia" class="hover:bg-gray-50">
-                <!-- Número -->
                 <td class="px-4 py-3 text-sm text-gray-600">
                   {{ index + 1 }}
                 </td>
 
-                <!-- Participante -->
                 <td class="px-4 py-3">
                   <div>
                     <p class="text-sm font-medium text-gray-800">
@@ -155,24 +138,20 @@
                   </div>
                 </td>
 
-                <!-- Email -->
                 <td class="px-4 py-3 text-sm text-gray-600">
                   {{ asistencia.participante.email }}
                 </td>
 
-                <!-- Asistencia -->
                 <td class="px-4 py-3 text-center">
                   <Badge :variant="asistencia.asistio ? 'success' : 'danger'" size="sm">
                     {{ asistencia.asistio ? 'SÍ ASISTIÓ' : 'NO ASISTIÓ' }}
                   </Badge>
                 </td>
 
-                <!-- Certificado -->
                 <td class="px-4 py-3 text-center">
                   <span class="text-xs text-gray-400">No disponible</span>
                 </td>
 
-                <!-- Registrado Por -->
                 <td class="px-4 py-3 text-sm text-gray-600">
                   <div v-if="asistencia.registradoPor">
                     <p class="text-sm">{{ asistencia.registradoPor.nombre }}</p>
@@ -183,7 +162,6 @@
                   <span v-else class="text-gray-400">-</span>
                 </td>
 
-                <!-- Acciones -->
                 <td class="px-4 py-3 text-center">
                   <div class="flex items-center justify-center space-x-2">
                     <Button variant="ghost" size="sm" @click="editarAsistencia(asistencia)">
@@ -204,7 +182,6 @@
           </table>
         </div>
 
-        <!-- Sin asistencias -->
         <div v-else class="text-center py-12">
           <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -214,7 +191,6 @@
       </div>
     </Card>
 
-    <!-- Mensaje inicial -->
     <Card v-else class="text-center py-12">
       <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -223,14 +199,12 @@
       <p class="text-sm text-gray-500">Usa los filtros de arriba para seleccionar una carrera y evento</p>
     </Card>
 
-    <!-- Modal Editar Asistencia -->
     <Modal
       :modelValue="showEditModal"
       @close="closeEditModal"
       title="Editar Asistencia"
     >
       <form v-if="asistenciaSeleccionada" @submit.prevent="guardarAsistencia" class="space-y-4">
-        <!-- Info del participante -->
         <div class="bg-gray-50 rounded-lg p-4">
           <p class="text-sm text-gray-600">Participante</p>
           <p class="font-semibold text-gray-800">
@@ -239,7 +213,6 @@
           <p class="text-xs text-gray-500">{{ asistenciaSeleccionada.participante.email }}</p>
         </div>
 
-        <!-- Estado actual de asistencia -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p class="text-sm text-blue-800 mb-2">Estado Actual</p>
           <Badge :variant="asistenciaSeleccionada.asistio ? 'success' : 'danger'">
@@ -247,7 +220,6 @@
           </Badge>
         </div>
 
-        <!-- Nuevo estado -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">
             Nuevo Estado de Asistencia <span class="text-red-600">*</span>
@@ -290,7 +262,6 @@
           ></textarea>
         </div>
 
-        <!-- Botones -->
         <div class="flex justify-end space-x-3 pt-4 border-t">
           <Button type="button" variant="outline" @click="closeEditModal">
             Cancelar
@@ -313,10 +284,6 @@ import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
 import { api } from '@/utils/api'
 import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil } from '@/utils/dateFormatter'
-
-// ============================================
-// TIPOS
-// ============================================
 
 interface Participante {
   nombres: string
@@ -359,10 +326,6 @@ interface Carrera {
   nombre: string
 }
 
-// ============================================
-// ESTADO
-// ============================================
-
 const loading = ref(false)
 const saving = ref(false)
 
@@ -394,10 +357,6 @@ const formAsistencia = ref({
   observaciones: ''
 })
 
-// ============================================
-// COMPUTED
-// ============================================
-
 const asistenciasRegistradas = computed(() => {
   return asistencias.value.filter(a => a.asistio).length
 })
@@ -411,10 +370,6 @@ const eventosFiltrados = computed(() => {
     return carreraOk && searchOk
   })
 })
-
-// ============================================
-// MÉTODOS - CARGA DE DATOS
-// ============================================
 
 const cargarCarreras = async () => {
   try {
@@ -500,10 +455,6 @@ const calcularEstadisticas = () => {
   }
 }
 
-// ============================================
-// MÉTODOS - CRUD
-// ============================================
-
 const editarAsistencia = (asistencia: Asistencia) => {
   asistenciaSeleccionada.value = asistencia
   formAsistencia.value = {
@@ -536,10 +487,6 @@ const guardarAsistencia = async () => {
   }
 }
 
-// ============================================
-// MÉTODOS - MODALES
-// ============================================
-
 const verDetalle = (asistencia: Asistencia) => {
   asistenciaSeleccionada.value = asistencia
   showEditModal.value = true
@@ -554,10 +501,6 @@ const closeEditModal = () => {
   }
 }
 
-// ============================================
-// MÉTODOS - UTILIDADES
-// ============================================
-
 const formatDate = (date: string) => {
   if (!date) return '-'
   return formatDateUtil(date, 'es-BO')
@@ -568,10 +511,6 @@ const formatDatetime = (datetime: string) => {
   return formatDateTimeUtil(datetime, 'es-BO')
 }
 
-// ============================================
-// LIFECYCLE
-// ============================================
-
 onMounted(() => {
   cargarCarreras()
   cargarEventos()
@@ -579,5 +518,4 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Estilos adicionales si son necesarios */
 </style>

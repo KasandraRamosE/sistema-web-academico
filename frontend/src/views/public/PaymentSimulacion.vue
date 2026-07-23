@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-slate-50">
-    <section class="container mx-auto px-4 py-10">
+    <section class="w-full px-4 py-10">
       <div class="mx-auto max-w-lg space-y-6">
         <Card>
           <div class="space-y-3">

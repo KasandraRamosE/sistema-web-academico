@@ -19,7 +19,6 @@ export function setupRouterGuards(router: Router) {
     const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
 
     if (requiresAuth && !authStore.isAuthenticated) {
-      console.warn('⚠️ Acceso denegado: Se requiere autenticación')
       return next({ name: 'login', query: { redirect: to.fullPath } })
     }
 
@@ -38,12 +37,10 @@ export function setupRouterGuards(router: Router) {
       const hasPermission = allowedRoles.some((rol) => authStore.hasRole(rol))
 
       if (!hasPermission) {
-        console.warn(`⚠️ Acceso denegado: Se requiere uno de estos roles: ${allowedRoles.join(', ')}`)
         return next(getDashboardRoute(authStore, authStore.currentRole || authStore.user?.roles?.[0] || null))
       }
     }
 
-    console.log(`✅ Navegando a: ${to.path}`)
     next()
   })
 }

@@ -1,12 +1,10 @@
 <template>
   <div class="space-y-6">
-    <!-- Encabezado -->
     <div>
       <h1 class="text-3xl font-bold text-gray-800 mb-2">Gestión de Calificaciones</h1>
       <p class="text-gray-600">Ver y editar calificaciones de todos los paralelos</p>
     </div>
 
-    <!-- Estadísticas Generales -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Card>
         <div class="text-center">
@@ -22,7 +20,6 @@
       </Card>
     </div>
 
-    <!-- Estadísticas del Paralelo Seleccionado -->
     <div v-if="paraleloSeleccionado && infoParalelo" class="grid grid-cols-1 md:grid-cols-5 gap-4">
       <Card>
         <div class="text-center">
@@ -56,13 +53,11 @@
       </Card>
     </div>
 
-    <!-- Selección de Paralelo -->
     <Card>
       <div class="space-y-4">
         <h3 class="text-lg font-semibold text-gray-800">Seleccionar Paralelo</h3>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <!-- Carrera -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Carrera</label>
             <select
@@ -76,7 +71,6 @@
             </select>
           </div>
 
-          <!-- Paralelo -->
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 mb-1">
               Paralelo <span class="text-red-600">*</span>
@@ -98,7 +92,6 @@
           </div>
         </div>
 
-        <!-- Información del paralelo seleccionado -->
         <div v-if="paraleloSeleccionado && infoParalelo" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
@@ -122,10 +115,8 @@
       </div>
     </Card>
 
-    <!-- Tabla de Calificaciones -->
     <Card v-if="paraleloSeleccionado">
       <div class="space-y-4">
-        <!-- Encabezado -->
         <div class="flex items-center justify-between">
           <h3 class="text-lg font-semibold text-gray-800">
             Calificaciones - {{ infoParalelo?.actividadNombre }}
@@ -146,13 +137,11 @@
           </Badge>
         </div>
 
-        <!-- Loading -->
         <div v-if="loading" class="text-center py-12">
           <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           <p class="mt-4 text-gray-600">Cargando calificaciones...</p>
         </div>
 
-        <!-- Tabla -->
         <div v-else-if="calificaciones.length > 0" class="overflow-x-auto">
           <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-200">
@@ -223,7 +212,6 @@
           </table>
         </div>
 
-        <!-- Sin calificaciones -->
         <div v-else class="text-center py-12">
           <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -233,7 +221,6 @@
       </div>
     </Card>
 
-    <!-- Mensaje inicial -->
     <Card v-else class="text-center py-12">
       <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -242,7 +229,6 @@
       <p class="text-sm text-gray-500">Usa los filtros de arriba para seleccionar una carrera y paralelo</p>
     </Card>
 
-    <!-- Modal Editar -->
     <Modal
       :modelValue="showEditModal"
       @close="closeEditModal"
@@ -250,7 +236,6 @@
       size="lg"
     >
       <form v-if="calificacionSeleccionada" @submit.prevent="guardarCalificacion" class="space-y-4">
-        <!-- Info estudiante -->
         <div class="bg-gray-50 rounded-lg p-4">
           <p class="text-sm text-gray-600">Estudiante</p>
           <p class="font-semibold text-gray-800">
@@ -259,7 +244,6 @@
           <p class="text-xs text-gray-500">{{ calificacionSeleccionada.estudiante.email }}</p>
         </div>
 
-        <!-- Info: Corrección Administrativa -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div class="flex items-start space-x-3">
             <svg class="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -274,7 +258,6 @@
           </div>
         </div>
 
-        <!-- Estado actual -->
         <div class="bg-gray-100 border border-gray-300 rounded-lg p-4">
           <p class="text-sm text-gray-700 mb-2">Estado Actual</p>
           <div class="flex items-center justify-between">
@@ -287,7 +270,6 @@
           </div>
         </div>
 
-        <!-- Nueva nota -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Nueva Nota Final <span class="text-red-600">*</span>
@@ -306,7 +288,6 @@
           </p>
         </div>
 
-        <!-- Vista previa -->
         <div v-if="formCalificacion.notaFinal !== null" class="bg-green-50 border border-green-200 rounded-lg p-4">
           <p class="text-sm text-green-800 mb-2">Nuevo Estado</p>
           <div class="flex items-center justify-between">
@@ -319,7 +300,6 @@
           </div>
         </div>
 
-        <!-- Advertencias -->
         <div v-if="cambiaEstadoCalificacion" :class="[
           'border rounded-lg p-4',
           certificadoAccion === 'ANULAR' ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'
@@ -331,10 +311,9 @@
           </p>
         </div>
 
-        <!-- Motivo -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">
-            Motivo de Corrección 
+            Motivo de Corrección
             <span class="text-red-600">*</span>
           </label>
           <textarea
@@ -348,7 +327,6 @@
           <p v-if="errorMotivo" class="text-xs text-red-600 mt-1">{{ errorMotivo }}</p>
         </div>
 
-        <!-- Botones -->
         <div class="flex justify-end space-x-3 pt-4 border-t">
           <Button type="button" variant="outline" @click="closeEditModal">Cancelar</Button>
           <Button type="submit" :disabled="saving">
@@ -358,10 +336,8 @@
       </form>
     </Modal>
 
-    <!-- Modal Detalle -->
     <Modal :modelValue="showDetalleModal" @close="closeDetalleModal" title="Detalle de Calificación">
       <div v-if="calificacionSeleccionada" class="space-y-4">
-        <!-- Estudiante -->
         <div class="bg-gray-50 rounded-lg p-4">
           <p class="font-medium text-gray-800">
             {{ calificacionSeleccionada.estudiante.nombres }} {{ calificacionSeleccionada.estudiante.apellidos }}
@@ -369,7 +345,6 @@
           <p class="text-sm text-gray-600">{{ calificacionSeleccionada.estudiante.email }}</p>
         </div>
 
-        <!-- Calificación -->
         <div class="bg-gray-50 rounded-lg p-4 space-y-3">
           <div class="flex justify-between">
             <span class="text-sm">Nota:</span>
@@ -398,10 +373,6 @@ import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
 import { api } from '@/utils/api'
-
-// ============================================
-// TIPOS
-// ============================================
 
 interface Estudiante {
   idUsuario: number
@@ -450,10 +421,6 @@ interface Carrera {
   nombre: string
 }
 
-// ============================================
-// ESTADO
-// ============================================
-
 const loading = ref(false)
 const saving = ref(false)
 
@@ -489,10 +456,6 @@ const formCalificacion = ref({
 })
 
 const errorMotivo = ref('')
-
-// ============================================
-// COMPUTED
-// ============================================
 
 const todasConfirmadas = computed(() => {
   return calificaciones.value.length > 0 && 
@@ -536,10 +499,6 @@ const certificadoAccion = computed(() => {
 
   return 'NINGUNA'
 })
-
-// ============================================
-// MÉTODOS
-// ============================================
 
 const cargarCarreras = async () => {
   try {
@@ -742,10 +701,6 @@ const getNotaColor = (nota: number | null, notaMinima: number) => {
   if (nota === null) return 'text-gray-400'
   return nota >= notaMinima ? 'text-green-600' : 'text-red-600'
 }
-
-// ============================================
-// LIFECYCLE
-// ============================================
 
 onMounted(() => {
   cargarCarreras()

@@ -1,10 +1,5 @@
 <template>
-  <!--
-    Vista de Gestión de Inscripciones - Administrador
-    Permite buscar, visualizar y modificar todas las inscripciones del sistema
-  -->
   <div class="space-y-6">
-    <!-- Encabezado -->
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-gray-800 mb-2">Gestión de Inscripciones</h1>
@@ -12,7 +7,6 @@
       </div>
     </div>
 
-    <!-- Estadísticas -->
     <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
       <Card>
         <div class="text-center">
@@ -46,12 +40,9 @@
       </Card>
     </div>
 
-    <!-- Filtros -->
     <Card>
       <div class="space-y-4">
-        <!-- Primera fila de filtros -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <!-- Búsqueda por usuario -->
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 mb-1">Buscar Usuario</label>
             <input
@@ -62,7 +53,6 @@
             />
           </div>
 
-          <!-- Búsqueda por actividad -->
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-gray-700 mb-1">Buscar Actividad</label>
             <input
@@ -74,9 +64,7 @@
           </div>
         </div>
 
-        <!-- Segunda fila de filtros -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <!-- Estado -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
             <select
@@ -90,7 +78,6 @@
             </select>
           </div>
 
-          <!-- Tipo de actividad -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
             <select
@@ -103,7 +90,6 @@
             </select>
           </div>
 
-          <!-- Tipo de precio -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Precio</label>
             <select
@@ -117,10 +103,8 @@
             </select>
           </div>
 
-          <!-- Carrera -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Carrera</label>
-            <!-- ✅ Reemplaza el select de carrera en el template -->
             <select
               :value="filtros.carrera"
               @change="(e) => filtros.carrera = (e.target as HTMLSelectElement).value"
@@ -137,7 +121,6 @@
             </select>
           </div>
 
-          <!-- Botón limpiar -->
           <div class="flex items-end">
             <Button variant="outline" class="w-full" @click="limpiarFiltros">
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,7 +133,6 @@
       </div>
     </Card>
 
-    <!-- Tabla de inscripciones -->
     <Card>
       <div v-if="loading" class="text-center py-12">
         <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -158,7 +140,6 @@
       </div>
 
       <div v-else-if="inscripcionesPaginadas.length > 0">
-        <!-- Contador de resultados -->
         <div class="mb-4 text-sm text-gray-600">
           Mostrando <strong>{{ inscripcionesPaginadas.length }}</strong> inscripciones
         </div>
@@ -181,12 +162,10 @@
             </thead>
             <tbody class="divide-y divide-gray-200">
               <tr v-for="inscripcion in inscripcionesPaginadas" :key="inscripcion.idInscripcion" class="hover:bg-gray-50">
-                <!-- ID -->
                 <td class="px-4 py-3 text-sm font-mono text-gray-600">
                   #{{ inscripcion.idInscripcion }}
                 </td>
 
-                <!-- Usuario -->
                 <td class="px-4 py-3">
                   <div>
                     <p class="text-sm font-medium text-gray-800">
@@ -203,7 +182,6 @@
                   </div>
                 </td>
 
-                <!-- Actividad -->
                 <td class="px-4 py-3">
                   <div>
                     <p class="text-sm font-medium text-gray-800">{{ inscripcion.actividad.nombre }}</p>
@@ -211,19 +189,16 @@
                   </div>
                 </td>
 
-                <!-- Tipo de actividad -->
                 <td class="px-4 py-3">
                   <Badge :variant="inscripcion.actividad.tipo === 'CURSO' ? 'primary' : 'secondary'" size="sm">
                     {{ inscripcion.actividad.tipo }}
                   </Badge>
                 </td>
 
-                <!-- Paralelo -->
                 <td class="px-4 py-3 text-sm text-gray-600">
                   {{ inscripcion.paralelo || '-' }}
                 </td>
 
-                <!-- Tipo de precio -->
                 <td class="px-4 py-3">
                   <Badge
                     v-if="inscripcion.montoPagado === 0"
@@ -241,7 +216,6 @@
                   </Badge>
                 </td>
 
-                <!-- Monto -->
                 <td class="px-4 py-3 text-sm">
                   <span v-if="inscripcion.montoPagado === 0" class="text-green-600 font-medium">
                     GRATUITO
@@ -251,19 +225,16 @@
                   </span>
                 </td>
 
-                <!-- Fecha -->
                 <td class="px-4 py-3 text-xs text-gray-600">
                   {{ formatDate(inscripcion.fechaInscripcion) }}
                 </td>
 
-                <!-- Estado -->
                 <td class="px-4 py-3">
                   <Badge :variant="getEstadoBadge(inscripcion.estado)" size="sm">
                     {{ inscripcion.estado }}
                   </Badge>
                 </td>
 
-                <!-- Acciones -->
                 <td class="px-4 py-3">
                   <div class="flex items-center space-x-2">
                     <Button variant="ghost" size="sm" @click="verDetalle(inscripcion)">
@@ -289,17 +260,17 @@
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          :current-page="currentPage"
+          :total-items="totalItems"
+          :page-size="pageSize"
+          :show-page-size-selector="true"
+          @update:current-page="goToPage"
+          @update:page-size="setPageSize"
+        />
       </div>
-      
-      <Pagination
-        v-if="totalItems > 0"
-        :current-page="currentPage"
-        :total-items="totalItems"
-        :page-size="pageSize"
-        :show-page-size-selector="true"
-        @update:current-page="goToPage"
-        @update:page-size="setPageSize"
-      />
+
       <div v-else class="text-center py-12">
         <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -308,7 +279,6 @@
       </div>
     </Card>
 
-    <!-- Modal Detalle de Inscripción -->
     <Modal
       :modelValue="showDetalleModal"
       @close="closeDetalleModal"
@@ -316,7 +286,6 @@
       size="lg"
     >
       <div v-if="inscripcionSeleccionada" class="space-y-6">
-        <!-- Información del Usuario -->
         <div>
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Información del Usuario</h3>
           <div class="bg-gray-50 rounded-lg p-4 space-y-2">
@@ -345,7 +314,6 @@
           </div>
         </div>
 
-        <!-- Información de la Actividad -->
         <div>
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Información de la Actividad</h3>
           <div class="bg-gray-50 rounded-lg p-4 space-y-2">
@@ -383,7 +351,6 @@
           </div>
         </div>
 
-        <!-- Información del Pago -->
         <div>
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Información del Pago</h3>
           <div class="bg-gray-50 rounded-lg p-4 space-y-2">
@@ -414,7 +381,6 @@
           </div>
         </div>
 
-        <!-- Estado de la Inscripción -->
         <div>
           <h3 class="text-lg font-semibold text-gray-800 mb-3">Estado de la Inscripción</h3>
           <div class="bg-gray-50 rounded-lg p-4">
@@ -439,7 +405,6 @@
           </div>
         </div>
 
-        <!-- Botón cerrar -->
         <div class="flex justify-end pt-4 border-t">
           <Button variant="outline" @click="closeDetalleModal">
             Cerrar
@@ -460,10 +425,6 @@ import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
 import { api } from '@/utils/api'
 import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil } from '@/utils/dateFormatter'
-
-// ============================================
-// TIPOS CORREGIDOS
-// ============================================
 
 interface Usuario {
   idUsuario: number
@@ -503,14 +464,9 @@ interface Carrera {
   nombre: string
 }
 
-// ============================================
-// COMPUTED CORREGIDO
-// ============================================
-
 const inscripcionesFiltradas = computed(() => {
   let resultado = [...inscripciones.value]
 
-  // Filtro por usuario
   if (filtros.value.busquedaUsuario) {
     const busqueda = filtros.value.busquedaUsuario.toLowerCase()
     resultado = resultado.filter(i =>
@@ -521,7 +477,6 @@ const inscripcionesFiltradas = computed(() => {
     )
   }
 
-  // Filtro por actividad
   if (filtros.value.busquedaActividad) {
     const busqueda = filtros.value.busquedaActividad.toLowerCase()
     resultado = resultado.filter(i =>
@@ -529,17 +484,14 @@ const inscripcionesFiltradas = computed(() => {
     )
   }
 
-  // Filtro por estado
   if (filtros.value.estado) {
     resultado = resultado.filter(i => i.estado === filtros.value.estado)
   }
 
-  // Filtro por tipo de actividad
   if (filtros.value.tipoActividad) {
     resultado = resultado.filter(i => i.actividad.tipo === filtros.value.tipoActividad)
   }
 
-  // Filtro por tipo de precio
   if (filtros.value.tipoPrecio) {
     if (filtros.value.tipoPrecio === 'GRATUITO') {
       resultado = resultado.filter(i => i.montoPagado === 0)
@@ -550,17 +502,11 @@ const inscripcionesFiltradas = computed(() => {
 
   if (filtros.value.carrera) {
     const idCarrera = Number(filtros.value.carrera)
-    
-    // ✅ Console.log corregido — i dentro del callback
     resultado = resultado.filter(i => i.actividad.idCarrera === idCarrera)
   }
 
-    return resultado
-  })
-
-// ============================================
-// MOCK DATA CORREGIDO
-// ============================================
+  return resultado
+})
 
 const cargarDatos = async () => {
   loading.value = true
@@ -630,7 +576,6 @@ const cargarDatos = async () => {
         ? curso?.idCarrera
         : evento?.idCarrera)
 
-      // Parsear independientemente del tipo que venga del API
       const parsedId = rawIdCarrera !== undefined && rawIdCarrera !== null
         ? Number(rawIdCarrera)
         : NaN
@@ -673,7 +618,7 @@ const cargarDatos = async () => {
 
       const saldo = Number(item.saldo ?? 0)
       const tipoPrecio = saldo === 0 ? 'GRATUITO' : String(item.tipoPrecio ?? '') as Inscripcion['tipoPrecio']
-// Poner esto dentro de mapInscripcion, justo después de definir curso/evento
+
       return {
         idInscripcion: Number(item.idInscripcion),
         usuario: {
@@ -692,7 +637,6 @@ const cargarDatos = async () => {
         estado: String(item.estado ?? 'PENDIENTE') as Inscripcion['estado'],
         estadoPago: String(item.estadoPago ?? '') || undefined
       }
-      
     }
 
     inscripciones.value = [
@@ -706,11 +650,6 @@ const cargarDatos = async () => {
     loading.value = false
   }
 }
-
-
-// ============================================
-// ESTADO
-// ============================================
 
 const loading = ref(false)
 const inscripciones = ref<Inscripcion[]>([])
@@ -741,22 +680,17 @@ const filtros = ref({
 const showDetalleModal = ref(false)
 const inscripcionSeleccionada = ref<Inscripcion | null>(null)
 
-
-
-// Para Actividades.vue
 const {
-  paginatedData: inscripcionesPaginadas,  // ← Cambiar nombre según tu vista
+  paginatedData: inscripcionesPaginadas,
   currentPage,
   pageSize,
   totalItems,
   goToPage,
   setPageSize
-} = usePagination(inscripcionesFiltradas, { // ← Usar TU computed filtrado
+} = usePagination(inscripcionesFiltradas, {
   pageSize: 10,
   initialPage: 1
 })
-
-
 
 const cambiarEstado = async (inscripcion: Inscripcion) => {
   if (!confirm('¿Cancelar esta inscripción?')) return
@@ -770,10 +704,6 @@ const cambiarEstado = async (inscripcion: Inscripcion) => {
   }
 }
 
-// ============================================
-// MÉTODOS - MODALES
-// ============================================
-
 const verDetalle = (inscripcion: Inscripcion) => {
   inscripcionSeleccionada.value = inscripcion
   showDetalleModal.value = true
@@ -783,10 +713,6 @@ const closeDetalleModal = () => {
   showDetalleModal.value = false
   inscripcionSeleccionada.value = null
 }
-
-// ============================================
-// MÉTODOS - UTILIDADES
-// ============================================
 
 const limpiarFiltros = () => {
   filtros.value = {
@@ -818,15 +744,10 @@ const getEstadoBadge = (estado: string): 'primary' | 'secondary' | 'success' | '
   return variants[estado] || 'gray'
 }
 
-// ============================================
-// LIFECYCLE
-// ============================================
-
 onMounted(() => {
   cargarDatos()
 })
 </script>
 
 <style scoped>
-/* Estilos adicionales si son necesarios */
 </style>

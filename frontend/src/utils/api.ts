@@ -9,7 +9,7 @@ const buildUrl = (path: string) => {
   return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`
 }
 
-const getAuthToken = () => {
+export const getAuthToken = () => {
   const pinia = getActivePinia()
   if (!pinia) return null
   const authStore = useAuthStore(pinia)

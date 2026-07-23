@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <section class="container mx-auto px-4 py-8">
+    <section class="w-full px-4 sm:px-6 lg:px-10 py-8">
       <div v-if="loading" class="text-center text-gray-500">Cargando detalle...</div>
       <div v-else-if="errorMessage" class="text-center text-red-600">{{ errorMessage }}</div>
       <div v-else-if="actividad" class="grid grid-cols-1 lg:grid-cols-3 gap-6">

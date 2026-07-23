@@ -95,9 +95,6 @@
       </div>
     </Card>
 
-
-    <!-- 'Mis plantillas' moved to a dedicated view -->
-
     <Modal
       :modelValue="showActividadModal"
       title="Detalle de actividad"
@@ -270,10 +267,9 @@ import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
 import Modal from '@/components/common/Modal.vue'
-import { api } from '@/utils/api'
+import { api, getAuthToken } from '@/utils/api'
 import { formatDateTime as formatDateTimeUtil } from '@/utils/dateFormatter'
 import { useAlertStore } from '@/stores/alert.store'
-import { useAuthStore } from '@/stores/auth.store'
 
 interface ActividadItem {
   id: number
@@ -332,8 +328,6 @@ interface ActividadDetalle {
 }
 
 const alertStore = useAlertStore()
-const authStore = useAuthStore()
-const currentUserId = computed(() => authStore.user?.idUsuario ?? null)
 
 const archivo = ref<File | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -360,21 +354,19 @@ const STATUS_STORAGE_KEY = 'plantillas_status_cache'
 
 const canUpload = computed(() => {
   if (!selectedActividad.value) return false
-
-  // Si no existe plantilla aun, puede subir la primera
   if (!selectedActividad.value.idPlantilla) return true
 
-  // Intentamos obtener la ultima aprobacion desde el resumen global
   const resumen = selectedActividad.value.idPlantilla
     ? aprobacionesMap.value[selectedActividad.value.idPlantilla]
     : null
 
-  // Si estamos viendo el modal y ya cargamos aprobaciones específicas, usarlas
+  // Si el modal ya cargó las aprobaciones de esta actividad, usarlas en vez
+  // del resumen global (puede estar más actualizado justo después de revisar).
   const ultimaAprobacion = aprobaciones.value.length > 0
     ? aprobaciones.value[aprobaciones.value.length - 1]
     : resumen
 
-  // Solo permitir re-subir si la ultima aprobacion fue RECHAZADA
+  // Solo se puede volver a subir si la última revisión fue un rechazo.
   return ultimaAprobacion ? ultimaAprobacion.estado === 'RECHAZADA' : false
 })
 
@@ -416,10 +408,6 @@ const actividadesAsignadasFiltradas = computed(() => {
 })
 
 const archivoNombre = computed(() => archivo.value?.name || '')
-
-const plantillasRevisadas = computed(() => {
-  return plantillas.value.filter((item) => item.estado !== 'PENDIENTE')
-})
 
 const estadoRevision = (actividad: ActividadAsignada) => {
   if (!actividad.idPlantilla) return 'SIN_PLANTILLA'
@@ -484,7 +472,7 @@ const cargarAprobacionesResumen = async (items: PlantillaDto[]) => {
   const entries = await Promise.all(items.map(async (item) => {
     try {
       const data = await api.get(`/plantillas/${item.idPlantilla}/aprobaciones`) as AprobacionDto[]
-      const last = data.length > 0 ? data[data.length - 1] : null
+      const last = data.length > 0 ? (data[data.length - 1] ?? null) : null
       return [item.idPlantilla, last] as const
     } catch {
       return [item.idPlantilla, null] as const
@@ -499,7 +487,7 @@ const cargarAprobacionesResumen = async (items: PlantillaDto[]) => {
 
 const handleFileChange = (event: Event) => {
   const input = event.target as HTMLInputElement
-  archivo.value = input.files && input.files.length > 0 ? input.files[0] : null
+  archivo.value = input.files?.[0] ?? null
   uploadError.value = ''
 }
 
@@ -539,7 +527,7 @@ const subirPlantilla = async () => {
     }
 
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-    const token = localStorage.getItem('token')
+    const token = getAuthToken()
 
     const response = await fetch(`${baseUrl}/plantillas`, {
       method: 'POST',
@@ -567,27 +555,6 @@ const subirPlantilla = async () => {
     alertStore.push({ type: 'error', message: (error as Error).message || 'No se pudo subir la plantilla.' })
   } finally {
     subiendo.value = false
-  }
-}
-
-const verPlantilla = async (plantilla: PlantillaDto) => {
-  try {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-    const token = localStorage.getItem('token')
-
-    const response = await fetch(`${baseUrl}/plantillas/${plantilla.idPlantilla}/descargar`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined
-    })
-
-    if (!response.ok) {
-      throw new Error('No se pudo descargar la plantilla')
-    }
-
-    const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
-    window.open(url, '_blank', 'noopener')
-  } catch (error) {
-    alertStore.push({ type: 'error', message: (error as Error).message || 'No se pudo abrir la plantilla.' })
   }
 }
 
@@ -659,36 +626,6 @@ const estadoRevisionBadge = (estado: string) => {
       return 'danger'
     default:
       return 'gray'
-  }
-}
-
-const estadoPlantillaBadge = (estado: ActividadAsignada['estadoPlantilla']) => {
-  switch (estado) {
-    case 'SIN_PLANTILLA':
-      return 'warning'
-    case 'PENDIENTE':
-      return 'secondary'
-    case 'APROBADA':
-      return 'success'
-    case 'RECHAZADA':
-      return 'danger'
-    default:
-      return 'gray'
-  }
-}
-
-const estadoPlantillaHint = (estado: ActividadAsignada['estadoPlantilla']) => {
-  switch (estado) {
-    case 'SIN_PLANTILLA':
-      return 'Debes subir la primera plantilla.'
-    case 'PENDIENTE':
-      return 'La plantilla esta en revision.'
-    case 'APROBADA':
-      return 'La plantilla esta aprobada. No requiere accion.'
-    case 'RECHAZADA':
-      return 'Revisa las observaciones y sube una nueva version.'
-    default:
-      return ''
   }
 }
 

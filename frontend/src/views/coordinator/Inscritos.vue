@@ -328,8 +328,8 @@ import Card from '@/components/common/Card.vue'
 import Badge from '@/components/common/Badge.vue'
 import Button from '@/components/common/Button.vue'
 import { useAlertStore } from '@/stores/alert.store'
-import { api } from '@/utils/api'
-import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil, parseLocalDate } from '@/utils/dateFormatter'
+import { api, getAuthToken } from '@/utils/api'
+import { formatDate as formatDateUtil, parseLocalDate } from '@/utils/dateFormatter'
 
 interface CarreraDto {
   idCarrera: number
@@ -491,11 +491,6 @@ const formatDate = (value: string | undefined) => {
   return formatDateUtil(value, 'es-BO')
 }
 
-const formatDateTime = (value: string) => {
-  if (!value) return '-'
-  return formatDateTimeUtil(value, 'es-BO')
-}
-
 const parseDateToTime = (value: string) => {
   const time = parseLocalDate(value).getTime()
   return Number.isNaN(time) ? 0 : time
@@ -555,7 +550,6 @@ const normalizeQueryValue = (value: unknown) => {
   return typeof value === 'string' ? value : ''
 }
 
-// Helper to pick first available key from possible alternatives
 const pick = (obj: Record<string, any> = {}, ...keys: string[]) => {
   for (const k of keys) {
     if (obj === null || obj === undefined) continue
@@ -710,7 +704,7 @@ const printSelectedActivityReport = async () => {
       idActividad: String(selectedActivity.value.idActividad)
     })
 
-    const token = localStorage.getItem('token')
+    const token = getAuthToken()
     const response = await fetch(buildApiUrl(`/reportes/actividad/inscritos/pdf?${params.toString()}`), {
       method: 'GET',
       headers: token ? { Authorization: `Bearer ${token}` } : undefined
@@ -794,9 +788,6 @@ const loadSelectedActivityInscritos = async () => {
         const inscripciones = (inscripcionesResp as Array<Record<string, any>>)
         const evaluaciones = (evaluacionesResp as Array<Record<string, any>>)
 
-        console.debug('inscripciones/curso response', { activity: selectedActivity.value, paralelo, inscripciones })
-        console.debug('evaluaciones/paralelo response', { activity: selectedActivity.value, paralelo, evaluaciones })
-
         const evalMap = new Map<number, Record<string, any>>()
         evaluaciones.forEach(ev => {
           const idIns = Number(pick(ev, 'idInscripcion', 'id_inscripcion', 'idInscripcion') ?? 0)
@@ -837,7 +828,6 @@ const loadSelectedActivityInscritos = async () => {
         // Fall back to previous behavior if secondary endpoint not available
         const response = await api.get(`/evaluaciones/paralelo/${selectedActivity.value.idActividad}/${paralelo.codigo}`)
         const items = response as Array<Record<string, unknown>>
-        console.debug('evaluaciones/paralelo response (fallback)', { activity: selectedActivity.value, paralelo, items })
 
         courseEnrolled.value = items.map(item => {
           const nombreParticipante = String(pick(item, 'nombreParticipante', 'nombre_participante', 'nombre') ?? '')
@@ -867,7 +857,6 @@ const loadSelectedActivityInscritos = async () => {
 
     const response = await api.get(`/asistencias/evento/${selectedActivity.value.idActividad}/detalle`)
     const items = response as Array<Record<string, unknown>>
-    console.debug('asistencias/evento response', { activity: selectedActivity.value, items })
 
     eventEnrolled.value = items.map(item => {
       const nombreParticipante = String(pick(item, 'nombreParticipante', 'nombre_participante', 'nombre') ?? '')

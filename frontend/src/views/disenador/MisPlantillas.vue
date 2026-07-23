@@ -68,7 +68,7 @@ import { ref, computed, onMounted } from 'vue'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
-import { api } from '@/utils/api'
+import { api, getAuthToken } from '@/utils/api'
 import { useAlertStore } from '@/stores/alert.store'
 
 interface PlantillaDto {
@@ -114,7 +114,7 @@ const filteredPlantillas = computed(() => {
 const verPlantilla = async (plantilla: PlantillaDto) => {
   try {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-    const token = localStorage.getItem('token')
+    const token = getAuthToken()
     const response = await fetch(`${baseUrl}/plantillas/${plantilla.idPlantilla}/descargar`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined
     })

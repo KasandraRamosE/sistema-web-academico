@@ -276,7 +276,7 @@ import Button from '@/components/common/Button.vue'
 import Modal from '@/components/common/Modal.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import { usePagination } from '@/composables/usePagination'
-import { api } from '@/utils/api'
+import { api, getAuthToken } from '@/utils/api'
 import { formatDate as formatDateUtil } from '@/utils/dateFormatter'
 
 interface CarreraDto {
@@ -410,7 +410,7 @@ const downloadingFinancieros = ref(false)
 const downloadBlob = async (url: string, fileName: string, setLoading: (v: boolean) => void) => {
   setLoading(true)
   try {
-    const token = localStorage.getItem('token')
+    const token = getAuthToken()
     const res = await fetch(url, { method: 'GET', headers: token ? { Authorization: `Bearer ${token}` } : undefined })
     if (!res.ok) throw new Error(res.statusText || 'Error al generar PDF')
     const contentType = res.headers.get('content-type') || ''

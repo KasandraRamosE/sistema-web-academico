@@ -180,12 +180,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import Card from '@/components/common/Card.vue'
 import Badge from '@/components/common/Badge.vue'
 import Button from '@/components/common/Button.vue'
 import Modal from '@/components/common/Modal.vue'
-import { api } from '@/utils/api'
+import { api, getAuthToken } from '@/utils/api'
 import { useAlertStore } from '@/stores/alert.store'
 
 interface CarreraDto {
@@ -368,7 +368,7 @@ const aprobarSolicitud = async (solicitud: SolicitudDto) => {
 
 const verPlantilla = async (plantilla: PlantillaDto) => {
   try {
-    const token = localStorage.getItem('token')
+    const token = getAuthToken()
     const response = await fetch(`${baseUrl}/plantillas/${plantilla.idPlantilla}/descargar`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined
     })
@@ -453,10 +453,6 @@ const rechazarPlantilla = async () => {
     savingPlantillaId.value = null
   }
 }
-
-watch(selectedCarreraId, () => {
-  // re-render computed lists
-})
 
 onMounted(() => {
   loadAll()

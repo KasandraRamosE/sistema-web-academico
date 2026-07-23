@@ -11,7 +11,7 @@
     
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-6 mt-12">
-      <div class="container mx-auto px-4 text-center">
+      <div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
         <p class="text-sm">
           © {{ new Date().getFullYear() }} FHCE - Universidad Mayor de San Andrés
         </p>

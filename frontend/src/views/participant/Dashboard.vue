@@ -181,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
@@ -255,9 +255,6 @@ const formatDate = (dateString: string): string => {
   return formatDateUtil(dateString, 'es-ES')
 }
 
-onMounted(() => {
-  console.log('✅ Dashboard de participante cargado')
-})
 </script>
 
 <style scoped>

@@ -8,7 +8,7 @@
         ></div>
         <div class="absolute inset-0 bg-gradient-to-r from-emerald-900/80 via-slate-900/75 to-amber-900/70"></div>
       </div>
-      <div class="relative container mx-auto px-4 py-20">
+      <div class="relative mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
         <div class="max-w-3xl">
           <p class="text-sm uppercase tracking-[0.25em] text-emerald-100/80 mb-4">
             Facultad de Humanidades y Ciencias de la Educacion
@@ -26,13 +26,14 @@
       </div>
     </section>
 
-    <section class="container mx-auto px-4 py-8">
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <section class="w-full px-4 sm:px-6 lg:px-8 py-8">
+      <div class="mx-auto grid max-w-7xl grid-cols-1 gap-6 lg:grid-cols-4">
         <aside class="hidden lg:block lg:col-span-1">
           <div class="sticky top-24">
             <ActivityFilters
               v-model="filters"
               :careers="careers"
+              :activity-names="activityNames"
             />
           </div>
         </aside>
@@ -111,6 +112,7 @@
       <ActivityFilters
         v-model="filters"
         :careers="careers"
+        :activity-names="activityNames"
       />
 
       <template #footer>

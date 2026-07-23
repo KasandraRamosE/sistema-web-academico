@@ -133,7 +133,9 @@ export const useAuthStore = defineStore('auth', () => {
       const storedRole = localStorage.getItem('currentRole')
       const normalizedStoredRole = storedRole ? normalizeRoles([storedRole])[0] : null
       const effectiveRoles = user.value?.roles ?? roles
-      if (normalizedStoredRole && effectiveRoles.includes(normalizedStoredRole)) {
+      if (effectiveRoles.includes('PARTICIPANTE')) {
+        currentRole.value = 'PARTICIPANTE'
+      } else if (normalizedStoredRole && effectiveRoles.includes(normalizedStoredRole)) {
         currentRole.value = normalizedStoredRole
       } else {
         currentRole.value = effectiveRoles[0] || null
@@ -214,8 +216,6 @@ export const useAuthStore = defineStore('auth', () => {
     })
 
     clearLocalSession()
-
-    console.log('✅ Sesión cerrada')
   }
 
   /**
@@ -249,8 +249,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     currentRole.value = newRole
     localStorage.setItem('currentRole', newRole)
-    
-    console.log(`✅ Rol cambiado a: ${newRole}`)
+
     return true
   }
 
@@ -262,8 +261,6 @@ export const useAuthStore = defineStore('auth', () => {
 
     user.value = updatedUser
     localStorage.setItem('user', JSON.stringify(updatedUser))
-
-    console.log('✅ Datos del usuario actualizados')
   }
 
   /**
@@ -314,8 +311,6 @@ export const useAuthStore = defineStore('auth', () => {
       } else {
         currentRole.value = user.value?.roles[0] || null
       }
-
-      console.log('✅ Sesión restaurada')
     } catch (error) {
       console.error('❌ Error al restaurar sesión:', error)
       clearLocalSession()

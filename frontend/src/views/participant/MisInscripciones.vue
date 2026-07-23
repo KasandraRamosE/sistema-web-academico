@@ -1,16 +1,10 @@
 <template>
-  <!--
-    Vista: Mis Inscripciones
-    Lista de cursos y eventos en los que el participante está inscrito
-  -->
-  <div class="container mx-auto px-4 py-8">
-    <!-- Encabezado -->
+  <div class="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-gray-800 mb-2">Mis Inscripciones</h1>
       <p class="text-gray-600">Gestiona tus cursos y eventos inscritos</p>
     </div>
 
-    <!-- Filtros rápidos -->
     <div class="flex flex-wrap gap-3 mb-6">
       <Button 
         :variant="filtroActivo === 'TODAS' ? 'primary' : 'outline'" 
@@ -49,7 +43,6 @@
       </Button>
     </div>
 
-    <!-- Lista de inscripciones -->
     <div v-if="loading" class="text-center py-12">
       <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       <p class="mt-4 text-gray-600">Cargando inscripciones...</p>
@@ -62,9 +55,7 @@
         :hoverable="true"
       >
         <div class="flex flex-col md:flex-row gap-6">
-          <!-- Información principal -->
           <div class="flex-1 space-y-3">
-            <!-- Header -->
             <div class="flex flex-wrap items-start justify-between gap-2">
               <div class="flex items-center gap-2">
                 <Badge :variant="inscripcion.tipo === 'CURSO' ? 'primary' : 'secondary'" size="sm">
@@ -75,7 +66,6 @@
                 </Badge>
               </div>
               
-              <!-- Nota (solo para cursos completados) -->
               <div v-if="inscripcion.tipo === 'CURSO' && inscripcion.nota !== null" class="text-right">
                 <p class="text-sm text-gray-600">Nota final</p>
                 <p class="text-2xl font-bold" :class="inscripcion.nota >= 51 ? 'text-green-600' : 'text-red-600'">
@@ -84,12 +74,10 @@
               </div>
             </div>
 
-            <!-- Título -->
             <h3 class="text-xl font-bold text-gray-800">
               {{ inscripcion.nombre }}
             </h3>
 
-            <!-- Información detallada -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
               <div class="flex items-center space-x-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,11 +106,43 @@
                 </svg>
                 <span>Bs. {{ inscripcion.monto_pagado }}</span>
               </div>
+
+              <div v-if="inscripcion.tipo === 'CURSO' && inscripcion.paraleloCodigo" class="flex items-center space-x-2 md:col-span-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 1.343-3 3 0 1.06.551 1.995 1.384 2.535L10 17h4l-.384-3.465A2.996 2.996 0 0015 11c0-1.657-1.343-3-3-3zm0 0V5m0 12v2m-7-7H3m18 0h-2M5.05 5.05l1.414 1.414m11.314 11.314 1.414 1.414m0-14.142-1.414 1.414M6.464 17.536 5.05 18.95" />
+                </svg>
+                <span><span class="font-semibold text-gray-700">Paralelo:</span> {{ inscripcion.paraleloCodigo }}</span>
+              </div>
+
+              <div v-if="inscripcion.tipo === 'CURSO' && (inscripcion.paraleloDocente || inscripcion.paraleloTituloDocente)" class="flex items-center space-x-2 md:col-span-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A9 9 0 1118.88 17.804M15 11a3 3 0 11-6 0 3 3 0 016 0zm-3 8a6 6 0 00-6 6h12a6 6 0 00-6-6z" />
+                </svg>
+                <span>
+                  <span class="font-semibold text-gray-700">Docente:</span>
+                  {{ inscripcion.paraleloDocente || '-' }}
+                  <span v-if="inscripcion.paraleloTituloDocente" class="text-gray-500">({{ inscripcion.paraleloTituloDocente }})</span>
+                </span>
+              </div>
+
+              <div v-if="inscripcion.tipo === 'CURSO' && inscripcion.paraleloHorario" class="flex items-center space-x-2 md:col-span-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span><span class="font-semibold text-gray-700">Horario:</span> {{ inscripcion.paraleloHorario }}</span>
+              </div>
+
+              <div v-if="inscripcion.tipo === 'CURSO' && inscripcion.paraleloLugar" class="flex items-center space-x-2 md:col-span-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span><span class="font-semibold text-gray-700">Lugar:</span> {{ inscripcion.paraleloLugar }}</span>
+              </div>
             </div>
 
           </div>
 
-          <!-- Acciones -->
           <div class="flex md:flex-col gap-2 justify-center md:justify-start">
             <Button 
               v-if="inscripcion.certificado_disponible" 
@@ -144,7 +164,6 @@
       </Card>
     </div>
 
-    <!-- Estado vacío -->
     <Card v-else>
       <div class="text-center py-12">
         <svg class="w-20 h-20 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,16 +191,8 @@ import { useRouter } from 'vue-router'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
-import { api } from '@/utils/api'
+import { api, getAuthToken } from '@/utils/api'
 import { formatDate as formatDateUtil } from '@/utils/dateFormatter'
-
-// ============================================
-// COMPOSABLES
-// ============================================
-
-// ============================================
-// ESTADO
-// ============================================
 
 type FiltroTipo = 'TODAS' | 'ACTIVAS' | 'COMPLETADAS' | 'CURSOS' | 'EVENTOS'
 
@@ -195,6 +206,11 @@ interface InscripcionItem {
   fecha_fin: string
   carga_horaria: number
   modalidad: string
+  paraleloCodigo: string | null
+  paraleloDocente: string | null
+  paraleloTituloDocente: string | null
+  paraleloHorario: string | null
+  paraleloLugar: string | null
   monto_pagado: number
   estado: 'ACTIVO' | 'COMPLETADO' | 'CANCELADO' | 'PENDIENTE DE PAGO'
   nota: number | null
@@ -207,11 +223,7 @@ const loading = ref(false)
 const inscripciones = ref<InscripcionItem[]>([])
 const router = useRouter()
 
-// ============================================
-// COMPUTED
-// ============================================
-
-const inscripcionesActivas = computed(() => 
+const inscripcionesActivas = computed(() =>
   inscripciones.value.filter(i => i.estado === 'ACTIVO')
 )
 
@@ -242,11 +254,6 @@ const inscripcionesFiltradas = computed(() => {
   }
 })
 
-// ============================================
-// MÉTODOS
-// ============================================
-
-
 const formatDate = (dateString: string): string => {
   return formatDateUtil(dateString, 'es-ES')
 }
@@ -270,7 +277,7 @@ const descargarCertificado = (certificadoId?: number) => {
   if (!certificadoId) return
 
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-  const token = localStorage.getItem('token')
+  const token = getAuthToken()
 
   fetch(`${baseUrl}/certificados/${certificadoId}/descargar`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {}
@@ -351,11 +358,16 @@ const cargarInscripciones = async () => {
         : null
       const estadoInscripcion = String(item.estado ?? 'PENDIENTE').toUpperCase()
       const estadoPago = String(item.estadoPago ?? '').toUpperCase()
+      const codigoParalelo = item.codigoParalelo != null ? String(item.codigoParalelo) : null
 
       let fechaInicio = ''
       let fechaFin = ''
       let cargaHoraria = 0
       let modalidad = ''
+      let paraleloDocente: string | null = null
+      let paraleloTituloDocente: string | null = null
+      let paraleloHorario: string | null = null
+      let paraleloLugar: string | null = null
 
       if (tipo === 'CURSO' && detalle) {
         fechaInicio = String(detalle.fechaInicio ?? '')
@@ -369,6 +381,10 @@ const cargarInscripciones = async () => {
 
         const paralelo = paralelos.find(p => String(p.codigo ?? '') === codigoParalelo)
         modalidad = paralelo ? String(paralelo.modalidad ?? '') : ''
+        paraleloDocente = paralelo?.nombreDocente ? String(paralelo.nombreDocente) : null
+        paraleloTituloDocente = paralelo?.tituloDocente ? String(paralelo.tituloDocente) : null
+        paraleloHorario = paralelo?.horarioDescripcion ? String(paralelo.horarioDescripcion) : null
+        paraleloLugar = paralelo?.lugar ? String(paralelo.lugar) : null
       }
 
       if (tipo === 'EVENTO' && detalle) {
@@ -397,6 +413,11 @@ const cargarInscripciones = async () => {
         fecha_fin: fechaFin,
         carga_horaria: cargaHoraria,
         modalidad: modalidad || '-',
+        paraleloCodigo: codigoParalelo,
+        paraleloDocente,
+        paraleloTituloDocente,
+        paraleloHorario,
+        paraleloLugar,
         monto_pagado: Number(item.saldo ?? 0),
         estado,
         nota: notaFinal,
@@ -418,5 +439,4 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Estilos adicionales si son necesarios */
 </style>

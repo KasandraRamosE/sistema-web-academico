@@ -1,11 +1,6 @@
 <template>
-  <!--
-    Componente de Filtros para Actividades
-    Permite filtrar por tipo, modalidad, carrera, búsqueda, etc.
-  -->
   <Card>
     <div class="space-y-4">
-      <!-- Título -->
       <div class="flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-800">Filtros</h3>
         <button
@@ -17,7 +12,6 @@
         </button>
       </div>
 
-      <!-- Búsqueda por texto -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
           Buscar
@@ -58,7 +52,6 @@
         </div>
       </div>
 
-      <!-- Tipo de actividad -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
           Tipo de actividad
@@ -97,7 +90,6 @@
         </div>
       </div>
 
-      <!-- Modalidad -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
           Modalidad
@@ -114,7 +106,6 @@
         </select>
       </div>
 
-      <!-- Carrera -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
           Carrera
@@ -136,7 +127,6 @@
         </select>
       </div>
 
-      <!-- Opciones adicionales -->
       <div class="space-y-2 pt-2 border-t border-gray-200">
         <label class="flex items-center space-x-2 cursor-pointer">
           <input
@@ -164,11 +154,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import Card from '@/components/common/Card.vue'
-import type { FiltrosActividad, Carrera, TipoActividad, Modalidad } from '@/types'
-
-// ============================================
-// PROPS
-// ============================================
+import type { FiltrosActividad, Carrera } from '@/types'
 
 interface Props {
   careers: Carrera[]
@@ -178,34 +164,15 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// ============================================
-// EMITS
-// ============================================
-
 const emit = defineEmits<{
   'update:modelValue': [filters: FiltrosActividad]
 }>()
 
-// ============================================
-// ESTADO LOCAL
-// ============================================
-
-/**
- * Copia local de los filtros para v-model
- */
 const localFilters = ref<FiltrosActividad>({ ...props.modelValue })
 const showSuggestions = ref(false)
 
-// Timer para debounce en búsqueda
 let searchTimeout: number | null = null
 
-// ============================================
-// COMPUTED
-// ============================================
-
-/**
- * Verifica si hay filtros activos
- */
 const hasActiveFilters = computed(() => {
   return (
     localFilters.value.tipo !== undefined ||
@@ -227,29 +194,19 @@ const matchingSuggestions = computed(() => {
     .slice(0, 6)
 })
 
-// ============================================
-// MÉTODOS
-// ============================================
-
-/**
- * Emite los filtros actualizados
- */
 const emitFilters = () => {
   emit('update:modelValue', { ...localFilters.value })
 }
 
-/**
- * Emite con debounce (para búsqueda por texto)
- */
 const debouncedEmit = () => {
   if (searchTimeout) {
     clearTimeout(searchTimeout)
   }
-  
+
   showSuggestions.value = true
   searchTimeout = window.setTimeout(() => {
     emitFilters()
-  }, 500) // Espera 500ms después de que el usuario deje de escribir
+  }, 500)
 }
 
 const selectSuggestion = (value: string) => {
@@ -258,9 +215,6 @@ const selectSuggestion = (value: string) => {
   emitFilters()
 }
 
-/**
- * Limpia todos los filtros
- */
 const clearFilters = () => {
   localFilters.value = {
     tipo: undefined,
@@ -273,13 +227,6 @@ const clearFilters = () => {
   emitFilters()
 }
 
-// ============================================
-// WATCHERS
-// ============================================
-
-/**
- * Sincroniza los filtros externos con los locales
- */
 watch(() => props.modelValue, (newFilters) => {
   localFilters.value = { ...newFilters }
 }, { deep: true })
@@ -294,7 +241,6 @@ select {
   white-space: nowrap;
 }
 
-/* Opciones del select */
 option {
   padding: 8px;
   white-space: normal;

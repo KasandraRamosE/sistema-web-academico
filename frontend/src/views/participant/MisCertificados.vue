@@ -1,16 +1,10 @@
 <template>
-  <!--
-    Vista: Mis Certificados
-    Lista de certificados obtenidos por el participante
-  -->
-  <div class="container mx-auto px-4 py-8">
-    <!-- Encabezado -->
+  <div class="w-full px-4 sm:px-6 lg:px-10 py-8">
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-gray-800 mb-2">Mis Certificados</h1>
       <p class="text-gray-600">Descarga y verifica tus certificados digitales</p>
     </div>
 
-    <!-- Estadísticas -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <Card>
         <div class="text-center">
@@ -49,7 +43,6 @@
       </Card>
     </div>
 
-    <!-- Grid de certificados -->
     <div v-if="loading" class="text-center py-12">
       <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       <p class="mt-4 text-gray-600">Cargando certificados...</p>
@@ -62,23 +55,19 @@
         :hoverable="true"
         class="relative overflow-hidden"
       >
-        <!-- Badge de tipo -->
         <div class="absolute top-4 right-4 z-10">
           <Badge :variant="certificado.tipo === 'APROBACION' ? 'success' : 'info'" size="sm">
             {{ certificado.tipo === 'APROBACION' ? 'Aprobación' : 'Participación' }}
           </Badge>
         </div>
 
-        <!-- Contenido del certificado -->
         <div class="text-center space-y-4">
-          <!-- Icono -->
           <div class="w-20 h-20 bg-gradient-to-br from-purple-600 to-blue-500 rounded-full flex items-center justify-center mx-auto">
             <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
             </svg>
           </div>
 
-          <!-- Información -->
           <div>
             <h3 class="font-bold text-gray-800 mb-1 line-clamp-2">
               {{ certificado.nombre_actividad }}
@@ -88,13 +77,11 @@
             </p>
           </div>
 
-          <!-- Nota (si es de aprobación) -->
           <div v-if="certificado.tipo === 'APROBACION' && certificado.nota" class="py-2 px-4 bg-green-50 rounded-lg">
             <p class="text-xs text-gray-600">Nota final</p>
             <p class="text-2xl font-bold text-green-600">{{ certificado.nota }}</p>
           </div>
 
-          <!-- Fecha de emisión -->
           <p class="text-xs text-gray-500">
             Emitido el {{ formatDate(certificado.fecha_emision) }}
           </p>
@@ -109,7 +96,6 @@
             <p class="text-xs text-gray-500 mt-2">Código de verificación</p>
           </div>
 
-          <!-- Botones de acción -->
           <div class="flex gap-2">
             <Button 
               variant="primary" 
@@ -136,7 +122,6 @@
       </Card>
     </div>
 
-    <!-- Estado vacío -->
     <Card v-else>
       <div class="text-center py-12">
         <svg class="w-20 h-20 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -163,12 +148,8 @@ import { ref, computed, onMounted } from 'vue'
 import Card from '@/components/common/Card.vue'
 import Button from '@/components/common/Button.vue'
 import Badge from '@/components/common/Badge.vue'
-import { api } from '@/utils/api'
+import { api, getAuthToken } from '@/utils/api'
 import { formatDate as formatDateUtil } from '@/utils/dateFormatter'
-
-// ============================================
-// ESTADO
-// ============================================
 
 interface CertificadoItem {
   id: number
@@ -186,11 +167,7 @@ interface CertificadoItem {
 const certificados = ref<CertificadoItem[]>([])
 const loading = ref(false)
 
-// ============================================
-// COMPUTED
-// ============================================
-
-const certificadosCursos = computed(() => 
+const certificadosCursos = computed(() =>
   certificados.value.filter(c => c.actividad_tipo === 'CURSO').length
 )
 
@@ -198,17 +175,13 @@ const certificadosEventos = computed(() =>
   certificados.value.filter(c => c.actividad_tipo === 'EVENTO').length
 )
 
-// ============================================
-// MÉTODOS
-// ============================================
-
 const formatDate = (dateString: string): string => {
   return formatDateUtil(dateString, 'es-ES')
 }
 
 const descargarCertificado = (certificadoId: number) => {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-  const token = localStorage.getItem('token')
+  const token = getAuthToken()
 
   fetch(`${baseUrl}/certificados/${certificadoId}/descargar`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {}
