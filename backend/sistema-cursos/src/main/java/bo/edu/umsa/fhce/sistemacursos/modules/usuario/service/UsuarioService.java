@@ -116,6 +116,18 @@ public class UsuarioService {
         usuarioRepository.save(usuario);
     }
 
+    // ── Cambiar contrasena de un usuario externo (admin, sin pedir la actual) ─
+    @Transactional
+    public void cambiarPasswordAdmin(Long idUsuario, AdminCambiarPasswordRequest request) {
+        Usuario usuario = buscarUsuario(idUsuario);
+        validarExterno(usuario);
+
+        usuario.setPasswordHash(passwordEncoder.encode(request.getPasswordNueva()));
+        usuarioRepository.save(usuario);
+
+        log.info("Contrasena del usuario {} cambiada por un administrador", usuario.getUsername());
+    }
+
     // ── Cambiar estado ACTIVO / INACTIVO ────────────────────────────────────
     @Transactional
     public UsuarioResumenDto cambiarEstado(Long idUsuario, CambiarEstadoRequest request) {

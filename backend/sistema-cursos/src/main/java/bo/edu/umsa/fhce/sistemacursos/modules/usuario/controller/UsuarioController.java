@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.AdminCambiarPasswordRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.AsignarRolRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.CambiarEstadoRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.CambiarPasswordRequest;
@@ -124,6 +125,20 @@ public class UsuarioController {
     public ResponseEntity<Void> cambiarPassword(
             @Valid @RequestBody CambiarPasswordRequest request) {
         usuarioService.cambiarPasswordExterno(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    // PUT /api/usuarios/{id}/password
+    // Solo para usuarios externos: la cuenta INTERNO (UMSA) no tiene password
+    // local, se autentica contra Usuarios Umsa. No pide password actual porque
+    // quien la ejecuta es el admin, no el dueño de la cuenta.
+    @PutMapping("/{id}/password")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Cambiar contrasena de un usuario externo (accion de administrador)")
+    public ResponseEntity<Void> cambiarPasswordAdmin(
+            @PathVariable Long id,
+            @Valid @RequestBody AdminCambiarPasswordRequest request) {
+        usuarioService.cambiarPasswordAdmin(id, request);
         return ResponseEntity.noContent().build();
     }
 
