@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +43,7 @@ import com.itextpdf.layout.borders.Border;
 import com.itextpdf.layout.properties.BorderRadius;
 import com.itextpdf.layout.properties.HorizontalAlignment;
 
+import bo.edu.umsa.fhce.sistemacursos.common.RolUtil;
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
@@ -65,13 +65,14 @@ import bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteFinancieroDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteParticipacionCarreraDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.reporte.dto.ReporteParticipacionDto;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
-import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
-import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
+import bo.edu.umsa.fhce.sistemacursos.security.CurrentUserProvider;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ReporteService {
 
     @Value("${app.reportes.logo:}")
@@ -84,7 +85,7 @@ public class ReporteService {
     private final EventoRepository eventoRepository;
     private final InscripcionRepository inscripcionRepository;
     private final CoordinadorCarreraRepository coordinadorCarreraRepository;
-    private final UsuarioRepository usuarioRepository;
+    private final CurrentUserProvider currentUserProvider;
     private final EvaluacionRepository evaluacionRepository;
     private final AsistenciaRepository asistenciaRepository;
     private final ParaleloRepository paraleloRepository;
@@ -457,7 +458,9 @@ public class ReporteService {
                         logoCell.add(logo);
                         logoAgregado = true;
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    log.debug("No se pudo cargar el logo del reporte desde {}: {}", reporteLogoPath, e.getMessage());
+                }
             }
             if (!logoAgregado) {
                 logoCell.add(new Paragraph("FHCE")
@@ -781,15 +784,12 @@ public class ReporteService {
     }
 
     private boolean tieneRol(Usuario usuario, String rol) {
-        return usuario.getRoles().stream().anyMatch(r -> r.getNombre().equals(rol));
+        return usuario.getRoles().stream()
+            .anyMatch(r -> RolUtil.normalizar(r.getNombre()).equals(rol));
     }
 
     private Usuario getUsuarioActual() {
-        CustomUserDetails userDetails = (CustomUserDetails)
-            SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return usuarioRepository.findById(userDetails.getIdUsuario())
-            .orElseThrow(() -> new ResourceNotFoundException(
-                "Usuario", userDetails.getIdUsuario()));
+        return currentUserProvider.getUsuarioActual();
     }
 
     private LocalDateTime toInicioDia(LocalDate date) {
@@ -848,7 +848,9 @@ public class ReporteService {
                         logoCell.add(logo);
                         logoAgregado = true;
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    log.debug("No se pudo cargar el logo del reporte desde {}: {}", reporteLogoPath, e.getMessage());
+                }
             }
             if (!logoAgregado) {
                 logoCell.add(new Paragraph("FHCE").setFont(fontBold).setFontSize(13).setFontColor(BLANCO).setTextAlignment(TextAlignment.CENTER));
@@ -970,7 +972,9 @@ public class ReporteService {
                         Image logo = new Image(ImageDataFactory.create(reporteLogoPath)).setWidth(45).setHeight(45).setHorizontalAlignment(HorizontalAlignment.CENTER);
                         logoCell.add(logo); logoAgregado = true;
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    log.debug("No se pudo cargar el logo del reporte desde {}: {}", reporteLogoPath, e.getMessage());
+                }
             }
             if (!logoAgregado) logoCell.add(new Paragraph("FHCE").setFont(fontBold).setFontSize(13).setFontColor(BLANCO).setTextAlignment(TextAlignment.CENTER));
             headerBand.addCell(logoCell);

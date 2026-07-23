@@ -11,14 +11,13 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.UUID;
 import java.io.InputStream;
-import java.text.Normalizer;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import bo.edu.umsa.fhce.sistemacursos.common.RolUtil;
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.curso.entity.Curso;
@@ -35,8 +34,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.repository.AprobacionRep
 import bo.edu.umsa.fhce.sistemacursos.modules.plantilla.repository.PlantillaRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
-import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
-import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
+import bo.edu.umsa.fhce.sistemacursos.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -50,7 +48,7 @@ public class PlantillaService {
     private final CursoRepository      cursoRepository;
     private final EventoRepository     eventoRepository;
     private final CoordinadorCarreraRepository coordinadorCarreraRepository;
-    private final UsuarioRepository    usuarioRepository;
+    private final CurrentUserProvider  currentUserProvider;
 
     @Value("${app.plantillas.directorio:plantillas}")
     private String directorioPlantillas;
@@ -439,11 +437,7 @@ public class PlantillaService {
     }
 
     private Usuario getUsuarioActual() {
-        CustomUserDetails userDetails = (CustomUserDetails)
-            SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return usuarioRepository.findById(userDetails.getIdUsuario())
-            .orElseThrow(() -> new ResourceNotFoundException(
-                "Usuario", userDetails.getIdUsuario()));
+        return currentUserProvider.getUsuarioActual();
     }
 
     private PlantillaDto toPlantillaDto(PlantillaCertificado p) {
@@ -583,12 +577,6 @@ public class PlantillaService {
     }
 
     private String normalizarRol(String rol) {
-        if (rol == null) {
-            return "";
-        }
-        String trimmed = rol.trim();
-        String normalized = Normalizer.normalize(trimmed, Normalizer.Form.NFD)
-            .replaceAll("\\p{M}", "");
-        return normalized.toUpperCase();
+        return RolUtil.normalizar(rol);
     }
 }

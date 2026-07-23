@@ -1,5 +1,3 @@
-// src/main/java/.../modules/evaluacion/service/AsistenciaService.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.service;
 
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
@@ -21,12 +19,11 @@ import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.AuxiliarEventoRe
 import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.EventoRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.entity.Inscripcion;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.repository.InscripcionRepository;
+import bo.edu.umsa.fhce.sistemacursos.common.RolUtil;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
-import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
-import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
+import bo.edu.umsa.fhce.sistemacursos.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,9 +42,9 @@ public class AsistenciaService {
     private final SolicitudEmisionRepository solicitudRepository;
     private final CertificadoRepository  certificadoRepository;
     private final CertificadoService     certificadoService;
-    private final UsuarioRepository       usuarioRepository;
     private final EventoRepository        eventoRepository;
     private final CoordinadorCarreraRepository coordinadorCarreraRepository;
+    private final CurrentUserProvider     currentUserProvider;
 
     // ── Registrar asistencia ─────────────────────────────────────────────────
     @Transactional
@@ -183,11 +180,7 @@ public class AsistenciaService {
     }
 
     private Usuario getUsuarioActual() {
-        CustomUserDetails userDetails = (CustomUserDetails)
-            SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return usuarioRepository.findById(userDetails.getIdUsuario())
-            .orElseThrow(() -> new ResourceNotFoundException(
-                "Usuario", userDetails.getIdUsuario()));
+        return currentUserProvider.getUsuarioActual();
     }
 
     private void validarPermisoAnulacion(Usuario usuario, Asistencia asistencia) {
@@ -301,8 +294,7 @@ public class AsistenciaService {
     }
 
     private String normalizeRolName(String nombreRol) {
-        if (nombreRol == null) return "";
-        return nombreRol.replace("ROLE_", "").replace("Ñ", "N").replace("ñ", "n").toUpperCase();
+        return RolUtil.normalizar(nombreRol);
     }
 
     private AsistenciaDto toAsistenciaDto(Asistencia a) {

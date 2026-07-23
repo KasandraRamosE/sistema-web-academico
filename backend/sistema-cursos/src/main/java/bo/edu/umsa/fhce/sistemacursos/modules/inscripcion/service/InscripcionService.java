@@ -1,5 +1,6 @@
 package bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.service;
 
+import bo.edu.umsa.fhce.sistemacursos.common.RolUtil;
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
@@ -20,11 +21,9 @@ import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.repository.PagoReposit
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Participante;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.ParticipanteRepository;
-import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
-import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
+import bo.edu.umsa.fhce.sistemacursos.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,9 +47,9 @@ public class InscripcionService {
     private final EventoRepository       eventoRepository;
     private final CoordinadorCarreraRepository coordinadorCarreraRepository;
     private final AuxiliarEventoRepository auxiliarEventoRepository;
-    private final UsuarioRepository      usuarioRepository;
     private final ParticipanteRepository participanteRepository;
     private final LibelulaClient         libelulaClient;
+    private final CurrentUserProvider    currentUserProvider;
 
     // URL pública del backend a la que Libélula avisa cuando se completa un pago.
     // En prod DEBE apuntar al dominio real (ej. https://cursos.fhce.umsa.bo/api).
@@ -133,7 +132,6 @@ public class InscripcionService {
                 "No tienes permisos para pagar esta inscripción", 403);
         }
 
-        // Verificar estado
         if (inscripcion.getEstado() != Inscripcion.EstadoInscripcion.PENDIENTE) {
             throw new BusinessException(
                 "Esta inscripción no está pendiente de pago. Estado: "
@@ -472,11 +470,7 @@ public class InscripcionService {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
     private Usuario getUsuarioActual() {
-        CustomUserDetails userDetails = (CustomUserDetails)
-            SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return usuarioRepository.findById(userDetails.getIdUsuario())
-            .orElseThrow(() -> new ResourceNotFoundException(
-                "Usuario", userDetails.getIdUsuario()));
+        return currentUserProvider.getUsuarioActual();
     }
 
     private void verificarAccesoCurso(Curso curso) {
@@ -524,8 +518,7 @@ public class InscripcionService {
     }
 
     private String normalizeRolName(String nombreRol) {
-        if (nombreRol == null) return "";
-        return nombreRol.replace("ROLE_", "").replace("Ñ", "N").replace("ñ", "n").toUpperCase();
+        return RolUtil.normalizar(nombreRol);
     }
 
     private InscripcionDto toInscripcionDto(Inscripcion i) {

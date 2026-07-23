@@ -1,5 +1,3 @@
-// src/main/java/.../modules/usuario/service/UsuarioService.java
-
 package bo.edu.umsa.fhce.sistemacursos.modules.usuario.service;
 
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
@@ -166,12 +164,10 @@ public class UsuarioService {
             "Solo puedes asignar roles DOCENTE, AUXILIAR o DISENADOR", 403);
         }
 
-        // Verificar que el rol existe
         Rol rol = findRolByNombreCompat(request.getNombreRol())
             .orElseThrow(() -> new BusinessException(
                 "Rol no encontrado: " + request.getNombreRol(), 404));
 
-        // Verificar que no tenga el rol ya
         boolean yaLoTiene = usuario.getRoles().stream()
             .anyMatch(r -> normalizeRolName(r.getNombre()).equals(rolSolicitado));
         if (yaLoTiene) {
@@ -179,11 +175,9 @@ public class UsuarioService {
                 "El usuario ya tiene el rol " + request.getNombreRol(), 409);
         }
 
-        // Lógica especial según el rol asignado
         switch (rolSolicitado) {
 
             case "DOCENTE" -> {
-                // Requiere título académico
                 if (request.getTitulo() == null || request.getTitulo().isBlank()) {
                     throw new BusinessException(
                         "El título académico es obligatorio para el rol DOCENTE", 400);
@@ -195,12 +189,10 @@ public class UsuarioService {
             }
 
             case "PARTICIPANTE" -> {
-                // Requiere tipo (UMSA o EXTERNO)
                 if (request.getTipoParticipante() == null || request.getTipoParticipante().isBlank()) {
                     throw new BusinessException(
                         "El tipo de participante (UMSA/EXTERNO) es obligatorio", 400);
                 }
-                // Verificar que no tenga ya perfil de participante
                 if (!participanteRepository.findById(idUsuario).isPresent()) {
                     Participante participante = new Participante();
                     participante.setUsuario(usuario);
@@ -230,7 +222,6 @@ public class UsuarioService {
         Usuario usuario = buscarUsuario(idUsuario);
         String rolNormalizado = normalizeRolName(nombreRol);
 
-        // No permitir quitarle el último rol
         if (usuario.getRoles().size() <= 1) {
             throw new BusinessException(
                 "No se puede revocar el último rol del usuario", 400);
@@ -247,7 +238,6 @@ public class UsuarioService {
                 "El usuario no tiene el rol " + nombreRol, 400);
         }
 
-        // Si se revoca DOCENTE, eliminar perfil de docente
         if (nombreRol.equals("DOCENTE")) {
             docenteRepository.deleteById(idUsuario);
         }

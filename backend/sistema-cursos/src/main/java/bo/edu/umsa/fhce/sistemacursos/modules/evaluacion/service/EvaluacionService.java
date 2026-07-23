@@ -2,10 +2,10 @@ package bo.edu.umsa.fhce.sistemacursos.modules.evaluacion.service;
 
 import java.util.List;
 
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import bo.edu.umsa.fhce.sistemacursos.common.RolUtil;
 import bo.edu.umsa.fhce.sistemacursos.exception.BusinessException;
 import bo.edu.umsa.fhce.sistemacursos.exception.ResourceNotFoundException;
 import bo.edu.umsa.fhce.sistemacursos.modules.carrera.repository.CoordinadorCarreraRepository;
@@ -37,8 +37,7 @@ import bo.edu.umsa.fhce.sistemacursos.modules.evento.repository.EventoRepository
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.entity.Inscripcion;
 import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.repository.InscripcionRepository;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.entity.Usuario;
-import bo.edu.umsa.fhce.sistemacursos.modules.usuario.repository.UsuarioRepository;
-import bo.edu.umsa.fhce.sistemacursos.security.CustomUserDetails;
+import bo.edu.umsa.fhce.sistemacursos.security.CurrentUserProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -56,9 +55,9 @@ public class EvaluacionService {
     private final CertificadoRepository     certificadoRepository;
     private final CertificadoService        certificadoService;
     private final EventoRepository          eventoRepository;
-    private final UsuarioRepository         usuarioRepository;
     private final CoordinadorCarreraRepository coordinadorCarreraRepository;
-    
+    private final CurrentUserProvider       currentUserProvider;
+
 
     // ── Registrar nota a un inscrito ─────────────────────────────────────────
     
@@ -424,11 +423,7 @@ public class EvaluacionService {
     }
 
     private Usuario getUsuarioActual() {
-        CustomUserDetails userDetails = (CustomUserDetails)
-            SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return usuarioRepository.findById(userDetails.getIdUsuario())
-            .orElseThrow(() -> new ResourceNotFoundException(
-                "Usuario", userDetails.getIdUsuario()));
+        return currentUserProvider.getUsuarioActual();
     }
 
     private void verificarAccesoParalelo(Paralelo paralelo) {
@@ -456,8 +451,7 @@ public class EvaluacionService {
     }
 
     private String normalizeRolName(String nombreRol) {
-        if (nombreRol == null) return "";
-        return nombreRol.replace("ROLE_", "").replace("Ñ", "N").replace("ñ", "n").toUpperCase();
+        return RolUtil.normalizar(nombreRol);
     }
 
     private void emitirCertificadosEvento(Long idEvento) {
