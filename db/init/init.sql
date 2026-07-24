@@ -846,6 +846,14 @@ CREATE TABLE `rol` (
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Catálogo de roles del sistema';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+INSERT INTO `rol` VALUES
+  (1,'ADMINISTRADOR','Acceso completo al sistema'),
+  (2,'COORDINADOR','Gestión de cursos y eventos de su carrera'),
+  (3,'DOCENTE','Registro de calificaciones'),
+  (4,'PARTICIPANTE','Rol base para todos los usuarios'),
+  (5,'AUXILIAR','Registro de asistencia en eventos'),
+  (6,'DISENADOR','Gestión de plantillas de certificados');
+
 --
 -- Table structure for table `solicitud_emision`
 --
