@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.ActualizarUsuarioAdminRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.AdminCambiarPasswordRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.AsignarRolRequest;
 import bo.edu.umsa.fhce.sistemacursos.modules.usuario.dto.CambiarEstadoRequest;
@@ -95,6 +96,16 @@ public class UsuarioController {
     @Operation(summary = "Obtener perfil del usuario autenticado")
     public ResponseEntity<UsuarioDetalleDto> perfilActual() {
         return ResponseEntity.ok(usuarioService.obtenerActual());
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Actualizar datos de un usuario (accion de administrador)",
+               description = "Email y estado solo se pueden modificar para usuarios externos.")
+    public ResponseEntity<UsuarioDetalleDto> actualizarUsuario(
+            @PathVariable Long id,
+            @Valid @RequestBody ActualizarUsuarioAdminRequest request) {
+        return ResponseEntity.ok(usuarioService.actualizarUsuarioAdmin(id, request));
     }
 
     @PutMapping("/me")
