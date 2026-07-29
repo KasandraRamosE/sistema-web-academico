@@ -6,6 +6,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -70,6 +71,17 @@ public class GlobalExceptionHandler {
         Map<String, Object> body = buildError(400, "Validation Failed", "Error en los datos enviados");
         body.put("fieldErrors", fieldErrors); // campo extra con el detalle
         return ResponseEntity.badRequest().body(body);
+    }
+
+    // ── 400: validación de parámetros de método (ej. elementos de un List<T>
+    // en el body, como POST /evaluaciones/lote) — Spring lanza esta excepción
+    // en vez de MethodArgumentNotValidException para este caso, y sin este
+    // handler caía en el catch-all de abajo devolviendo 500 en vez de 400.
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleMethodValidation(HandlerMethodValidationException ex) {
+        return ResponseEntity
+            .badRequest()
+            .body(buildError(400, "Validation Failed", "Error en los datos enviados"));
     }
 
     // ── 401: credenciales inválidas ──────────────────────────────────────────

@@ -392,6 +392,14 @@ const guardarNotas = async () => {
     return
   }
 
+  const fueraDeRango = cambiosPendientes.value.some(
+    est => est.notaEditada !== null && (est.notaEditada < 0 || est.notaEditada > 100)
+  )
+  if (fueraDeRango) {
+    alert('La nota debe estar entre 0 y 100.')
+    return
+  }
+
   saving.value = true
   try {
     const payload = cambiosPendientes.value
