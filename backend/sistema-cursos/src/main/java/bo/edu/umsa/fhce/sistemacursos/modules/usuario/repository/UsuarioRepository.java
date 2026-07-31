@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,4 +52,14 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
         @Param("idRol") Long idRol,
         @Param("asignadoPor") Long asignadoPor
     );
+
+    // UPDATE atómico: evita lost updates cuando llegan intentos de login
+    // fallidos concurrentes para el mismo usuario (ver LoginAttemptService).
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Usuario u SET u.intentosFallidos = u.intentosFallidos + 1 WHERE u.idUsuario = :idUsuario")
+    void incrementarIntentosFallidos(@Param("idUsuario") Long idUsuario);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Usuario u SET u.bloqueadoHasta = :bloqueadoHasta WHERE u.idUsuario = :idUsuario")
+    void bloquearHasta(@Param("idUsuario") Long idUsuario, @Param("bloqueadoHasta") LocalDateTime bloqueadoHasta);
 }

@@ -5,6 +5,8 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -63,6 +65,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final CustomUserDetailsService userDetailsService;
     private final UmsaAuthClient umsaAuthClient;
+    private final LoginAttemptService loginAttemptService;
 
     @Value("${app.verificacion.expiracion-horas:24}")
     private int expiracionHoras;
@@ -84,7 +87,7 @@ public class AuthService {
         String username = request.getUsername().trim();
         Usuario usuario = usuarioRepository.findByUsernameWithRoles(username).orElse(null);
 
-        verificarBloqueo(usuario);
+        verificarBloqueo(usuario, username);
 
         if (usuario != null && usuario.getPasswordHash() != null) {
             return loginExterno(request, usuario);
@@ -242,7 +245,7 @@ public class AuthService {
                 )
             );
         } catch (AuthenticationException ex) {
-            registrarIntentoFallido(usuario);
+            registrarIntentoFallido(usuario, request.getUsername().trim());
             throw new BusinessException(CREDENCIALES_INVALIDAS_MSG, 401);
         }
 
@@ -275,8 +278,17 @@ public class AuthService {
                 usuario.setEstado(Usuario.EstadoUsuario.INACTIVO);
                 usuarioRepository.save(usuario);
             }
-            registrarIntentoFallido(usuario);
+            registrarIntentoFallido(usuario, request.getUsername().trim());
             throw new BusinessException(CREDENCIALES_INVALIDAS_MSG, 401);
+        }
+
+        // La cuenta puede haber sido desactivada localmente por un admin
+        // (PATCH /usuarios/{id}/estado) por una razón ajena a UMSA (medida
+        // disciplinaria, egreso, etc.). Si se permite continuar, sincronizarUsuarioUmsa
+        // reactivaría la cuenta solo porque UMSA sigue autenticando al usuario,
+        // anulando esa decisión administrativa sin que nadie lo note.
+        if (usuario != null && usuario.getEstado() == Usuario.EstadoUsuario.INACTIVO) {
+            throw new BusinessException("La cuenta está inactiva", 403);
         }
 
         Usuario actualizado = sincronizarUsuarioUmsa(usuario, result);
@@ -286,38 +298,68 @@ public class AuthService {
     }
 
     // ── Bloqueo de cuenta por intentos fallidos ──────────────────────────────
+    // Para RUs UMSA que todavía no tienen fila Usuario local (nunca
+    // iniciaron sesión antes), no hay dónde persistir el contador — se
+    // trackea en memoria por username para que el bloqueo aplique igual.
+    // Se pierde al reiniciar la app, pero cierra el hueco de fuerza bruta
+    // ilimitada contra RUs institucionales aún no sincronizados.
+    private final ConcurrentHashMap<String, IntentosNoSincronizado>
+        intentosPorUsernameNoSincronizado = new ConcurrentHashMap<>();
 
-    private void verificarBloqueo(Usuario usuario) {
-        if (usuario == null || usuario.getBloqueadoHasta() == null) {
-            return;
-        }
-        LocalDateTime ahora = LocalDateTime.now();
-        if (usuario.getBloqueadoHasta().isAfter(ahora)) {
-            long minutosRestantes = Duration.between(ahora, usuario.getBloqueadoHasta()).toMinutes() + 1;
-            throw new BusinessException(
-                "Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intenta nuevamente en "
-                    + minutosRestantes + " minuto(s).",
-                423);
-        }
-        // El bloqueo ya expiró: limpiar el contador para que arranque de cero
-        usuario.setIntentosFallidos(0);
-        usuario.setBloqueadoHasta(null);
-        usuarioRepository.save(usuario);
+    private static final class IntentosNoSincronizado {
+        final AtomicInteger intentos = new AtomicInteger(0);
+        volatile LocalDateTime bloqueadoHasta;
     }
 
-    private void registrarIntentoFallido(Usuario usuario) {
-        if (usuario == null) {
+    private void verificarBloqueo(Usuario usuario, String username) {
+        if (usuario != null) {
+            if (usuario.getBloqueadoHasta() == null) return;
+            LocalDateTime ahora = LocalDateTime.now();
+            if (usuario.getBloqueadoHasta().isAfter(ahora)) {
+                throw bloqueoException(usuario.getBloqueadoHasta());
+            }
+            // El bloqueo ya expiró: limpiar el contador para que arranque de cero
+            usuario.setIntentosFallidos(0);
+            usuario.setBloqueadoHasta(null);
+            usuarioRepository.save(usuario);
             return;
         }
-        int intentos = usuario.getIntentosFallidos() + 1;
-        usuario.setIntentosFallidos(intentos);
-        if (intentos >= MAX_INTENTOS_FALLIDOS) {
-            usuario.setBloqueadoHasta(LocalDateTime.now().plusMinutes(BLOQUEO_MINUTOS));
+
+        IntentosNoSincronizado tracker = intentosPorUsernameNoSincronizado.get(username);
+        if (tracker == null || tracker.bloqueadoHasta == null) return;
+        LocalDateTime ahora = LocalDateTime.now();
+        if (tracker.bloqueadoHasta.isAfter(ahora)) {
+            throw bloqueoException(tracker.bloqueadoHasta);
         }
-        usuarioRepository.save(usuario);
+        tracker.intentos.set(0);
+        tracker.bloqueadoHasta = null;
+    }
+
+    private BusinessException bloqueoException(LocalDateTime bloqueadoHasta) {
+        long minutosRestantes = Duration.between(LocalDateTime.now(), bloqueadoHasta).toMinutes() + 1;
+        return new BusinessException(
+            "Cuenta bloqueada temporalmente por múltiples intentos fallidos. Intenta nuevamente en "
+                + minutosRestantes + " minuto(s).",
+            423);
+    }
+
+    private void registrarIntentoFallido(Usuario usuario, String username) {
+        if (usuario == null) {
+            IntentosNoSincronizado tracker = intentosPorUsernameNoSincronizado
+                .computeIfAbsent(username, k -> new IntentosNoSincronizado());
+            int intentos = tracker.intentos.incrementAndGet();
+            if (intentos >= MAX_INTENTOS_FALLIDOS) {
+                tracker.bloqueadoHasta = LocalDateTime.now().plusMinutes(BLOQUEO_MINUTOS);
+            }
+            return;
+        }
+
+        loginAttemptService.registrarIntentoFallido(
+            usuario.getIdUsuario(), MAX_INTENTOS_FALLIDOS, BLOQUEO_MINUTOS);
     }
 
     private void resetIntentosFallidos(Usuario usuario) {
+        intentosPorUsernameNoSincronizado.remove(usuario.getUsername());
         if (usuario.getIntentosFallidos() != 0 || usuario.getBloqueadoHasta() != null) {
             usuario.setIntentosFallidos(0);
             usuario.setBloqueadoHasta(null);
@@ -365,7 +407,9 @@ public class AuthService {
         usuario.setApellidos(result.getApellidos());
         usuario.setEmail(email);
         usuario.setEmailVerificado(true);
-        usuario.setEstado(Usuario.EstadoUsuario.ACTIVO);
+        // No se fuerza estado=ACTIVO aquí: loginUmsa ya rechaza el login antes
+        // de llegar a este punto si la cuenta está INACTIVO (ver comentario
+        // en loginUmsa), así que si llegamos hasta acá ya estaba ACTIVO.
 
         if (usuario.getRoles().stream().noneMatch(r -> "PARTICIPANTE".equals(r.getNombre()))) {
             Rol rolParticipante = rolRepository.findByNombre("PARTICIPANTE")
