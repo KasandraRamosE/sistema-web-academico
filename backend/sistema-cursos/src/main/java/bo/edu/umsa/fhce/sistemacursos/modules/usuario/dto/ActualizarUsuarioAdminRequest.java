@@ -14,9 +14,11 @@ public class ActualizarUsuarioAdminRequest {
     private String ci;
 
     @NotBlank(message = "El nombre es obligatorio")
+    @Size(max = 100, message = "El nombre es demasiado largo")
     private String nombres;
 
     @NotBlank(message = "El apellido es obligatorio")
+    @Size(max = 100, message = "El apellido es demasiado largo")
     private String apellidos;
 
     // Email y estado son opcionales: el frontend solo los manda para

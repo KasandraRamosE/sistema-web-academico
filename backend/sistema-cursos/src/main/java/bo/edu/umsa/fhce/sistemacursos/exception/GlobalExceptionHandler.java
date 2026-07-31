@@ -1,5 +1,6 @@
 package bo.edu.umsa.fhce.sistemacursos.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -82,6 +83,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity
             .badRequest()
             .body(buildError(400, "Validation Failed", "Error en los datos enviados"));
+    }
+
+    // ── 409: violación de restricción única/FK a nivel de BD (ej. condición
+    // de carrera entre el chequeo existsBy... y el save) — sin este handler
+    // caía en el catch-all de abajo devolviendo 500 en vez de 409.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(buildError(409, "Conflict", "El dato ya existe o viola una restricción de la base de datos"));
     }
 
     // ── 401: credenciales inválidas ──────────────────────────────────────────

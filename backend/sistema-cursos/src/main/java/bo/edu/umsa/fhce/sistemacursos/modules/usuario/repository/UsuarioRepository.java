@@ -22,6 +22,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     boolean existsByEmail(String email);
 
+    boolean existsByCi(String ci);
+
     // JPQL con JOIN FETCH para cargar roles en la misma query
     // (evita el problema N+1 de Hibernate)
     @Query("SELECT u FROM Usuario u JOIN FETCH u.roles WHERE u.username = :username")

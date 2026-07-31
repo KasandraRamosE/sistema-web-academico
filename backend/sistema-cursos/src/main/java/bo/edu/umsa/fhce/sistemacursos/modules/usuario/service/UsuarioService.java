@@ -110,7 +110,12 @@ public class UsuarioService {
                 "Solo se puede modificar el email o estado de usuarios externos", 403);
         }
 
-        usuario.setCi(request.getCi().trim());
+        String nuevoCi = request.getCi().trim();
+        if (!nuevoCi.equalsIgnoreCase(usuario.getCi())
+                && usuarioRepository.existsByCi(nuevoCi)) {
+            throw new BusinessException("Ya existe un usuario con ese carnet de identidad", 409);
+        }
+        usuario.setCi(nuevoCi);
         usuario.setNombres(request.getNombres().trim());
         usuario.setApellidos(request.getApellidos().trim());
 
