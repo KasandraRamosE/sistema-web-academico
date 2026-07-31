@@ -72,8 +72,8 @@
             <div class="mt-4 flex items-center gap-2">
               <Button size="sm" @click="goToCalificaciones(paralelo)">Ver calificaciones</Button>
               <a
-                v-if="paralelo.link"
-                :href="paralelo.link"
+                v-if="safeHttpUrl(paralelo.link)"
+                :href="safeHttpUrl(paralelo.link)!"
                 target="_blank"
                 rel="noreferrer"
                 class="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
@@ -93,6 +93,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/utils/api'
+import { safeHttpUrl } from '@/utils/safeUrl'
 import Card from '@/components/common/Card.vue'
 import Badge from '@/components/common/Badge.vue'
 import Button from '@/components/common/Button.vue'

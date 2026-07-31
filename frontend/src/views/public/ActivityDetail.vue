@@ -50,10 +50,10 @@
                 <p class="text-xs uppercase text-gray-400">Lugar</p>
                 <p class="font-semibold">{{ actividad.lugar }}</p>
               </div>
-              <div v-if="actividad.link">
+              <div v-if="safeHttpUrl(actividad.link)">
                 <p class="text-xs uppercase text-gray-400">Enlace</p>
                 <a
-                  :href="actividad.link"
+                  :href="safeHttpUrl(actividad.link)!"
                   target="_blank"
                   rel="noreferrer"
                   class="font-semibold text-emerald-700 hover:text-emerald-800"
@@ -95,10 +95,10 @@
                     <p class="text-xs text-gray-500">Cupos libres: {{ paralelo.cuposDisponibles ?? paralelo.cupoMaximo }} / {{ paralelo.cupoMaximo }}</p>
                     <p v-if="paralelo.horarioDescripcion" class="text-xs text-gray-500">Horario: {{ paralelo.horarioDescripcion }}</p>
                     <p v-if="paralelo.lugar" class="text-xs text-gray-500">Lugar: {{ paralelo.lugar }}</p>
-                    <p v-if="paralelo.link" class="text-xs text-emerald-700">Clase virtual disponible</p>
+                    <p v-if="safeHttpUrl(paralelo.link)" class="text-xs text-emerald-700">Clase virtual disponible</p>
                     <a
-                      v-if="paralelo.link"
-                      :href="paralelo.link"
+                      v-if="safeHttpUrl(paralelo.link)"
+                      :href="safeHttpUrl(paralelo.link)!"
                       target="_blank"
                       rel="noreferrer"
                       class="mt-1 inline-block text-xs font-semibold text-emerald-700 hover:text-emerald-800"
@@ -208,6 +208,7 @@ import Badge from '@/components/common/Badge.vue'
 import Button from '@/components/common/Button.vue'
 import { api } from '@/utils/api'
 import { formatDate as formatDateUtil, formatDateTime as formatDateTimeUtil, formatDateRange as formatDateRangeUtil } from '@/utils/dateFormatter'
+import { safeHttpUrl } from '@/utils/safeUrl'
 import { useAuthStore } from '@/stores/auth.store'
 
 interface ParaleloItem {
