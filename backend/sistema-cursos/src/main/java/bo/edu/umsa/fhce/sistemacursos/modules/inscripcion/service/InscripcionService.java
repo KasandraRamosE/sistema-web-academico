@@ -214,8 +214,18 @@ public class InscripcionService {
             return;
         }
 
-        if (consulta.valorTotal() != null
-                && consulta.valorTotal().compareTo(pago.getMonto()) != 0) {
+        if (consulta.valorTotal() == null) {
+            // No se puede verificar el monto pagado (Libélula no devolvió
+            // valor_total en esta respuesta) — no aprobar en automático para
+            // no quedar dependiendo únicamente del booleano "pagado". Requiere
+            // confirmación manual de un administrador (ver confirmarPago()).
+            log.warn("Libélula no devolvió valor_total al consultar la deuda {} — "
+                + "pago {} NO se confirma automáticamente, requiere revisión manual",
+                pago.getIdentificadorDeuda(), pago.getIdPago());
+            return;
+        }
+
+        if (consulta.valorTotal().compareTo(pago.getMonto()) != 0) {
             log.error("Monto pagado ({}) no coincide con el monto esperado ({}) — pago {} NO se confirma",
                 consulta.valorTotal(), pago.getMonto(), pago.getIdPago());
             return;
