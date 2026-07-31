@@ -158,6 +158,7 @@ public class CursoService {
     @Transactional
     public CursoDto cambiarEstado(Long idCurso, String estado) {
         Curso curso = buscarCurso(idCurso);
+        verificarAccesoCarrera(getUsuarioActual(), curso.getCarrera());
         try {
             curso.setEstado(Curso.EstadoCurso.valueOf(estado));
         } catch (IllegalArgumentException e) {

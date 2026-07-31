@@ -236,6 +236,14 @@ public class EvaluacionService {
     // ── Ver historial de cambios de una evaluación ───────────────────────────
     @Transactional(readOnly = true)
     public List<Historial> historialDeEvaluacion(Long idEvaluacion) {
+        EvaluacionEstudiante evaluacion = evaluacionRepository.findById(idEvaluacion)
+            .orElseThrow(() -> new ResourceNotFoundException("Evaluacion", idEvaluacion));
+
+        Curso curso = evaluacion.getInscripcion().getCurso();
+        if (curso != null) {
+            verificarAccesoCarrera(getUsuarioActual(), curso.getCarrera().getIdCarrera());
+        }
+
         return historialRepository
             .findByEvaluacion_IdEvaluacionOrderByFechaCambioDesc(idEvaluacion);
     }
@@ -291,18 +299,20 @@ public class EvaluacionService {
     // ── Ver solicitudes de emisión pendientes (coordinador) ──────────────────
     @Transactional(readOnly = true)
     public List<SolicitudEmisionDto> solicitudesPendientes() {
-        return solicitudRepository
-            .findByEstadoOrderByFechaSolicitudAsc(SolicitudEmision.EstadoSolicitud.PENDIENTE)
-            .stream()
+        Usuario actual = getUsuarioActual();
+        List<SolicitudEmision> solicitudes = solicitudRepository
+            .findByEstadoOrderByFechaSolicitudAsc(SolicitudEmision.EstadoSolicitud.PENDIENTE);
+        return filtrarPorCarreraSiCoordinador(actual, solicitudes).stream()
             .map(this::toSolicitudDto)
             .toList();
     }
 
     @Transactional(readOnly = true)
     public List<SolicitudEmisionDto> solicitudesTodas() {
-        return solicitudRepository
-            .findAllByOrderByFechaSolicitudDesc()
-            .stream()
+        Usuario actual = getUsuarioActual();
+        List<SolicitudEmision> solicitudes = solicitudRepository
+            .findAllByOrderByFechaSolicitudDesc();
+        return filtrarPorCarreraSiCoordinador(actual, solicitudes).stream()
             .map(this::toSolicitudDto)
             .toList();
     }
@@ -315,6 +325,7 @@ public class EvaluacionService {
                 "SolicitudEmision", idSolicitud));
 
         Usuario coordinador = getUsuarioActual();
+        verificarAccesoCarrera(coordinador, carreraDeSolicitud(solicitud));
 
         try {
             solicitud.setEstado(SolicitudEmision.EstadoSolicitud.valueOf(nuevoEstado));
@@ -343,6 +354,7 @@ public class EvaluacionService {
         Evento evento = eventoRepository.findById(idEvento)
             .orElseThrow(() -> new ResourceNotFoundException("Evento", idEvento));
         Usuario coordinador = getUsuarioActual();
+        verificarAccesoCarrera(coordinador, evento.getCarrera().getIdCarrera());
 
         boolean existePendiente = solicitudRepository
             .existsByEvento_IdEventoAndEstado(
@@ -394,7 +406,25 @@ public class EvaluacionService {
     }
 
     private void verificarDocenteDelParalelo(Usuario docente, Inscripcion inscripcion) {
-        if (inscripcion.getCodigoParalelo() == null) return;
+        // Admin puede registrar notas en cualquier paralelo
+        boolean esAdmin = docente.getRoles().stream()
+            .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
+        if (esAdmin) return;
+
+        if (inscripcion.getCodigoParalelo() == null) {
+            // Sin paralelo asignado: exigir que el docente esté vinculado a
+            // ALGÚN paralelo de este curso (mismo criterio que
+            // InscripcionService.verificarAccesoCurso), para no dejar la
+            // calificación abierta a cualquier usuario con rol DOCENTE.
+            boolean esDocenteDelCurso = inscripcion.getCurso().getParalelos().stream()
+                .anyMatch(p -> p.getDocente() != null
+                    && p.getDocente().getIdUsuario().equals(docente.getIdUsuario()));
+            if (!esDocenteDelCurso) {
+                throw new BusinessException(
+                    "No estás asignado como docente de este curso", 403);
+            }
+            return;
+        }
 
         ParaleloId pk = new ParaleloId(
             inscripcion.getCurso().getIdCurso(),
@@ -404,14 +434,8 @@ public class EvaluacionService {
         paraleloRepository.findById(pk).ifPresent(paralelo -> {
             if (paralelo.getDocente() == null ||
                     !paralelo.getDocente().getIdUsuario().equals(docente.getIdUsuario())) {
-
-                // Admin puede registrar notas en cualquier paralelo
-                boolean esAdmin = docente.getRoles().stream()
-                    .anyMatch(r -> r.getNombre().equals("ADMINISTRADOR"));
-                if (!esAdmin) {
-                    throw new BusinessException(
-                        "No estás asignado como docente de este paralelo", 403);
-                }
+                throw new BusinessException(
+                    "No estás asignado como docente de este paralelo", 403);
             }
         });
     }
@@ -448,6 +472,49 @@ public class EvaluacionService {
     private boolean tieneRol(Usuario usuario, String rol) {
         return usuario.getRoles().stream()
             .anyMatch(r -> normalizeRolName(r.getNombre()).equals(rol));
+    }
+
+    // Verifica que el usuario pueda gestionar la carrera dada.
+    // Admin puede todo — coordinador solo su(s) carrera(s) asignada(s).
+    private void verificarAccesoCarrera(Usuario usuario, Long idCarrera) {
+        if (tieneRol(usuario, "ADMINISTRADOR")) return;
+
+        if (tieneRol(usuario, "COORDINADOR") && idCarrera != null
+                && coordinadorCarreraRepository.existsByCoordinador_IdUsuarioAndCarrera_IdCarrera(
+                    usuario.getIdUsuario(), idCarrera)) {
+            return;
+        }
+
+        throw new BusinessException("No tienes permisos para gestionar esta carrera", 403);
+    }
+
+    private List<Long> carrerasAsignadas(Usuario usuario) {
+        return coordinadorCarreraRepository.findByIdCoordinador(usuario.getIdUsuario())
+            .stream()
+            .map(cc -> cc.getCarrera().getIdCarrera())
+            .toList();
+    }
+
+    private Long carreraDeSolicitud(SolicitudEmision solicitud) {
+        if (solicitud.getCurso() != null) {
+            return solicitud.getCurso().getCarrera().getIdCarrera();
+        }
+        if (solicitud.getEvento() != null) {
+            return solicitud.getEvento().getCarrera().getIdCarrera();
+        }
+        return null;
+    }
+
+    // Un ADMINISTRADOR ve todo; un COORDINADOR solo las solicitudes de las
+    // carreras que administra.
+    private List<SolicitudEmision> filtrarPorCarreraSiCoordinador(
+            Usuario usuario, List<SolicitudEmision> solicitudes) {
+        if (tieneRol(usuario, "ADMINISTRADOR")) return solicitudes;
+
+        List<Long> carreras = carrerasAsignadas(usuario);
+        return solicitudes.stream()
+            .filter(s -> carreras.contains(carreraDeSolicitud(s)))
+            .toList();
     }
 
     private String normalizeRolName(String nombreRol) {

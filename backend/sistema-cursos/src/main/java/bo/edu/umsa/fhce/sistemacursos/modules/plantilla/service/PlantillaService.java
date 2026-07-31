@@ -491,6 +491,7 @@ public class PlantillaService {
 
         boolean esCoordinador = tieneRol(actual, "COORDINADOR");
         if (esCoordinador) {
+            validarCoordinadorDeActividad(actual, plantilla);
             return;
         }
 
@@ -515,6 +516,7 @@ public class PlantillaService {
 
         boolean esCoordinador = tieneRol(actual, "COORDINADOR");
         if (esCoordinador) {
+            validarCoordinadorDeActividad(actual, plantilla);
             return;
         }
 

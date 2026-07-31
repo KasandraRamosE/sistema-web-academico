@@ -166,6 +166,7 @@ public class EventoService {
     @Transactional
     public EventoDto cambiarEstado(Long idEvento, String estado) {
         Evento evento = buscarEvento(idEvento);
+        verificarAccesoCarrera(getUsuarioActual(), evento.getCarrera());
         try {
             evento.setEstado(Evento.EstadoEvento.valueOf(estado));
         } catch (IllegalArgumentException e) {
