@@ -28,8 +28,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
-// AuthController.java — versión completa
-
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -108,7 +106,6 @@ public class AuthController {
     @PostMapping("/registro")
     @Operation(summary = "Registro de usuario externo")
     public ResponseEntity<MensajeResponse> registrar(@Valid @RequestBody RegistroRequest request) {
-        // 201 Created para creación de recursos
         return ResponseEntity.status(201).body(authService.registrar(request));
     }
 

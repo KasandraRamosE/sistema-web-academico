@@ -282,11 +282,6 @@ public class AuthService {
             throw new BusinessException(CREDENCIALES_INVALIDAS_MSG, 401);
         }
 
-        // La cuenta puede haber sido desactivada localmente por un admin
-        // (PATCH /usuarios/{id}/estado) por una razón ajena a UMSA (medida
-        // disciplinaria, egreso, etc.). Si se permite continuar, sincronizarUsuarioUmsa
-        // reactivaría la cuenta solo porque UMSA sigue autenticando al usuario,
-        // anulando esa decisión administrativa sin que nadie lo note.
         if (usuario != null && usuario.getEstado() == Usuario.EstadoUsuario.INACTIVO) {
             throw new BusinessException("La cuenta está inactiva", 403);
         }
@@ -298,11 +293,6 @@ public class AuthService {
     }
 
     // ── Bloqueo de cuenta por intentos fallidos ──────────────────────────────
-    // Para RUs UMSA que todavía no tienen fila Usuario local (nunca
-    // iniciaron sesión antes), no hay dónde persistir el contador — se
-    // trackea en memoria por username para que el bloqueo aplique igual.
-    // Se pierde al reiniciar la app, pero cierra el hueco de fuerza bruta
-    // ilimitada contra RUs institucionales aún no sincronizados.
     private final ConcurrentHashMap<String, IntentosNoSincronizado>
         intentosPorUsernameNoSincronizado = new ConcurrentHashMap<>();
 
@@ -407,9 +397,6 @@ public class AuthService {
         usuario.setApellidos(result.getApellidos());
         usuario.setEmail(email);
         usuario.setEmailVerificado(true);
-        // No se fuerza estado=ACTIVO aquí: loginUmsa ya rechaza el login antes
-        // de llegar a este punto si la cuenta está INACTIVO (ver comentario
-        // en loginUmsa), así que si llegamos hasta acá ya estaba ACTIVO.
 
         if (usuario.getRoles().stream().noneMatch(r -> "PARTICIPANTE".equals(r.getNombre()))) {
             Rol rolParticipante = rolRepository.findByNombre("PARTICIPANTE")

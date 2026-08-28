@@ -215,10 +215,6 @@ public class InscripcionService {
         }
 
         if (consulta.valorTotal() == null) {
-            // No se puede verificar el monto pagado (Libélula no devolvió
-            // valor_total en esta respuesta) — no aprobar en automático para
-            // no quedar dependiendo únicamente del booleano "pagado". Requiere
-            // confirmación manual de un administrador (ver confirmarPago()).
             log.warn("Libélula no devolvió valor_total al consultar la deuda {} — "
                 + "pago {} NO se confirma automáticamente, requiere revisión manual",
                 pago.getIdentificadorDeuda(), pago.getIdPago());

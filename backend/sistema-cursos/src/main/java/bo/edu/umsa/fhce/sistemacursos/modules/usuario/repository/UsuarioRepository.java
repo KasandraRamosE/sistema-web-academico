@@ -53,13 +53,16 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
         @Param("asignadoPor") Long asignadoPor
     );
 
-    // UPDATE atómico: evita lost updates cuando llegan intentos de login
-    // fallidos concurrentes para el mismo usuario (ver LoginAttemptService).
     @Modifying(clearAutomatically = true)
-    @Query("UPDATE Usuario u SET u.intentosFallidos = u.intentosFallidos + 1 WHERE u.idUsuario = :idUsuario")
-    void incrementarIntentosFallidos(@Param("idUsuario") Long idUsuario);
-
-    @Modifying(clearAutomatically = true)
-    @Query("UPDATE Usuario u SET u.bloqueadoHasta = :bloqueadoHasta WHERE u.idUsuario = :idUsuario")
-    void bloquearHasta(@Param("idUsuario") Long idUsuario, @Param("bloqueadoHasta") LocalDateTime bloqueadoHasta);
+    @Query("""
+        UPDATE Usuario u
+        SET u.intentosFallidos = u.intentosFallidos + 1,
+            u.bloqueadoHasta = CASE WHEN u.intentosFallidos + 1 >= :maxIntentosFallidos
+                THEN :bloqueadoHasta ELSE u.bloqueadoHasta END
+        WHERE u.idUsuario = :idUsuario
+        """)
+    void incrementarIntentosFallidos(
+        @Param("idUsuario") Long idUsuario,
+        @Param("maxIntentosFallidos") int maxIntentosFallidos,
+        @Param("bloqueadoHasta") LocalDateTime bloqueadoHasta);
 }

@@ -85,9 +85,6 @@ public class GlobalExceptionHandler {
             .body(buildError(400, "Validation Failed", "Error en los datos enviados"));
     }
 
-    // ── 409: violación de restricción única/FK a nivel de BD (ej. condición
-    // de carrera entre el chequeo existsBy... y el save) — sin este handler
-    // caía en el catch-all de abajo devolviendo 500 en vez de 409.
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
         return ResponseEntity

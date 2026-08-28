@@ -412,10 +412,6 @@ public class EvaluacionService {
         if (esAdmin) return;
 
         if (inscripcion.getCodigoParalelo() == null) {
-            // Sin paralelo asignado: exigir que el docente esté vinculado a
-            // ALGÚN paralelo de este curso (mismo criterio que
-            // InscripcionService.verificarAccesoCurso), para no dejar la
-            // calificación abierta a cualquier usuario con rol DOCENTE.
             boolean esDocenteDelCurso = inscripcion.getCurso().getParalelos().stream()
                 .anyMatch(p -> p.getDocente() != null
                     && p.getDocente().getIdUsuario().equals(docente.getIdUsuario()));
@@ -474,8 +470,6 @@ public class EvaluacionService {
             .anyMatch(r -> normalizeRolName(r.getNombre()).equals(rol));
     }
 
-    // Verifica que el usuario pueda gestionar la carrera dada.
-    // Admin puede todo — coordinador solo su(s) carrera(s) asignada(s).
     private void verificarAccesoCarrera(Usuario usuario, Long idCarrera) {
         if (tieneRol(usuario, "ADMINISTRADOR")) return;
 
@@ -505,8 +499,6 @@ public class EvaluacionService {
         return null;
     }
 
-    // Un ADMINISTRADOR ve todo; un COORDINADOR solo las solicitudes de las
-    // carreras que administra.
     private List<SolicitudEmision> filtrarPorCarreraSiCoordinador(
             Usuario usuario, List<SolicitudEmision> solicitudes) {
         if (tieneRol(usuario, "ADMINISTRADOR")) return solicitudes;

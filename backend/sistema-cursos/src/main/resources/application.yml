@@ -50,12 +50,7 @@ app:
     # En prod se sobreescribe con ALLOWED_ORIGINS (ver application-prod.yml).
     allowed-origins: "http://localhost:5173,http://localhost:4173"
   jwt:
-    # Se puede sobreescribir con la variable de entorno JWT_SECRET sin
-    # necesidad de activar el perfil "prod" — red de seguridad por si un
-    # despliegue real omite -Dspring.profiles.active=prod: si al menos se
-    # configuró JWT_SECRET, no queda firmando tokens con el secreto de dev
-    # (público, committeado al repo). Debe tener al menos 256 bits
-    # (32 caracteres) para HS256.
+    # Debe tener al menos 256 bits (32 caracteres) para HS256
     secret: ${JWT_SECRET:fhce-umsa-sistema-cursos-jwt-secret-key-2025-segura}
     # Tiempo de expiración del token: 24 horas en milisegundos
     expiration-ms: 86400000
