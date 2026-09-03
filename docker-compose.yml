@@ -1,15 +1,3 @@
-# ============================================================
-# docker-compose.yml — Sistema Cursos FHCE
-# Ubicación: sistema-cursos-fhce/docker-compose.yml
-# Levanta: MySQL + Spring Boot + Vue/Nginx
-#
-# Uso:
-#   Levantar:  docker compose up -d --build
-#   Detener:   docker compose down
-#   Logs:      docker compose logs -f
-#   Solo BD:   docker compose up -d mysql
-# ============================================================
-
 services:
 
   # ─────────────────────────────────────────
@@ -24,12 +12,9 @@ services:
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
-      # Solo expuesto en localhost para que no sea accesible desde internet
       - "127.0.0.1:3307:3306"
     volumes:
-      # Persistencia de datos — sobrevive a reinicios y recreaciones del contenedor
       - mysql_data:/var/lib/mysql
-      # Script SQL inicial — solo se ejecuta si la BD está vacía (primera vez)
       - ./db/init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     command:
       - --character-set-server=utf8mb4
@@ -53,38 +38,28 @@ services:
       dockerfile: Dockerfile
     container_name: fhce_backend
     environment:
-      # Variables que lee application-prod.yml con ${...}
       DB_URL: jdbc:mysql://mysql:3306/sistema_cursos_fhce?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/La_Paz
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
-      # true solo cuando el servidor tenga HTTPS configurado (ver nota en
-      # application-prod.yml) — hasta entonces, dejar sin definir.
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       # Email
       SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
       SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
-      # URL base para links en emails (dominio o IP del servidor)
       APP_BASE_URL: ${APP_BASE_URL}
-      # Dominio(s) del frontend permitidos por CORS, separados por coma.
-      # Sin valor por defecto a propósito — configurar antes de desplegar.
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
-      # Pasarela de pagos Libélula — vacíos hasta recibir el appkey real.
-      # LIBELULA_CALLBACK_BASE_URL debe ser la URL pública del backend
-      # (ej. https://cursos.fhce.umsa.bo/api) para que Libélula pueda avisar pagos.
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}     
       LIBELULA_APPKEY: ${LIBELULA_APPKEY:-}
       LIBELULA_CALLBACK_BASE_URL: ${LIBELULA_CALLBACK_BASE_URL:-}
+      MOCK_LIBELULA_PAGO: ${MOCK_LIBELULA_PAGO:-false}
     volumes:
-      # Certificados y uploads persisten fuera del contenedor
       - ./data/certificados:/app/certificados
       - ./data/uploads:/app/uploads
     depends_on:
       mysql:
-        condition: service_healthy   # espera a que MySQL esté listo
+        condition: service_healthy  
     networks:
       - fhce_network
     restart: unless-stopped
-    # No exponemos el puerto al exterior — Nginx es el único que habla con él
 
   # ─────────────────────────────────────────
   # 3. FRONTEND — Vue 3 + Nginx
@@ -94,11 +69,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Con el proxy de Nginx, /api es suficiente (relativo al mismo servidor)
         VITE_API_BASE_URL: /api
     container_name: fhce_frontend
     ports:
-      # Puerto 80 expuesto al mundo — punto de entrada único
       - "80:80"
     depends_on:
       - backend

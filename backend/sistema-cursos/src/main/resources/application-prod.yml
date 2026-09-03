@@ -1,10 +1,3 @@
-# ============================================================
-# application-prod.yml
-# Ubicación: backend/sistema-cursos/src/main/resources/
-# Se activa con: -Dspring.profiles.active=prod
-# Todos los valores sensibles vienen de variables de entorno
-# ============================================================
-
 spring:
   datasource:
     url: ${DB_URL}
@@ -37,23 +30,12 @@ spring:
 
 app:
   cors:
-    # SIN default a propósito: si no se configura ALLOWED_ORIGINS, el
-    # backend arranca igual pero rechaza todo request cross-origin (falla
-    # cerrado). Configurar con el dominio real una vez desplegado, ej.:
-    # ALLOWED_ORIGINS=https://cursos.fhce.umsa.bo
     allowed-origins: ${ALLOWED_ORIGINS:}
   jwt:
     secret: ${JWT_SECRET}
-    # false por defecto a propósito: hoy se sirve por HTTP plano (sin TLS).
-    # Cuando se agregue HTTPS, poner COOKIE_SECURE=true — si no, el navegador
-    # jamás va a mandar la cookie sobre HTTP y el login/refresh fallaría.
     cookie-secure: ${COOKIE_SECURE:false}
   mocks:
-    # Sin acceso real a la API de UMSA todavía: en lugar del mock (que acepta
-    # cualquier RU con "test123"), se usa DisabledUmsaAuthClient, que responde
-    # "servicio no disponible" de forma limpia. Cuando llegue el acceso real,
-    # se agrega un UmsaAuthClient real (mismo patrón que RealLibelulaClient)
-    # y esta bandera deja de ser necesaria.
+    libelula-pago: ${MOCK_LIBELULA_PAGO:false}    
     umsa-auth: false
   email:
     base-url: ${APP_BASE_URL}
@@ -71,7 +53,6 @@ app:
     directorio: /app/certificados
   archivos:
     directorio: /app/uploads
-  # La ruta del logo ahora es relativa — no más rutas de Windows
   reportes:
     logo: /app/uploads/logo.jpg
 

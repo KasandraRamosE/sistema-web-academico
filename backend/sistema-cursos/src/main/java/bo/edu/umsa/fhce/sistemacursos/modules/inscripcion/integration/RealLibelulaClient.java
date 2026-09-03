@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -17,13 +17,8 @@ import bo.edu.umsa.fhce.sistemacursos.modules.inscripcion.integration.dto.Libelu
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
-// Implementación real de la pasarela Libélula, según
-// "GUÍA DE INTEGRACIÓN PARA EMPRESAS v2.145".
-// Se activa solo con el perfil "prod". Mientras UMSA/FHCE no reciba el
-// appkey de Libélula, cualquier intento de pago falla con un 503 claro
-// en vez de un error genérico o un pago fantasma.
 @Component
-@Profile("prod")
+@ConditionalOnProperty(name = "app.mocks.libelula-pago", havingValue = "false", matchIfMissing = true)
 @Slf4j
 public class RealLibelulaClient implements LibelulaClient {
 

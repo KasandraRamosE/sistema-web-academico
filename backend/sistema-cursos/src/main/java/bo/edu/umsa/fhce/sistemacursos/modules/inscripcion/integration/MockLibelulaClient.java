@@ -5,20 +5,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
 
-// Solo se activa con el perfil "dev"
-// En prod Spring inyecta RealLibelulaClient en su lugar
-//
-// Simula la plataforma de Libélula en memoria: "registrar" guarda el monto
-// esperado, y "consultar" siempre responde que esa deuda ya fue pagada por
-// el monto exacto. Así el flujo de callback + verificación se ejerce igual
-// que en producción — solo cambia quién responde a la consulta.
 @Component
-@Profile("dev")
+@ConditionalOnProperty(name = "app.mocks.libelula-pago", havingValue = "true")
 @Slf4j
 public class MockLibelulaClient implements LibelulaClient {
 
