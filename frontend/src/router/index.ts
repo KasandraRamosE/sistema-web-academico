@@ -250,6 +250,24 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'cursos',
+        name: 'admin-courses',
+        component: () => import('@/views/coordinator/Cursos.vue'),
+        meta: {
+          title: 'Gestión de Cursos',
+          breadcrumb: 'Cursos'
+        }
+      },
+      {
+        path: 'eventos',
+        name: 'admin-events',
+        component: () => import('@/views/coordinator/Eventos.vue'),
+        meta: {
+          title: 'Gestión de Eventos',
+          breadcrumb: 'Eventos'
+        }
+      },
+      {
         path: 'inscripciones',
         name: 'admin-enrollments',
         component: () => import('@/views/admin/Inscripciones.vue'),

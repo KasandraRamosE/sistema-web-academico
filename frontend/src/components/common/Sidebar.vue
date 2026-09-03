@@ -424,6 +424,8 @@ const navigationItems = computed((): NavItem[] => {
         { name: 'dashboard',     label: 'Dashboard',      shortLabel: 'Inicio',      path: '/admin',                icon: IconDashboard   },
         { name: 'users',         label: 'Usuarios',       shortLabel: 'Usuarios',    path: '/admin/usuarios',       icon: IconUsers       },
         { name: 'activities',    label: 'Actividades',    shortLabel: 'Act.',        path: '/admin/actividades',    icon: IconCalendar    },
+        { name: 'courses',       label: 'Cursos',         shortLabel: 'Cursos',      path: '/admin/cursos',         icon: IconBook        },
+        { name: 'events',        label: 'Eventos',        shortLabel: 'Eventos',     path: '/admin/eventos',        icon: IconCalendar    },
         { name: 'inscriptions',  label: 'Inscripciones',  shortLabel: 'Inscrip.',    path: '/admin/inscripciones',  icon: IconClipboard   },
         { name: 'grades',        label: 'Calificaciones', shortLabel: 'Notas',       path: '/admin/calificaciones', icon: IconCheckCircle },
         { name: 'attendance',    label: 'Asistencias',    shortLabel: 'Asist.',      path: '/admin/asistencias',    icon: IconCheckCircle },

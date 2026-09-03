@@ -437,6 +437,7 @@ import Modal from '@/components/common/Modal.vue'
 import { api, getAuthToken } from '@/utils/api'
 import { formatDate as formatDateUtil, parseLocalDate } from '@/utils/dateFormatter'
 import { useAlertStore } from '@/stores/alert.store'
+import { useAuthStore } from '@/stores/auth.store'
 
 interface CarreraDto {
   idCarrera: number
@@ -489,6 +490,7 @@ interface ParticipanteDto {
 }
 
 const alertStore = useAlertStore()
+const authStore = useAuthStore()
 const carreras = ref<CarreraDto[]>([])
 const selectedCarreraId = ref<number | null>(null)
 const cursos = ref<CursoDto[]>([])
@@ -603,7 +605,10 @@ const formatPersonaNombre = (persona: { nombres: string; apellidos: string }) =>
 }
 
 const loadCarreras = async () => {
-  const response = await api.get('/coordinador/carreras') as CarreraDto[]
+  const endpoint = authStore.hasRole('ADMINISTRADOR')
+    ? '/carreras/todas'
+    : '/coordinador/carreras'
+  const response = await api.get(endpoint) as CarreraDto[]
   carreras.value = response
   selectedCarreraId.value = response[0]?.idCarrera ?? null
 }
